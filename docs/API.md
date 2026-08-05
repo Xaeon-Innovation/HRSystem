@@ -1,0 +1,90 @@
+# API Contract (`/v1`)
+
+Base URL: `http://localhost:4000`
+
+Auth: `Authorization: Bearer <accessToken>`  
+JWT claims: `sub`, `role`, `tenantId`, `employeeId`
+
+## Auth
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/v1/auth/login` | `{ email, password, tenantSlug? }` |
+| POST | `/v1/auth/refresh` | `{ refreshToken }` |
+| GET | `/v1/auth/me` | Current user |
+
+## Tenants (super_admin)
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/tenants` |
+| POST | `/v1/tenants` |
+| PATCH | `/v1/tenants/:id` |
+| DELETE | `/v1/tenants/:id` (soft delete) |
+
+## Employees (tenant scoped)
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/employees` |
+| POST | `/v1/employees` |
+| POST | `/v1/employees/import` |
+| GET | `/v1/employees/:id` |
+| PATCH | `/v1/employees/:id` |
+
+## Attendance
+
+| Method | Path |
+|--------|------|
+| POST | `/v1/attendance/clock-in` |
+| POST | `/v1/attendance/clock-out` |
+| GET | `/v1/attendance/status` |
+| GET | `/v1/attendance/history` |
+| GET | `/v1/attendance/open` |
+| PATCH | `/v1/attendance/:id/correct` |
+
+## Live map
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/admin/live-map` | REST fallback |
+| GET | `/v1/admin/dashboard` | Aggregates |
+| GET | `/v1/admin/health-metrics` | Health counters |
+
+## KPIs
+
+| Method | Path |
+|--------|------|
+| GET/POST | `/v1/kpis` |
+| POST | `/v1/kpis/:id/clone` |
+| POST | `/v1/kpis/assign` |
+| POST | `/v1/kpis/scores` |
+| GET | `/v1/kpis/summary` |
+
+## Notifications
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/notifications` |
+| POST | `/v1/notifications/:id/read` |
+| POST | `/v1/notifications/read-all` |
+| POST | `/v1/notifications/announce` |
+| POST | `/v1/notifications/push-subscribe` |
+
+## WebSocket `GET /ws?token=...`
+
+Client → server:
+
+```json
+{ "type": "location.ping", "payload": { "lat": 30.04, "lng": 31.23, "recordedAt": "...", "clientPingId": "..." } }
+{ "type": "subscribe.map" }
+{ "type": "ping" }
+```
+
+Server → admin map room `tenant:{id}:map`:
+
+```json
+{ "type": "location.update", "payload": { "employeeId": "...", "lat": 0, "lng": 0, "updatedAt": "...", "isClockedIn": true } }
+```
+
+All queries and WS rooms are scoped by `tenant_id`. Cross-tenant leakage is a release blocker.

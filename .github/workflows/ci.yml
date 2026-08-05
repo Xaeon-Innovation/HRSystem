@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: hr
+          POSTGRES_PASSWORD: hr
+          POSTGRES_DB: hr_system
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hr -d hr_system"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://hr:hr@localhost:5432/hr_system
+      JWT_SECRET: ci-jwt-secret-change-me-please-32chars
+      JWT_REFRESH_SECRET: ci-refresh-secret-change-me-32chars
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_WS_URL: ws://localhost:4000/ws
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install
+      - run: pnpm --filter @hr/shared build
+      - run: pnpm --filter @hr/db generate
+      - run: pnpm --filter @hr/db migrate
+      - run: pnpm --filter @hr/db seed
+      - run: pnpm --filter @hr/db build
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm --filter @hr/api build
+      - run: pnpm --filter @hr/web build
