@@ -104,16 +104,18 @@ export async function registerWs(app: FastifyInstance) {
               },
             });
 
-          broadcastToTenant(user.tenantId, {
-            type: "location.update",
-            payload: {
-              employeeId: user.employeeId,
-              lat: parsed.data.lat,
-              lng: parsed.data.lng,
-              updatedAt: recordedAt.toISOString(),
-              isClockedIn: true,
-            },
-          });
+          if (user.role === "employee") {
+            broadcastToTenant(user.tenantId, {
+              type: "location.update",
+              payload: {
+                employeeId: user.employeeId,
+                lat: parsed.data.lat,
+                lng: parsed.data.lng,
+                updatedAt: recordedAt.toISOString(),
+                isClockedIn: true,
+              },
+            });
+          }
 
           socket.send(JSON.stringify({ type: "location.ack" }));
         }

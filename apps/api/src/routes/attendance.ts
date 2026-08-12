@@ -5,6 +5,7 @@ import {
   attendanceRecords,
   employeeLiveLocations,
   employees,
+  locationPings,
 } from "@hr/db";
 import { clockEventSchema, correctAttendanceSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
@@ -14,6 +15,7 @@ import {
   tenantIdOf,
 } from "../types.js";
 import { createNotification } from "../services/notifications.js";
+import { broadcastToTenant } from "../ws-hub.js";
 
 export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
@@ -84,6 +86,28 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
         },
       });
 
+    await app.db.insert(locationPings).values({
+      tenantId,
+      employeeId: user.employeeId,
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+      recordedAt: now,
+      clientPingId: parsed.data.clientEventId ?? null,
+    });
+
+    if (user.role === "employee") {
+      broadcastToTenant(tenantId, {
+        type: "location.update",
+        payload: {
+          employeeId: user.employeeId,
+          lat: parsed.data.lat,
+          lng: parsed.data.lng,
+          updatedAt: now.toISOString(),
+          isClockedIn: true,
+        },
+      });
+    }
+
     await createNotification(app, {
       tenantId,
       userId: user.sub,
@@ -136,13 +160,40 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
 
     await app.db
       .update(employeeLiveLocations)
-      .set({ isClockedIn: false, updatedAt: now })
+      .set({
+        isClockedIn: false,
+        lat: parsed.data.lat,
+        lng: parsed.data.lng,
+        updatedAt: now,
+      })
       .where(
         and(
           eq(employeeLiveLocations.employeeId, user.employeeId),
           eq(employeeLiveLocations.tenantId, tenantId),
         ),
       );
+
+    await app.db.insert(locationPings).values({
+      tenantId,
+      employeeId: user.employeeId,
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+      recordedAt: now,
+      clientPingId: parsed.data.clientEventId ?? null,
+    });
+
+    if (user.role === "employee") {
+      broadcastToTenant(tenantId, {
+        type: "location.update",
+        payload: {
+          employeeId: user.employeeId,
+          lat: parsed.data.lat,
+          lng: parsed.data.lng,
+          updatedAt: now.toISOString(),
+          isClockedIn: false,
+        },
+      });
+    }
 
     await createNotification(app, {
       tenantId,

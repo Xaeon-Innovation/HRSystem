@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import {
   attendanceRecords,
+  employeeLiveLocations,
   employees,
   healthMetrics,
   locationPings,
@@ -73,6 +74,17 @@ export function startJobs(app: FastifyInstance) {
                 eq(attendanceRecords.tenantId, tenant.id),
               ),
             );
+
+          await app.db
+            .update(employeeLiveLocations)
+            .set({ isClockedIn: false, updatedAt: new Date() })
+            .where(
+              and(
+                eq(employeeLiveLocations.employeeId, rec.employeeId),
+                eq(employeeLiveLocations.tenantId, tenant.id),
+              ),
+            );
+
           await app.db.insert(healthMetrics).values({
             tenantId: tenant.id,
             metric: "missed_clock_out",

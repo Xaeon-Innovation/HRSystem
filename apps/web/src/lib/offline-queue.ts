@@ -45,7 +45,7 @@ export async function flushClockQueue(
 export function getPosition(): Promise<{ lat: number; lng: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      resolve({ lat: 30.0444, lng: 31.2357 });
+      reject(new Error("Location is unavailable on this device"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -54,7 +54,17 @@ export function getPosition(): Promise<{ lat: number; lng: number }> {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
         }),
-      () => resolve({ lat: 30.0444, lng: 31.2357 }),
+      (err) => {
+        if (err.code === err.PERMISSION_DENIED) {
+          reject(
+            new Error(
+              "Location permission denied. Allow location access to clock in or out.",
+            ),
+          );
+          return;
+        }
+        reject(new Error("Could not read your location. Check GPS and try again."));
+      },
       { enableHighAccuracy: true, timeout: 8000 },
     );
   });

@@ -45,9 +45,11 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 
 ## Live map
 
-| Method | Path |
-|--------|------|
-| GET | `/v1/admin/live-map` | REST fallback |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/admin/live-map` | REST fallback. Field `employee` role only. Query: `presence=on_shift\|last_seen\|all` (default `all`), optional `q`, `status` |
+| GET | `/v1/admin/location-history` | `employeeId`, `from`, `to` (ISO). Max range 24h. Returns retained pings |
+| GET | `/v1/admin/location-sessions` | `employeeId`, `date=YYYY-MM-DD`. Attendance intervals for History presets |
 | GET | `/v1/admin/dashboard` | Aggregates |
 | GET | `/v1/admin/health-metrics` | Health counters |
 
@@ -85,6 +87,32 @@ Server → admin map room `tenant:{id}:map`:
 
 ```json
 { "type": "location.update", "payload": { "employeeId": "...", "lat": 0, "lng": 0, "updatedAt": "...", "isClockedIn": true } }
+{ "type": "location.update", "payload": { "employeeId": "...", "lat": 0, "lng": 0, "updatedAt": "...", "isClockedIn": false } }
+```
+
+`isClockedIn: false` means last-seen / clocked-out; keep the pin, do not remove it. Clock-in and clock-out also insert into `location_pings` and broadcast the same event.
+
+### Location history response
+
+```json
+{
+  "employee": { "id": "...", "name": "Ahmed", "jobTitle": "Coordinator" },
+  "from": "...",
+  "to": "...",
+  "points": [{ "lat": 0, "lng": 0, "recordedAt": "..." }],
+  "pointCount": 12,
+  "retentionDays": 60
+}
+```
+
+### Location sessions response
+
+```json
+{
+  "employeeId": "...",
+  "date": "2026-08-12",
+  "sessions": [{ "id": "...", "clockInAt": "...", "clockOutAt": "..." }]
+}
 ```
 
 All queries and WS rooms are scoped by `tenant_id`. Cross-tenant leakage is a release blocker.

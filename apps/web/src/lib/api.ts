@@ -13,11 +13,18 @@ const TOKEN_KEY = "hr_access_token";
 const REFRESH_KEY = "hr_refresh_token";
 const USER_KEY = "hr_user";
 
+/** Per-tab session so admin + employee can be tested side-by-side in two tabs. */
+function store() {
+  if (typeof window === "undefined") return null;
+  return window.sessionStorage;
+}
+
 export function getTokens() {
-  if (typeof window === "undefined") return { access: null, refresh: null };
+  const s = store();
+  if (!s) return { access: null, refresh: null };
   return {
-    access: localStorage.getItem(TOKEN_KEY),
-    refresh: localStorage.getItem(REFRESH_KEY),
+    access: s.getItem(TOKEN_KEY),
+    refresh: s.getItem(REFRESH_KEY),
   };
 }
 
@@ -26,20 +33,25 @@ export function setSession(
   refreshToken: string,
   user: AuthUser,
 ) {
-  localStorage.setItem(TOKEN_KEY, accessToken);
-  localStorage.setItem(REFRESH_KEY, refreshToken);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  const s = store();
+  if (!s) return;
+  s.setItem(TOKEN_KEY, accessToken);
+  s.setItem(REFRESH_KEY, refreshToken);
+  s.setItem(USER_KEY, JSON.stringify(user));
 }
 
 export function clearSession() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
-  localStorage.removeItem(USER_KEY);
+  const s = store();
+  if (!s) return;
+  s.removeItem(TOKEN_KEY);
+  s.removeItem(REFRESH_KEY);
+  s.removeItem(USER_KEY);
 }
 
 export function getUser(): AuthUser | null {
-  if (typeof window === "undefined") return null;
-  const raw = localStorage.getItem(USER_KEY);
+  const s = store();
+  if (!s) return null;
+  const raw = s.getItem(USER_KEY);
   if (!raw) return null;
   try {
     return JSON.parse(raw) as AuthUser;

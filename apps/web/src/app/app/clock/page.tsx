@@ -9,18 +9,22 @@ import {
   flushClockQueue,
   getPosition,
 } from "@/lib/offline-queue";
-import { useLocationStream } from "@/hooks/use-location-stream";
+import { useClockStatus } from "@/components/clock-status-provider";
 
 export default function ClockPage() {
-  const [clockedIn, setClockedIn] = useState(false);
+  const {
+    clockedIn,
+    setClockedIn,
+    refreshStatus,
+    locationError,
+    setLocationError,
+  } = useClockStatus();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [queued, setQueued] = useState(0);
-  useLocationStream(clockedIn);
 
   async function refresh() {
-    const status = await api<{ clockedIn: boolean }>("/v1/attendance/status");
-    setClockedIn(status.clockedIn);
+    await refreshStatus();
     const remaining = await flushClockQueue(async (item) => {
       const { access } = getTokens();
       if (!access) throw new Error("Not signed in");
@@ -49,6 +53,7 @@ export default function ClockPage() {
   async function toggle() {
     setBusy(true);
     setMessage(null);
+    setLocationError(null);
     try {
       const pos = await getPosition();
       const type = clockedIn ? "clock-out" : "clock-in";
@@ -76,25 +81,33 @@ export default function ClockPage() {
       setClockedIn(type === "clock-in");
       setMessage(type === "clock-in" ? "Clocked in" : "Clocked out");
     } catch (err) {
-      // Queue on network failure
-      try {
-        const pos = await getPosition().catch(() => ({ lat: 0, lng: 0 }));
-        const type = clockedIn ? "clock-out" : "clock-in";
-        await enqueueClockEvent({
-          type,
-          lat: pos.lat,
-          lng: pos.lng,
-          clientEventId: crypto.randomUUID(),
-          clientTimestamp: new Date().toISOString(),
-        });
-        setQueued((n) => n + 1);
-        setMessage(
-          err instanceof Error
-            ? `${err.message} — queued for retry`
-            : "Queued for retry",
-        );
-      } catch {
-        setMessage(err instanceof Error ? err.message : "Failed");
+      const errMsg = err instanceof Error ? err.message : "Failed";
+      // Only queue when we had a real position but network failed
+      if (
+        errMsg.includes("Location") ||
+        errMsg.includes("GPS") ||
+        errMsg.includes("permission")
+      ) {
+        setMessage(errMsg);
+        setLocationError(errMsg);
+      } else {
+        try {
+          const pos = await getPosition();
+          const type = clockedIn ? "clock-out" : "clock-in";
+          await enqueueClockEvent({
+            type,
+            lat: pos.lat,
+            lng: pos.lng,
+            clientEventId: crypto.randomUUID(),
+            clientTimestamp: new Date().toISOString(),
+          });
+          setQueued((n) => n + 1);
+          setMessage(`${errMsg} — queued for retry`);
+        } catch (geoErr) {
+          setMessage(
+            geoErr instanceof Error ? geoErr.message : errMsg,
+          );
+        }
       }
     } finally {
       setBusy(false);
@@ -127,6 +140,9 @@ export default function ClockPage() {
           </Button>
           {message ? (
             <p className="text-center text-sm text-muted-foreground">{message}</p>
+          ) : null}
+          {locationError ? (
+            <p className="text-center text-sm text-destructive">{locationError}</p>
           ) : null}
           {queued > 0 ? (
             <p className="text-xs text-amber-700">{queued} queued event(s)</p>

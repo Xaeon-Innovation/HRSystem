@@ -9,7 +9,8 @@
 ## Live locations
 
 - `employee_live_locations` holds only the latest position for map performance.
-- Streaming stops on clock-out; `is_clocked_in` is set false.
+- Streaming stops on clock-out; `is_clocked_in` is set false; the last coordinates remain as last-seen on the live map.
+- Clock-in and clock-out also write a `location_pings` row so History review includes shift boundaries.
 
 ## Multi-tenant isolation
 
