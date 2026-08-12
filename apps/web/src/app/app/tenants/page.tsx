@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,9 @@ type Tenant = {
   name: string;
   slug: string;
   status: string;
+  seatsUsed?: number;
+  plan?: { code: string; name: string; seatLimit: number | null } | null;
+  subscription?: { status: string } | null;
 };
 
 export default function TenantsPage() {
@@ -63,10 +67,22 @@ export default function TenantsPage() {
       <div className="space-y-2">
         {tenants.map((t) => (
           <Card key={t.id}>
-            <CardContent className="flex items-center justify-between py-3">
+            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div>
-                <p className="font-medium">{t.name}</p>
-                <p className="text-xs text-muted-foreground">{t.slug}</p>
+                <Link
+                  href={`/app/tenants/${t.id}`}
+                  className="font-medium hover:underline"
+                >
+                  {t.name}
+                </Link>
+                <p className="text-xs text-muted-foreground">
+                  {t.slug}
+                  {t.plan ? ` · ${t.plan.name}` : ""}
+                  {t.subscription ? ` · ${t.subscription.status}` : ""}
+                  {typeof t.seatsUsed === "number"
+                    ? ` · ${t.seatsUsed}${t.plan?.seatLimit != null ? `/${t.plan.seatLimit}` : ""} seats`
+                    : ""}
+                </p>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs uppercase">{t.status}</span>
@@ -83,7 +99,7 @@ export default function TenantsPage() {
                   >
                     Suspend
                   </Button>
-                ) : (
+                ) : t.status !== "deleted" ? (
                   <Button
                     size="sm"
                     variant="outline"
@@ -96,7 +112,18 @@ export default function TenantsPage() {
                   >
                     Activate
                   </Button>
-                )}
+                ) : null}
+                {t.status !== "deleted" ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      api(`/v1/tenants/${t.id}`, { method: "DELETE" }).then(load)
+                    }
+                  >
+                    Soft delete
+                  </Button>
+                ) : null}
               </div>
             </CardContent>
           </Card>

@@ -3,8 +3,10 @@ import {
   EMPLOYEE_STATUSES,
   KPI_TYPES,
   NOTIFICATION_TYPES,
+  PAYMOB_INTERVAL_DAYS,
   REVIEW_PERIODS,
   ROLES,
+  SUBSCRIPTION_STATUSES,
   TENANT_STATUSES,
 } from "./constants.js";
 
@@ -121,9 +123,66 @@ export const jwtPayloadSchema = z.object({
   employeeId: z.string().uuid().nullable().optional(),
 });
 
+export const createPlanSchema = z.object({
+  code: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9_]+$/, "Code must be lowercase alphanumeric with underscores"),
+  name: z.string().min(2).max(120),
+  description: z.string().max(1000).optional().nullable(),
+  amountCents: z.number().int().min(0),
+  currency: z.string().length(3).default("USD"),
+  intervalDays: z.number().int().refine(
+    (v) => (PAYMOB_INTERVAL_DAYS as readonly number[]).includes(v),
+    { message: "Invalid Paymob interval" },
+  ),
+  seatLimit: z.number().int().positive().nullable().optional(),
+  active: z.boolean().optional().default(true),
+  features: z.record(z.union([z.boolean(), z.number(), z.string()])).optional(),
+  syncPaymob: z.boolean().optional(),
+});
+
+export const updatePlanSchema = createPlanSchema.partial().omit({ code: true });
+
+export const billingCheckoutSchema = z.object({
+  planId: z.string().uuid(),
+  billingData: z
+    .object({
+      firstName: z.string().min(1).max(100).optional(),
+      lastName: z.string().min(1).max(100).optional(),
+      email: z.string().email().optional(),
+      phone: z.string().max(40).optional(),
+      country: z.string().max(60).optional(),
+    })
+    .optional(),
+});
+
+export const updateSubscriptionSchema = z.object({
+  status: z.enum(SUBSCRIPTION_STATUSES).optional(),
+  planId: z.string().uuid().optional(),
+  cancelAtPeriodEnd: z.boolean().optional(),
+  currentPeriodEnd: z.string().datetime().optional().nullable(),
+  trialEndsAt: z.string().datetime().optional().nullable(),
+});
+
+export const auditQuerySchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  actorUserId: z.string().uuid().optional(),
+  action: z.string().min(1).max(120).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type ClockEventInput = z.infer<typeof clockEventSchema>;
 export type JwtPayload = z.infer<typeof jwtPayloadSchema>;
 export type NotificationTypeInput = (typeof NOTIFICATION_TYPES)[number];
+export type CreatePlanInput = z.infer<typeof createPlanSchema>;
+export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
+export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
+export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;

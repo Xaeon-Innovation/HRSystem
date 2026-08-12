@@ -9,6 +9,7 @@ import {
 } from "@hr/db";
 import { clockEventSchema, correctAttendanceSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
 import {
   requireRoles,
   requireTenantScope,
@@ -300,6 +301,16 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
         before,
         after,
         note: parsed.data.note,
+      });
+
+      await writeAudit(app, {
+        actor: user,
+        action: "attendance.correct",
+        tenantId,
+        resourceType: "attendance",
+        resourceId: id,
+        metadata: { before, after, note: parsed.data.note },
+        request,
       });
 
       return { attendance: updated };

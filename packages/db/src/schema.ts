@@ -45,6 +45,14 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "announcement",
 ]);
 
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "expired",
+]);
+
 export type TenantSettings = {
   brandingName?: string;
   logoUrl?: string | null;
@@ -53,6 +61,8 @@ export type TenantSettings = {
   locationRetentionDays?: number;
   missedClockOutHours?: number;
 };
+
+export type PlanFeatures = Record<string, boolean | number | string>;
 
 export const tenants = pgTable(
   "tenants",
@@ -361,4 +371,121 @@ export const healthMetrics = pgTable(
       .defaultNow(),
   },
   (t) => [index("health_metrics_tenant_metric_idx").on(t.tenantId, t.metric)],
+);
+
+export const plans = pgTable(
+  "plans",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    amountCents: integer("amount_cents").notNull().default(0),
+    currency: text("currency").notNull().default("USD"),
+    intervalDays: integer("interval_days").notNull().default(30),
+    seatLimit: integer("seat_limit"),
+    paymobPlanId: integer("paymob_plan_id"),
+    active: boolean("active").notNull().default(true),
+    features: jsonb("features").$type<PlanFeatures>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [uniqueIndex("plans_code_uidx").on(t.code)],
+);
+
+export const tenantSubscriptions = pgTable(
+  "tenant_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => plans.id),
+    status: subscriptionStatusEnum("status").notNull().default("trialing"),
+    paymobSubscriptionId: text("paymob_subscription_id"),
+    paymobOrderId: text("paymob_order_id"),
+    currentPeriodStart: timestamp("current_period_start", {
+      withTimezone: true,
+    }),
+    currentPeriodEnd: timestamp("current_period_end", { withTimezone: true }),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    cancelAtPeriodEnd: boolean("cancel_at_period_end").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("tenant_subscriptions_tenant_uidx").on(t.tenantId),
+    index("tenant_subscriptions_status_idx").on(t.status),
+    index("tenant_subscriptions_paymob_uidx").on(t.paymobSubscriptionId),
+  ],
+);
+
+export const paymentEvents = pgTable(
+  "payment_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    provider: text("provider").notNull().default("paymob"),
+    externalId: text("external_id").notNull(),
+    triggerType: text("trigger_type").notNull(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+    subscriptionId: uuid("subscription_id").references(
+      () => tenantSubscriptions.id,
+      { onDelete: "set null" },
+    ),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    processedAt: timestamp("processed_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("payment_events_provider_ext_trigger_uidx").on(
+      t.provider,
+      t.externalId,
+      t.triggerType,
+    ),
+    index("payment_events_tenant_idx").on(t.tenantId),
+  ],
+);
+
+export const auditLogs = pgTable(
+  "audit_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    actorRole: text("actor_role"),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+    action: text("action").notNull(),
+    resourceType: text("resource_type"),
+    resourceId: text("resource_id"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("audit_logs_created_idx").on(t.createdAt),
+    index("audit_logs_tenant_created_idx").on(t.tenantId, t.createdAt),
+    index("audit_logs_action_created_idx").on(t.action, t.createdAt),
+  ],
 );

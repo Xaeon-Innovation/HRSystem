@@ -28,3 +28,10 @@
 
 - Delivery failures are tracked via `notifications.delivery_status` and `health_metrics`.
 - FCM server key optional (`FCM_SERVER_KEY`); without it, notifications are stored as `delivered_local`.
+
+## Audit logs
+
+- `audit_logs` records platform actions and tenant-admin sensitive actions (tenant CRUD, employee changes, attendance corrections, announcements, billing, admin logins).
+- Employee clock-in/out and GPS pings are **not** written to the audit log (they remain in attendance / location tables).
+- Recommended retention: keep audits ≥ 1 year for B2B accountability; purge older rows with a controlled ops job if needed.
+- Billing webhooks store provider payloads in `payment_events` for idempotency and dispute support; treat as financial records.

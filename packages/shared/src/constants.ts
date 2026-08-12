@@ -26,3 +26,17 @@ export const DEFAULT_PING_INTERVAL_SEC = 20;
 export const MIN_PING_INTERVAL_SEC = 15;
 export const MAX_PING_INTERVAL_SEC = 30;
 export const DEFAULT_LOCATION_RETENTION_DAYS = 60;
+
+export const SUBSCRIPTION_STATUSES = [
+  "trialing",
+  "active",
+  "past_due",
+  "canceled",
+  "expired",
+] as const;
+export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+export const PAYMOB_INTERVAL_DAYS = [7, 15, 30, 60, 90, 180, 360] as const;
+
+export const PLAN_CODES = ["trial", "starter", "pro", "enterprise"] as const;
+export type PlanCode = (typeof PLAN_CODES)[number];

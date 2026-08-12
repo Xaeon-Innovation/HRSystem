@@ -57,7 +57,9 @@ pnpm dev
 
 - [API contract](docs/API.md)
 - [Tenant onboarding](docs/ONBOARDING.md)
+- [Billing (Paymob)](docs/BILLING.md)
 - [Data retention & privacy](docs/PRIVACY.md)
+- [Production / hosting](docs/HOSTING.md)
 
 ## Phases delivered
 
@@ -67,3 +69,4 @@ pnpm dev
 4. KPI templates & summaries  
 5. Notifications, announcements, admin dashboard metrics  
 6. CI, isolation tests, docs / launch prep  
+7. Platform admin: tenants, Paymob subscriptions, audits  

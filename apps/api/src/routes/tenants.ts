@@ -2,7 +2,17 @@ import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import { employees, tenants, users } from "@hr/db";
-import { createTenantSchema, updateTenantSchema } from "@hr/shared";
+import {
+  createTenantSchema,
+  updateTenantSchema,
+  type JwtPayload,
+} from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
+import {
+  countActiveSeats,
+  getTenantSubscription,
+  startTrialForTenant,
+} from "../lib/billing.js";
 import { requireRoles } from "../types.js";
 
 export const tenantRoutes: FastifyPluginAsync = async (app) => {
@@ -12,7 +22,51 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     const rows = await app.db.query.tenants.findMany({
       orderBy: (t, { asc }) => [asc(t.name)],
     });
-    return { tenants: rows };
+    const tenantsWithSubs = await Promise.all(
+      rows.map(async (tenant) => {
+        const current = await getTenantSubscription(app.db, tenant.id);
+        const seatsUsed = await countActiveSeats(app.db, tenant.id);
+        return {
+          ...tenant,
+          subscription: current?.subscription
+            ? {
+                id: current.subscription.id,
+                status: current.subscription.status,
+                planId: current.subscription.planId,
+                currentPeriodEnd: current.subscription.currentPeriodEnd,
+                cancelAtPeriodEnd: current.subscription.cancelAtPeriodEnd,
+              }
+            : null,
+          plan: current?.plan
+            ? {
+                id: current.plan.id,
+                code: current.plan.code,
+                name: current.plan.name,
+                seatLimit: current.plan.seatLimit,
+              }
+            : null,
+          seatsUsed,
+        };
+      }),
+    );
+    return { tenants: tenantsWithSubs };
+  });
+
+  app.get("/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, id),
+    });
+    if (!tenant) return reply.code(404).send({ error: "Not found" });
+    const current = await getTenantSubscription(app.db, id);
+    const seatsUsed = await countActiveSeats(app.db, id);
+    return {
+      tenant,
+      subscription: current?.subscription ?? null,
+      plan: current?.plan ?? null,
+      seatsUsed,
+      seatLimit: current?.plan?.seatLimit ?? null,
+    };
   });
 
   app.post("/", async (request, reply) => {
@@ -61,7 +115,28 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       status: "active",
     });
 
-    return reply.code(201).send({ tenant, admin: { id: admin.id, email: admin.email } });
+    const trial = await startTrialForTenant(app.db, tenant.id);
+
+    const actor = request.user as JwtPayload;
+    await writeAudit(app, {
+      actor,
+      action: "tenant.create",
+      tenantId: tenant.id,
+      resourceType: "tenant",
+      resourceId: tenant.id,
+      metadata: {
+        slug: tenant.slug,
+        adminEmail: admin.email,
+        trialSubscriptionId: trial?.id ?? null,
+      },
+      request,
+    });
+
+    return reply.code(201).send({
+      tenant,
+      admin: { id: admin.id, email: admin.email },
+      subscription: trial,
+    });
   });
 
   app.patch("/:id", async (request, reply) => {
@@ -86,6 +161,27 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(tenants.id, id))
       .returning();
 
+    const actor = request.user as JwtPayload;
+    let action = "tenant.update";
+    if (parsed.data.status && parsed.data.status !== current.status) {
+      if (parsed.data.status === "suspended") action = "tenant.suspend";
+      else if (parsed.data.status === "active") action = "tenant.activate";
+      else if (parsed.data.status === "deleted") action = "tenant.delete";
+    }
+
+    await writeAudit(app, {
+      actor,
+      action,
+      tenantId: updated.id,
+      resourceType: "tenant",
+      resourceId: updated.id,
+      metadata: {
+        before: { name: current.name, status: current.status, settings: current.settings },
+        after: { name: updated.name, status: updated.status, settings: updated.settings },
+      },
+      request,
+    });
+
     return { tenant: updated };
   });
 
@@ -97,6 +193,18 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(tenants.id, id))
       .returning();
     if (!updated) return reply.code(404).send({ error: "Not found" });
+
+    const actor = request.user as JwtPayload;
+    await writeAudit(app, {
+      actor,
+      action: "tenant.delete",
+      tenantId: updated.id,
+      resourceType: "tenant",
+      resourceId: updated.id,
+      metadata: { soft: true },
+      request,
+    });
+
     return { tenant: updated };
   });
 };

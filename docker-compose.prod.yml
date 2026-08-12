@@ -1,0 +1,114 @@
+# Production stack: Postgres + API + Web (+ optional Caddy TLS).
+#
+# Without TLS (direct ports):
+#   cp .env.production.example .env.production
+#   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#
+# With HTTPS (set WEB_DOMAIN / API_DOMAIN to real hostnames pointing at this host):
+#   docker compose -f docker-compose.prod.yml --env-file .env.production --profile tls up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hr}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.production}
+      POSTGRES_DB: ${POSTGRES_DB:-hr_system}
+    volumes:
+      - hr_pg_data_prod:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-hr} -d ${POSTGRES_DB:-hr_system}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hr_internal
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-hr}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hr_system}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?set JWT_REFRESH_SECRET}
+      API_PORT: "4000"
+      API_HOST: "0.0.0.0"
+      CORS_ORIGIN: ${CORS_ORIGIN:?set CORS_ORIGIN}
+      WEB_APP_URL: ${WEB_APP_URL:-}
+      API_PUBLIC_URL: ${API_PUBLIC_URL:-}
+      PAYMOB_BASE_URL: ${PAYMOB_BASE_URL:-}
+      PAYMOB_API_KEY: ${PAYMOB_API_KEY:-}
+      PAYMOB_SECRET_KEY: ${PAYMOB_SECRET_KEY:-}
+      PAYMOB_PUBLIC_KEY: ${PAYMOB_PUBLIC_KEY:-}
+      PAYMOB_INTEGRATION_ID: ${PAYMOB_INTEGRATION_ID:-}
+      PAYMOB_HMAC_SECRET: ${PAYMOB_HMAC_SECRET:-}
+      PAYMOB_CURRENCY: ${PAYMOB_CURRENCY:-USD}
+    ports:
+      - "${API_PUBLISH_PORT:-4000}:4000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - hr_internal
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?set NEXT_PUBLIC_WS_URL}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${WEB_PUBLISH_PORT:-3000}:3000"
+    networks:
+      - hr_internal
+
+  caddy:
+    profiles: ["tls"]
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - api
+      - web
+    environment:
+      WEB_DOMAIN: ${WEB_DOMAIN:-}
+      API_DOMAIN: ${API_DOMAIN:-}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - hr_internal
+
+volumes:
+  hr_pg_data_prod:
+  caddy_data:
+  caddy_config:
+
+networks:
+  hr_internal:
+    driver: bridge

@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
 import { employees, tenants, users } from "@hr/db";
 import { loginSchema, refreshSchema, type JwtPayload } from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
 import { authenticate } from "../types.js";
 
 function signTokens(app: Parameters<FastifyPluginAsync>[0], payload: JwtPayload) {
@@ -88,6 +89,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       employeeId,
     };
     const tokens = signTokens(app, payload);
+
+    if (resolved.role === "super_admin" || resolved.role === "tenant_admin") {
+      await writeAudit(app, {
+        actor: payload,
+        action: "auth.login",
+        tenantId: resolved.tenantId,
+        resourceType: "user",
+        resourceId: resolved.id,
+        metadata: { email: resolved.email },
+        request,
+      });
+    }
+
     return {
       ...tokens,
       user: {

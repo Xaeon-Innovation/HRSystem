@@ -15,12 +15,39 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 
 ## Tenants (super_admin)
 
-| Method | Path |
-|--------|------|
-| GET | `/v1/tenants` |
-| POST | `/v1/tenants` |
-| PATCH | `/v1/tenants/:id` |
-| DELETE | `/v1/tenants/:id` (soft delete) |
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/tenants` | Includes subscription + seat summary |
+| GET | `/v1/tenants/:id` | Detail + settings + seats |
+| POST | `/v1/tenants` | Creates tenant + trial subscription |
+| PATCH | `/v1/tenants/:id` | |
+| DELETE | `/v1/tenants/:id` | Soft delete |
+
+## Plans / subscriptions / audits (super_admin)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET/POST | `/v1/plans` | Catalog; POST may sync Paymob |
+| PATCH | `/v1/plans/:id` | Activate / sync Paymob |
+| GET | `/v1/subscriptions` | Cross-tenant list |
+| PATCH | `/v1/subscriptions/:id` | Manual override / cancel |
+| GET | `/v1/audits` | Filters: `tenantId`, `actorUserId`, `action`, `from`, `to`, `limit`, `offset` |
+
+## Billing (tenant_admin)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/billing/current` | Plan, seats, available plans |
+| POST | `/v1/billing/checkout` | `{ planId }` → Paymob checkout URL |
+| POST | `/v1/billing/cancel` | Cancel at period end |
+
+## Webhooks
+
+| Method | Path | Notes |
+|--------|------|-------|
+| POST | `/v1/webhooks/paymob` | HMAC-verified; no JWT |
+
+See [BILLING.md](./BILLING.md).
 
 ## Employees (tenant scoped)
 

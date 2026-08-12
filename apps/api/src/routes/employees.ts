@@ -2,7 +2,13 @@ import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, ilike, or } from "drizzle-orm";
 import { employees, users } from "@hr/db";
-import { createEmployeeSchema, updateEmployeeSchema } from "@hr/shared";
+import {
+  createEmployeeSchema,
+  updateEmployeeSchema,
+  type JwtPayload,
+} from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
+import { assertSeatAvailable } from "../lib/billing.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
 export const employeeRoutes: FastifyPluginAsync = async (app) => {
@@ -60,6 +66,13 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       const data = parsed.data;
       const password = data.password ?? `Temp${Math.random().toString(36).slice(2, 10)}!`;
 
+      if (data.status !== "inactive") {
+        const seats = await assertSeatAvailable(app.db, tenantId, 1);
+        if (!seats.ok) {
+          return reply.code(403).send({ error: seats.error });
+        }
+      }
+
       const existing = await app.db.query.users.findFirst({
         where: and(eq(users.email, data.email), eq(users.tenantId, tenantId)),
       });
@@ -88,6 +101,17 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           status: data.status,
         })
         .returning();
+
+      const actor = request.user as JwtPayload;
+      await writeAudit(app, {
+        actor,
+        action: "employee.create",
+        tenantId,
+        resourceType: "employee",
+        resourceId: employee.id,
+        metadata: { email: user.email, role: user.role },
+        request,
+      });
 
       return reply.code(201).send({
         employee: { ...employee, name: user.name, email: user.email, role: user.role },
@@ -122,6 +146,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
 
       const created: unknown[] = [];
       const errors: { line: number; error: string }[] = [];
+      let pendingSeats = 0;
 
       for (let i = 1; i < lines.length; i++) {
         const cols = lines[i].split(",").map((c) => c.trim());
@@ -133,6 +158,15 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
             : "employee";
         const jobTitle = titleIdx >= 0 ? cols[titleIdx] : null;
         try {
+          const seats = await assertSeatAvailable(
+            app.db,
+            tenantId,
+            pendingSeats + 1,
+          );
+          if (!seats.ok) {
+            errors.push({ line: i + 1, error: seats.error });
+            continue;
+          }
           const password = `Temp${Math.random().toString(36).slice(2, 10)}!`;
           const [user] = await app.db
             .insert(users)
@@ -154,12 +188,26 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
             })
             .returning();
           created.push({ id: employee.id, email, temporaryPassword: password });
+          pendingSeats += 1;
         } catch (e) {
           errors.push({
             line: i + 1,
             error: e instanceof Error ? e.message : "failed",
           });
         }
+      }
+
+      if (created.length > 0) {
+        const actor = request.user as JwtPayload;
+        await writeAudit(app, {
+          actor,
+          action: "employee.import",
+          tenantId,
+          resourceType: "employee",
+          resourceId: tenantId,
+          metadata: { created: created.length, errors: errors.length },
+          request,
+        });
       }
 
       return { created, errors };
@@ -181,12 +229,20 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       });
       if (!emp) return reply.code(404).send({ error: "Not found" });
 
+      const nextStatus = parsed.data.status ?? emp.status;
+      if (emp.status !== "active" && nextStatus === "active") {
+        const seats = await assertSeatAvailable(app.db, tenantId, 1);
+        if (!seats.ok) {
+          return reply.code(403).send({ error: seats.error });
+        }
+      }
+
       const [updated] = await app.db
         .update(employees)
         .set({
           phone: parsed.data.phone ?? emp.phone,
           jobTitle: parsed.data.jobTitle ?? emp.jobTitle,
-          status: parsed.data.status ?? emp.status,
+          status: nextStatus,
           updatedAt: new Date(),
         })
         .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
@@ -198,6 +254,29 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           .set({ name: parsed.data.name, updatedAt: new Date() })
           .where(eq(users.id, emp.userId));
       }
+
+      const actor = request.user as JwtPayload;
+      const action =
+        emp.status !== "inactive" && updated.status === "inactive"
+          ? "employee.deactivate"
+          : "employee.update";
+      await writeAudit(app, {
+        actor,
+        action,
+        tenantId,
+        resourceType: "employee",
+        resourceId: updated.id,
+        metadata: {
+          before: { status: emp.status, phone: emp.phone, jobTitle: emp.jobTitle },
+          after: {
+            status: updated.status,
+            phone: updated.phone,
+            jobTitle: updated.jobTitle,
+            name: parsed.data.name,
+          },
+        },
+        request,
+      });
 
       return { employee: updated };
     },

@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { notifications, pushSubscriptions, users } from "@hr/db";
 import { announcementSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
 import {
   requireRoles,
   requireTenantScope,
@@ -113,6 +114,22 @@ export const notificationRoutes: FastifyPluginAsync = async (app) => {
           body: parsed.data.body,
         });
       }
+
+      const actor = request.user as JwtPayload;
+      await writeAudit(app, {
+        actor,
+        action: "announcement.create",
+        tenantId,
+        resourceType: "notification",
+        resourceId: tenantId,
+        metadata: {
+          title: parsed.data.title,
+          sent: recipients.length,
+          roleFilter: parsed.data.roleFilter ?? null,
+        },
+        request,
+      });
+
       return reply.code(201).send({ sent: recipients.length });
     },
   );

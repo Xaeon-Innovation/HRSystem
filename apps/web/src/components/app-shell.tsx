@@ -3,11 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  Activity,
   Bell,
   ClipboardList,
+  CreditCard,
+  FileText,
   LayoutDashboard,
   LogOut,
   MapPinned,
+  Package,
   Timer,
   Users,
   Building2,
@@ -20,7 +24,13 @@ import { ClockStatusProvider } from "@/components/clock-status-provider";
 
 const linksFor = (user: AuthUser) => {
   if (user.role === "super_admin") {
-    return [{ href: "/app/tenants", label: "Tenants", icon: Building2 }];
+    return [
+      { href: "/app/tenants", label: "Tenants", icon: Building2 },
+      { href: "/app/plans", label: "Plans", icon: Package },
+      { href: "/app/subscriptions", label: "Subscriptions", icon: CreditCard },
+      { href: "/app/audits", label: "Audits", icon: FileText },
+      { href: "/app/health", label: "Health", icon: Activity },
+    ];
   }
   if (user.role === "tenant_admin") {
     return [
@@ -29,6 +39,7 @@ const linksFor = (user: AuthUser) => {
       { href: "/app/map", label: "Live Map", icon: MapPinned },
       { href: "/app/kpis", label: "KPIs", icon: ClipboardList },
       { href: "/app/notifications", label: "Alerts", icon: Bell },
+      { href: "/app/billing", label: "Billing", icon: CreditCard },
       { href: "/app/health", label: "Health", icon: ClipboardList },
       { href: "/app/clock", label: "Clock", icon: Timer },
     ];
@@ -40,6 +51,11 @@ const linksFor = (user: AuthUser) => {
     { href: "/app/notifications", label: "Alerts", icon: Bell },
   ];
 };
+
+function linkActive(pathname: string, href: string) {
+  if (href === "/app") return pathname === "/app";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -90,7 +106,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="flex gap-1 overflow-x-auto px-2 pb-3 md:flex-col md:overflow-visible md:px-3">
             {links.map((l) => {
               const Icon = l.icon;
-              const active = pathname === l.href;
+              const active = linkActive(pathname, l.href);
               return (
                 <Link
                   key={l.href}

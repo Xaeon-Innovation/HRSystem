@@ -1,10 +1,64 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
-import { createDb, employees, tenants, users } from "./index.js";
+import {
+  createDb,
+  employees,
+  plans,
+  tenantSubscriptions,
+  tenants,
+  users,
+} from "./index.js";
 
 const connectionString =
   process.env.DATABASE_URL ?? "postgresql://hr:hr@localhost:5432/hr_system";
+
+const DEFAULT_PLANS = [
+  {
+    code: "trial",
+    name: "Trial",
+    description: "14-day free trial for new tenants",
+    amountCents: 0,
+    currency: "USD",
+    intervalDays: 15,
+    seatLimit: 10,
+    active: true,
+    features: { trialDays: 14 },
+  },
+  {
+    code: "starter",
+    name: "Starter",
+    description: "Small teams getting started",
+    amountCents: 4900,
+    currency: "USD",
+    intervalDays: 30,
+    seatLimit: 25,
+    active: true,
+    features: {},
+  },
+  {
+    code: "pro",
+    name: "Pro",
+    description: "Growing field operations",
+    amountCents: 14900,
+    currency: "USD",
+    intervalDays: 30,
+    seatLimit: 100,
+    active: true,
+    features: {},
+  },
+  {
+    code: "enterprise",
+    name: "Enterprise",
+    description: "Unlimited seats and priority support",
+    amountCents: 49900,
+    currency: "USD",
+    intervalDays: 30,
+    seatLimit: null,
+    active: true,
+    features: {},
+  },
+] as const;
 
 async function main() {
   const { db, client } = createDb(connectionString);
@@ -28,6 +82,20 @@ async function main() {
     });
     console.log(`Created super admin ${superEmail}`);
   }
+
+  for (const plan of DEFAULT_PLANS) {
+    const existing = await db.query.plans.findFirst({
+      where: eq(plans.code, plan.code),
+    });
+    if (!existing) {
+      await db.insert(plans).values(plan);
+      console.log(`Created plan ${plan.code}`);
+    }
+  }
+
+  const trialPlan = await db.query.plans.findFirst({
+    where: eq(plans.code, "trial"),
+  });
 
   async function ensureTenant(
     slug: string,
@@ -105,6 +173,25 @@ async function main() {
         status: "active",
       });
       console.log(`Created employee ${empEmail}`);
+    }
+
+    if (trialPlan) {
+      const existingSub = await db.query.tenantSubscriptions.findFirst({
+        where: eq(tenantSubscriptions.tenantId, tenant.id),
+      });
+      if (!existingSub) {
+        const now = new Date();
+        const trialEnds = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        await db.insert(tenantSubscriptions).values({
+          tenantId: tenant.id,
+          planId: trialPlan.id,
+          status: "trialing",
+          currentPeriodStart: now,
+          currentPeriodEnd: trialEnds,
+          trialEndsAt: trialEnds,
+        });
+        console.log(`Created trial subscription for ${slug}`);
+      }
     }
 
     return tenant;
