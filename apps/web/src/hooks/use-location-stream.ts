@@ -4,10 +4,27 @@ import { useEffect, useRef } from "react";
 import { getTokens, wsUrl } from "@/lib/api";
 import { api } from "@/lib/api";
 import { DEFAULT_PING_INTERVAL_SEC } from "@hr/shared";
+import {
+  messageForGeoError,
+  type LastKnownPosition,
+} from "@/lib/offline-queue";
 
 type Options = {
   onError?: (message: string | null) => void;
+  onFix?: (position: LastKnownPosition) => void;
   onStatusChange?: (clockedIn: boolean) => void;
+};
+
+const HIGH_ACCURACY_WATCH: PositionOptions = {
+  enableHighAccuracy: true,
+  maximumAge: 5000,
+  timeout: 15000,
+};
+
+const LOW_ACCURACY_WATCH: PositionOptions = {
+  enableHighAccuracy: false,
+  maximumAge: 30000,
+  timeout: 30000,
 };
 
 /**
@@ -18,8 +35,10 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
   const wsRef = useRef<WebSocket | null>(null);
   const lastSentAt = useRef(0);
   const onErrorRef = useRef(options.onError);
+  const onFixRef = useRef(options.onFix);
   const onStatusChangeRef = useRef(options.onStatusChange);
   onErrorRef.current = options.onError;
+  onFixRef.current = options.onFix;
   onStatusChangeRef.current = options.onStatusChange;
 
   useEffect(() => {
@@ -31,7 +50,7 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
 
     if (!navigator.geolocation) {
       onErrorRef.current?.(
-        "Location is unavailable on this device. Enable GPS to share your position while clocked in.",
+        "Location is unavailable on this device. Enable Location Services for this browser.",
       );
       return;
     }
@@ -69,28 +88,56 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
       else buffer.push(msg);
     };
 
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        onErrorRef.current?.(null);
-        sendPing(pos.coords.latitude, pos.coords.longitude);
-      },
-      (err) => {
-        const message =
-          err.code === err.PERMISSION_DENIED
-            ? "Location permission denied. Allow location access to appear on the live map."
-            : "Could not read your location. Check GPS and try again.";
-        onErrorRef.current?.(message);
-      },
-      { enableHighAccuracy: true, maximumAge: 5000 },
-    );
+    const applyFix = (pos: GeolocationPosition, forcePing = false) => {
+      onErrorRef.current?.(null);
+      const lat = pos.coords.latitude;
+      const lng = pos.coords.longitude;
+      onFixRef.current?.({ lat, lng, at: Date.now() });
+      sendPing(lat, lng, forcePing);
+    };
 
-    // Periodic forced ping (still requires a fresh getCurrentPosition — never invent coords)
-    const interval = setInterval(() => {
+    let watchId: number | null = null;
+    let fellBackToLowAccuracy = false;
+
+    const startWatch = (watchOptions: PositionOptions) => {
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => applyFix(pos),
+        (err) => {
+          if (!fellBackToLowAccuracy && err.code !== err.PERMISSION_DENIED) {
+            fellBackToLowAccuracy = true;
+            if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+            startWatch(LOW_ACCURACY_WATCH);
+            return;
+          }
+          onErrorRef.current?.(messageForGeoError(err, "map"));
+        },
+        watchOptions,
+      );
+    };
+
+    startWatch(HIGH_ACCURACY_WATCH);
+
+    const pingOnce = (
+      pingOptions: PositionOptions,
+      onFail?: () => void,
+    ) => {
       navigator.geolocation.getCurrentPosition(
-        (pos) =>
-          sendPing(pos.coords.latitude, pos.coords.longitude, true),
-        () => undefined,
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 8000 },
+        (pos) => applyFix(pos, true),
+        () => onFail?.(),
+        pingOptions,
+      );
+    };
+
+    // Periodic forced ping (still requires a real position — never invent coords)
+    const interval = setInterval(() => {
+      pingOnce(
+        { enableHighAccuracy: true, maximumAge: 15000, timeout: 12000 },
+        () =>
+          pingOnce({
+            enableHighAccuracy: false,
+            maximumAge: 60000,
+            timeout: 20000,
+          }),
       );
     }, minIntervalMs);
 
@@ -108,7 +155,7 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
     return () => {
       clearInterval(interval);
       clearInterval(statusTimer);
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       ws.close();
     };
   }, [enabled]);

@@ -10,10 +10,12 @@ import {
 } from "react";
 import { api } from "@/lib/api";
 import { useLocationStream } from "@/hooks/use-location-stream";
+import type { LastKnownPosition } from "@/lib/offline-queue";
 
 type ClockStatusContextValue = {
   clockedIn: boolean;
   locationError: string | null;
+  lastKnownPosition: LastKnownPosition | null;
   setLocationError: (msg: string | null) => void;
   refreshStatus: () => Promise<boolean>;
   setClockedIn: (value: boolean) => void;
@@ -28,6 +30,8 @@ export function ClockStatusProvider({
 }) {
   const [clockedIn, setClockedIn] = useState(false);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [lastKnownPosition, setLastKnownPosition] =
+    useState<LastKnownPosition | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -52,6 +56,7 @@ export function ClockStatusProvider({
 
   useLocationStream(clockedIn, {
     onError: (msg) => setLocationError(msg),
+    onFix: (pos) => setLastKnownPosition(pos),
     onStatusChange: (next) => {
       if (!next) setClockedIn(false);
     },
@@ -61,11 +66,12 @@ export function ClockStatusProvider({
     () => ({
       clockedIn,
       locationError,
+      lastKnownPosition,
       setLocationError,
       refreshStatus,
       setClockedIn,
     }),
-    [clockedIn, locationError, refreshStatus],
+    [clockedIn, locationError, lastKnownPosition, refreshStatus],
   );
 
   return (

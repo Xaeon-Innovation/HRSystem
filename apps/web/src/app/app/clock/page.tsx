@@ -8,8 +8,29 @@ import {
   enqueueClockEvent,
   flushClockQueue,
   getPosition,
+  type GeoCoords,
+  type LastKnownPosition,
 } from "@/lib/offline-queue";
 import { useClockStatus } from "@/components/clock-status-provider";
+
+const LAST_KNOWN_MAX_AGE_MS = 5 * 60 * 1000;
+
+function coordsFromLastKnown(
+  last: LastKnownPosition | null,
+): GeoCoords | null {
+  if (!last) return null;
+  if (Date.now() - last.at > LAST_KNOWN_MAX_AGE_MS) return null;
+  return { lat: last.lat, lng: last.lng };
+}
+
+function isGeoFailure(msg: string) {
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes("location") ||
+    lower.includes("gps") ||
+    lower.includes("permission")
+  );
+}
 
 export default function ClockPage() {
   const {
@@ -17,6 +38,7 @@ export default function ClockPage() {
     setClockedIn,
     refreshStatus,
     locationError,
+    lastKnownPosition,
     setLocationError,
   } = useClockStatus();
   const [message, setMessage] = useState<string | null>(null);
@@ -50,12 +72,22 @@ export default function ClockPage() {
     return () => window.removeEventListener("online", onOnline);
   }, []);
 
+  async function resolvePosition(): Promise<GeoCoords> {
+    try {
+      return await getPosition();
+    } catch (err) {
+      const cached = coordsFromLastKnown(lastKnownPosition);
+      if (cached) return cached;
+      throw err;
+    }
+  }
+
   async function toggle() {
     setBusy(true);
     setMessage(null);
     setLocationError(null);
     try {
-      const pos = await getPosition();
+      const pos = await resolvePosition();
       const type = clockedIn ? "clock-out" : "clock-in";
       if (!navigator.onLine) {
         await enqueueClockEvent({
@@ -68,6 +100,7 @@ export default function ClockPage() {
         setMessage("Offline — event queued and will sync when online");
         setQueued((n) => n + 1);
         setClockedIn(type === "clock-in");
+        setLocationError(null);
         return;
       }
       await api(`/v1/attendance/${type}`, {
@@ -80,19 +113,15 @@ export default function ClockPage() {
       });
       setClockedIn(type === "clock-in");
       setMessage(type === "clock-in" ? "Clocked in" : "Clocked out");
+      setLocationError(null);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : "Failed";
       // Only queue when we had a real position but network failed
-      if (
-        errMsg.includes("Location") ||
-        errMsg.includes("GPS") ||
-        errMsg.includes("permission")
-      ) {
-        setMessage(errMsg);
+      if (isGeoFailure(errMsg)) {
         setLocationError(errMsg);
       } else {
         try {
-          const pos = await getPosition();
+          const pos = await resolvePosition();
           const type = clockedIn ? "clock-out" : "clock-in";
           await enqueueClockEvent({
             type,
@@ -104,7 +133,7 @@ export default function ClockPage() {
           setQueued((n) => n + 1);
           setMessage(`${errMsg} — queued for retry`);
         } catch (geoErr) {
-          setMessage(
+          setLocationError(
             geoErr instanceof Error ? geoErr.message : errMsg,
           );
         }
