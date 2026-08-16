@@ -1,10 +1,13 @@
-# Production stack: Postgres + API + Web (+ optional Caddy TLS).
+# Production stack for a shared Verpex VPS (coexists with other sites).
+# Full steps: docs/HOSTING.md
 #
-# Without TLS (direct ports):
+# Primary (shared VPS — keep existing website/CMS on 80/443):
 #   cp .env.production.example .env.production
+#   bash scripts/gen-prod-secrets.sh   # paste into .env.production + set YOURDOMAIN
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
+#   # then add Nginx/Apache/cPanel reverse proxy → 127.0.0.1:3000 and :4000
 #
-# With HTTPS (set WEB_DOMAIN / API_DOMAIN to real hostnames pointing at this host):
+# Dedicated VPS only (takes over 80/443 — DO NOT use if other sites share this box):
 #   docker compose -f docker-compose.prod.yml --env-file .env.production --profile tls up -d --build
 
 services:
@@ -17,6 +20,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-hr_system}
     volumes:
       - hr_pg_data_prod:/var/lib/postgresql/data
+    # No host ports — Postgres stays on the Docker network only
     healthcheck:
       test:
         [
@@ -53,8 +57,9 @@ services:
       PAYMOB_INTEGRATION_ID: ${PAYMOB_INTEGRATION_ID:-}
       PAYMOB_HMAC_SECRET: ${PAYMOB_HMAC_SECRET:-}
       PAYMOB_CURRENCY: ${PAYMOB_CURRENCY:-USD}
+    # Bind localhost only so existing public sites are unaffected
     ports:
-      - "${API_PUBLISH_PORT:-4000}:4000"
+      - "127.0.0.1:${API_PUBLISH_PORT:-4000}:4000"
     healthcheck:
       test:
         [
@@ -80,10 +85,13 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "${WEB_PUBLISH_PORT:-3000}:3000"
+      - "127.0.0.1:${WEB_PUBLISH_PORT:-3000}:3000"
     networks:
       - hr_internal
 
+  # ONLY for a dedicated VPS with nothing else on 80/443.
+  # On a shared Verpex box (existing website + CMS), do NOT enable this profile —
+  # use the host Nginx/Apache/cPanel reverse proxy instead (see docs/HOSTING.md).
   caddy:
     profiles: ["tls"]
     image: caddy:2-alpine

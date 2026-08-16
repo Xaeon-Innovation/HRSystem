@@ -1,0 +1,72 @@
+# Example Nginx site configs for a SHARED Verpex VPS.
+# Copy onto the server (paths vary by OS / cPanel). Do NOT replace your
+# existing website or CMS vhosts — add these as two additional server blocks.
+#
+# After editing:
+#   sudo nginx -t && sudo systemctl reload nginx
+#
+# Replace YOURDOMAIN and adjust ssl_certificate paths to match certbot/cPanel.
+
+# --- Web UI: https://app.YOURDOMAIN → 127.0.0.1:3000 ---
+server {
+    listen 80;
+    listen [::]:80;
+    server_name app.YOURDOMAIN;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name app.YOURDOMAIN;
+
+    # Certbot example (adjust if using cPanel AutoSSL paths):
+    ssl_certificate     /etc/letsencrypt/live/app.YOURDOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/app.YOURDOMAIN/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+# --- API + WebSocket: https://api.YOURDOMAIN → 127.0.0.1:4000 ---
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.YOURDOMAIN;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+    server_name api.YOURDOMAIN;
+
+    ssl_certificate     /etc/letsencrypt/live/api.YOURDOMAIN/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.YOURDOMAIN/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:4000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # WebSocket (/ws) + long-lived connections
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+}
+
+# Put this in http {} once (e.g. /etc/nginx/conf.d/connection_upgrade.conf)
+# if not already present:
+# map $http_upgrade $connection_upgrade {
+#     default upgrade;
+#     ''      close;
+# }

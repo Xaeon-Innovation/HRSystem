@@ -1,0 +1,45 @@
+# Example Apache vhosts for a SHARED Verpex VPS (non-cPanel).
+# Enable modules: sudo a2enmod proxy proxy_http proxy_wstunnel ssl headers rewrite
+# Then: sudo a2ensite ... && sudo apache2ctl configtest && sudo systemctl reload apache2
+#
+# For cPanel: prefer "Application Manager" / reverse proxy in the panel, or
+# add similar ProxyPass rules in the subdomain's Apache include files —
+# do NOT disable the existing website or CMS vhosts.
+
+<VirtualHost *:80>
+    ServerName app.YOURDOMAIN
+    Redirect permanent / https://app.YOURDOMAIN/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName app.YOURDOMAIN
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/app.YOURDOMAIN/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/app.YOURDOMAIN/privkey.pem
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+    ProxyPass / http://127.0.0.1:3000/
+    ProxyPassReverse / http://127.0.0.1:3000/
+</VirtualHost>
+
+<VirtualHost *:80>
+    ServerName api.YOURDOMAIN
+    Redirect permanent / https://api.YOURDOMAIN/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName api.YOURDOMAIN
+    SSLEngine on
+    SSLCertificateFile /etc/letsencrypt/live/api.YOURDOMAIN/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/api.YOURDOMAIN/privkey.pem
+
+    ProxyPreserveHost On
+    RequestHeader set X-Forwarded-Proto "https"
+    ProxyPass / http://127.0.0.1:4000/
+    ProxyPassReverse / http://127.0.0.1:4000/
+
+    # WebSocket
+    ProxyPass /ws ws://127.0.0.1:4000/ws
+    ProxyPassReverse /ws ws://127.0.0.1:4000/ws
+</VirtualHost>

@@ -59,7 +59,7 @@ pnpm dev
 - [Tenant onboarding](docs/ONBOARDING.md)
 - [Billing (Paymob)](docs/BILLING.md)
 - [Data retention & privacy](docs/PRIVACY.md)
-- [Production / hosting](docs/HOSTING.md)
+- [Production / hosting (shared Verpex VPS)](docs/HOSTING.md)
 
 ## Phases delivered
 
