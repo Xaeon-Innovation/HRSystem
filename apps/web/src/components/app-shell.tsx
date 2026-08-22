@@ -15,6 +15,8 @@ import {
   Timer,
   Users,
   Building2,
+  Plug,
+  BarChart3,
 } from "lucide-react";
 import { clearSession, getUser, type AuthUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,8 @@ const linksFor = (user: AuthUser) => {
       { href: "/app/employees", label: "Employees", icon: Users },
       { href: "/app/map", label: "Live Map", icon: MapPinned },
       { href: "/app/kpis", label: "KPIs", icon: ClipboardList },
+      { href: "/app/integrations", label: "Integrations", icon: Plug },
+      { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/app/notifications", label: "Alerts", icon: Bell },
       { href: "/app/billing", label: "Billing", icon: CreditCard },
       { href: "/app/health", label: "Health", icon: ClipboardList },
@@ -48,6 +52,7 @@ const linksFor = (user: AuthUser) => {
     { href: "/app/clock", label: "Clock", icon: Timer },
     { href: "/app/attendance", label: "History", icon: ClipboardList },
     { href: "/app/kpis", label: "My KPIs", icon: ClipboardList },
+    { href: "/app/analytics/me", label: "My analytics", icon: BarChart3 },
     { href: "/app/notifications", label: "Alerts", icon: Bell },
   ];
 };

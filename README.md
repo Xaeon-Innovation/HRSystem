@@ -1,6 +1,6 @@
 # HR Track — Creative Multi Solutions HR & Workforce Tracking
 
-Multi-tenant HR platform: employee management, digital clock in/out, realtime GPS live map, KPIs, and notifications.
+Multi-tenant HR platform: employee management, digital clock in/out, realtime GPS live map, KPIs, notifications, custom system integrations, and workforce analytics.
 
 ## Stack
 
@@ -70,3 +70,4 @@ pnpm dev
 5. Notifications, announcements, admin dashboard metrics  
 6. CI, isolation tests, docs / launch prep  
 7. Platform admin: tenants, Paymob subscriptions, audits  
+8. Branches/sites, Integrations Hub (webhook/REST/CSV), Admin Analytics

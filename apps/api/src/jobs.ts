@@ -1,18 +1,33 @@
 import type { FastifyInstance } from "fastify";
-import { and, eq, isNull, lt } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import {
   attendanceRecords,
   employeeLiveLocations,
   employees,
   healthMetrics,
+  integrationConnections,
+  integrationRawEvents,
   locationPings,
   tenants,
 } from "@hr/db";
 import { createNotification } from "./services/notifications.js";
-import { DEFAULT_LOCATION_RETENTION_DAYS } from "@hr/shared";
+import {
+  DEFAULT_INTEGRATION_RAW_RETENTION_DAYS,
+  DEFAULT_LOCATION_RETENTION_DAYS,
+} from "@hr/shared";
+import { drainPendingRawEvents } from "./integrations/process-raw.js";
+import { runConnectionSync } from "./routes/integrations.js";
+import {
+  materializeOperational,
+  materializeStrategic,
+} from "./analytics/materialize.js";
+import { refreshAllTenantMetrics } from "./analytics/metrics.js";
+import { detectAnomalies, detectStaleSyncs } from "./analytics/alerts.js";
+import { reconcileAll } from "./analytics/reconcile.js";
 
 export function startJobs(app: FastifyInstance) {
   const hourMs = 60 * 60 * 1000;
+  const minuteMs = 60 * 1000;
 
   const retention = async () => {
     try {
@@ -37,6 +52,26 @@ export function startJobs(app: FastifyInstance) {
           app.log.info(
             { tenantId: tenant.id, purged: deleted.length },
             "purged location pings",
+          );
+        }
+
+        const rawDays =
+          tenant.settings.integrationRawRetentionDays ??
+          DEFAULT_INTEGRATION_RAW_RETENTION_DAYS;
+        const rawCutoff = new Date(Date.now() - rawDays * 24 * hourMs);
+        const rawDeleted = await app.db
+          .delete(integrationRawEvents)
+          .where(
+            and(
+              eq(integrationRawEvents.tenantId, tenant.id),
+              lt(integrationRawEvents.receivedAt, rawCutoff),
+            ),
+          )
+          .returning({ id: integrationRawEvents.id });
+        if (rawDeleted.length) {
+          app.log.info(
+            { tenantId: tenant.id, purged: rawDeleted.length },
+            "purged integration raw events",
           );
         }
       }
@@ -111,13 +146,84 @@ export function startJobs(app: FastifyInstance) {
     }
   };
 
-  // Run shortly after boot, then hourly
+  const drainRaw = async () => {
+    try {
+      const n = await drainPendingRawEvents(app.db, 75);
+      if (n) app.log.info({ processed: n }, "drained raw integration events");
+    } catch (err) {
+      app.log.error(err, "raw event drain failed");
+    }
+  };
+
+  const pollConnections = async () => {
+    try {
+      const due = await app.db.query.integrationConnections.findMany({
+        where: and(
+          eq(integrationConnections.status, "active"),
+          or(
+            eq(integrationConnections.syncMode, "polling"),
+            eq(integrationConnections.syncMode, "hybrid"),
+          ),
+        ),
+      });
+      const now = Date.now();
+      for (const conn of due) {
+        const intervalMin = conn.pollIntervalMinutes ?? 15;
+        const last = conn.lastSyncAt?.getTime() ?? 0;
+        if (now - last < intervalMin * minuteMs) continue;
+        await runConnectionSync(app.db, conn, "schedule");
+      }
+    } catch (err) {
+      app.log.error(err, "connector polling failed");
+    }
+  };
+
+  const operational = async () => {
+    try {
+      await materializeOperational(app.db);
+      await refreshAllTenantMetrics(app.db, 2);
+    } catch (err) {
+      app.log.error(err, "operational analytics failed");
+    }
+  };
+
+  const nightly = async () => {
+    try {
+      await materializeStrategic(app.db);
+      await refreshAllTenantMetrics(app.db, 30);
+      await detectAnomalies(app.db);
+      await detectStaleSyncs(app.db);
+      await reconcileAll(app.db);
+      await retention();
+    } catch (err) {
+      app.log.error(err, "nightly analytics failed");
+    }
+  };
+
   setTimeout(() => {
     void retention();
     void missedClockOuts();
+    void drainRaw();
+    void operational();
   }, 5_000);
+
   setInterval(() => {
-    void retention();
+    void drainRaw();
+  }, 15_000);
+
+  setInterval(() => {
+    void pollConnections();
+  }, minuteMs);
+
+  setInterval(() => {
+    void operational();
+  }, 10 * minuteMs);
+
+  setInterval(() => {
     void missedClockOuts();
   }, hourMs);
+
+  setInterval(() => {
+    void nightly();
+  }, 24 * hourMs);
 }

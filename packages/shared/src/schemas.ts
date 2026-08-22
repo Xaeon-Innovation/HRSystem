@@ -1,6 +1,12 @@
 import { z } from "zod";
 import {
   EMPLOYEE_STATUSES,
+  FIELD_TRANSFORM_TYPES,
+  IDENTITY_MATCH_METHODS,
+  INTEGRATION_AUTH_TYPES,
+  INTEGRATION_CONNECTION_STATUSES,
+  INTEGRATION_PROVIDER_TYPES,
+  INTEGRATION_SYNC_MODES,
   KPI_TYPES,
   NOTIFICATION_TYPES,
   PAYMOB_INTERVAL_DAYS,
@@ -8,6 +14,9 @@ import {
   ROLES,
   SUBSCRIPTION_STATUSES,
   TENANT_STATUSES,
+  CANONICAL_TARGET_ENTITIES,
+  BRANCH_STATUSES,
+  ANALYTICS_ALERT_STATUSES,
 } from "./constants.js";
 
 export const loginSchema = z.object({
@@ -43,6 +52,10 @@ export const updateTenantSchema = z.object({
       pingIntervalSec: z.number().int().min(15).max(30).optional(),
       locationRetentionDays: z.number().int().min(30).max(90).optional(),
       missedClockOutHours: z.number().positive().optional(),
+      defaultHourlyCost: z.number().min(0).optional(),
+      integrationRawRetentionDays: z.number().int().min(30).max(90).optional(),
+      latenessGraceMinutes: z.number().int().min(0).max(180).optional(),
+      shiftStartHour: z.number().int().min(0).max(23).optional(),
     })
     .partial()
     .optional(),
@@ -56,6 +69,8 @@ export const createEmployeeSchema = z.object({
   phone: z.string().max(40).optional().nullable(),
   jobTitle: z.string().max(120).optional().nullable(),
   status: z.enum(EMPLOYEE_STATUSES).default("active"),
+  branchId: z.string().uuid().optional().nullable(),
+  siteId: z.string().uuid().optional().nullable(),
 });
 
 export const updateEmployeeSchema = createEmployeeSchema.partial().omit({
@@ -66,6 +81,8 @@ export const updateEmployeeSchema = createEmployeeSchema.partial().omit({
   jobTitle: z.string().max(120).optional().nullable(),
   status: z.enum(EMPLOYEE_STATUSES).optional(),
   contactPhone: z.string().max(40).optional().nullable(),
+  branchId: z.string().uuid().optional().nullable(),
+  siteId: z.string().uuid().optional().nullable(),
 });
 
 export const clockEventSchema = z.object({
@@ -186,3 +203,159 @@ export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
 export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
+
+export const createBranchSchema = z.object({
+  name: z.string().min(1).max(120),
+  code: z
+    .string()
+    .min(1)
+    .max(40)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Code must be alphanumeric with _ or -"),
+  status: z.enum(BRANCH_STATUSES).optional().default("active"),
+});
+
+export const updateBranchSchema = createBranchSchema.partial();
+
+export const createSiteSchema = z.object({
+  branchId: z.string().uuid(),
+  name: z.string().min(1).max(120),
+  code: z
+    .string()
+    .min(1)
+    .max(40)
+    .regex(/^[a-zA-Z0-9_-]+$/, "Code must be alphanumeric with _ or -"),
+  lat: z.number().min(-90).max(90).optional().nullable(),
+  lng: z.number().min(-180).max(180).optional().nullable(),
+});
+
+export const updateSiteSchema = createSiteSchema.partial();
+
+export const integrationAuthConfigSchema = z.object({
+  apiKey: z.string().max(2000).optional(),
+  apiKeyHeader: z.string().max(80).optional(),
+  bearerToken: z.string().max(4000).optional(),
+  username: z.string().max(200).optional(),
+  password: z.string().max(500).optional(),
+  headerName: z.string().max(80).optional(),
+});
+
+export const integrationConnectorEntitySchema = z.object({
+  sourceEntity: z.string().min(1).max(80),
+  path: z.string().min(1).max(500),
+  method: z.enum(["GET", "POST"]).optional(),
+  itemsPath: z.string().max(200).optional(),
+  idField: z.string().max(80).optional(),
+  updatedAtField: z.string().max(80).optional(),
+  eventType: z.string().max(80).optional(),
+});
+
+export const integrationConnectorConfigSchema = z.object({
+  entities: z.array(integrationConnectorEntitySchema).optional(),
+  pagination: z
+    .object({
+      type: z.enum(["none", "page", "cursor"]),
+      pageParam: z.string().max(40).optional(),
+      cursorParam: z.string().max(40).optional(),
+      cursorPath: z.string().max(80).optional(),
+    })
+    .optional(),
+  hmacHeader: z.string().max(80).optional(),
+  hmacPayloadPath: z.string().max(80).optional(),
+});
+
+export const createIntegrationConnectionSchema = z.object({
+  name: z.string().min(1).max(120),
+  providerType: z.enum(INTEGRATION_PROVIDER_TYPES),
+  status: z.enum(INTEGRATION_CONNECTION_STATUSES).optional(),
+  authType: z.enum(INTEGRATION_AUTH_TYPES).optional(),
+  authConfig: integrationAuthConfigSchema.optional(),
+  webhookSecret: z.string().max(500).optional().nullable(),
+  baseUrl: z.string().url().max(500).optional().nullable(),
+  syncMode: z.enum(INTEGRATION_SYNC_MODES).optional(),
+  pollIntervalMinutes: z.number().int().min(5).max(1440).optional().nullable(),
+  connectorConfig: integrationConnectorConfigSchema.optional(),
+});
+
+export const updateIntegrationConnectionSchema =
+  createIntegrationConnectionSchema.partial();
+
+export const upsertFieldMappingSchema = z.object({
+  mappings: z
+    .array(
+      z.object({
+        id: z.string().uuid().optional(),
+        sourceEntity: z.string().min(1).max(80),
+        sourceField: z.string().min(1).max(200),
+        targetEntity: z.enum(CANONICAL_TARGET_ENTITIES),
+        targetField: z.string().min(1).max(80),
+        transformType: z.enum(FIELD_TRANSFORM_TYPES).optional(),
+        transformConfig: z
+          .object({
+            enumMap: z.record(z.string()).optional(),
+            dateFormat: z.string().optional(),
+            customExpression: z.string().max(500).optional(),
+          })
+          .optional(),
+        isRequired: z.boolean().optional(),
+      }),
+    )
+    .max(200),
+});
+
+export const csvImportSchema = z.object({
+  csv: z.string().min(1).max(2_000_000),
+  sourceEntity: z.string().min(1).max(80),
+  targetEntity: z.enum(CANONICAL_TARGET_ENTITIES),
+});
+
+export const createEmployeeLinkSchema = z.object({
+  connectionId: z.string().uuid(),
+  externalEmployeeKey: z.string().min(1).max(200),
+  employeeId: z.string().uuid(),
+  matchMethod: z.enum(IDENTITY_MATCH_METHODS).optional(),
+});
+
+export const createBranchLinkSchema = z.object({
+  connectionId: z.string().uuid(),
+  externalBranchKey: z.string().min(1).max(200),
+  branchId: z.string().uuid().optional().nullable(),
+  siteId: z.string().uuid().optional().nullable(),
+});
+
+export const analyticsQuerySchema = z.object({
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+  branchId: z.string().uuid().optional(),
+  employeeId: z.string().uuid().optional(),
+  sourceConnectionId: z.string().uuid().optional(),
+});
+
+export const analyticsDrilldownSchema = z.object({
+  metric: z.string().min(1).max(80),
+  groupBy: z.enum(["employee", "branch", "day"]).default("employee"),
+  from: z.string().date().optional(),
+  to: z.string().date().optional(),
+  branchId: z.string().uuid().optional(),
+});
+
+export const analyticsTimelineSchema = z.object({
+  employeeId: z.string().uuid(),
+  date: z.string().date(),
+});
+
+export const analyticsCorrelationSchema = z.object({
+  x: z.string().min(1).max(80),
+  y: z.string().min(1).max(80),
+  periodDays: z.coerce.number().int().min(1).max(90).optional().default(30),
+  branchId: z.string().uuid().optional(),
+});
+
+export const updateAlertSchema = z.object({
+  status: z.enum(ANALYTICS_ALERT_STATUSES),
+});
+
+export type CreateBranchInput = z.infer<typeof createBranchSchema>;
+export type CreateSiteInput = z.infer<typeof createSiteSchema>;
+export type CreateIntegrationConnectionInput = z.infer<
+  typeof createIntegrationConnectionSchema
+>;

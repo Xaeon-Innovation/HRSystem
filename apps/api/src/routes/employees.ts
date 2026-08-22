@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, ilike, or } from "drizzle-orm";
-import { employees, users } from "@hr/db";
+import { branches, employees, sites, users } from "@hr/db";
 import {
   createEmployeeSchema,
   updateEmployeeSchema,
@@ -26,6 +26,8 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         phone: employees.phone,
         jobTitle: employees.jobTitle,
         status: employees.status,
+        branchId: employees.branchId,
+        siteId: employees.siteId,
         userId: users.id,
         name: users.name,
         email: users.email,
@@ -80,6 +82,22 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(409).send({ error: "Email already exists in tenant" });
       }
 
+      if (data.branchId) {
+        const branch = await app.db.query.branches.findFirst({
+          where: and(
+            eq(branches.id, data.branchId),
+            eq(branches.tenantId, tenantId),
+          ),
+        });
+        if (!branch) return reply.code(400).send({ error: "Branch not found" });
+      }
+      if (data.siteId) {
+        const site = await app.db.query.sites.findFirst({
+          where: and(eq(sites.id, data.siteId), eq(sites.tenantId, tenantId)),
+        });
+        if (!site) return reply.code(400).send({ error: "Site not found" });
+      }
+
       const [user] = await app.db
         .insert(users)
         .values({
@@ -99,6 +117,8 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           phone: data.phone ?? null,
           jobTitle: data.jobTitle ?? null,
           status: data.status,
+          branchId: data.branchId ?? null,
+          siteId: data.siteId ?? null,
         })
         .returning();
 
@@ -237,12 +257,40 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      let nextBranchId =
+        parsed.data.branchId === undefined ? emp.branchId : parsed.data.branchId;
+      let nextSiteId =
+        parsed.data.siteId === undefined ? emp.siteId : parsed.data.siteId;
+      if (nextBranchId) {
+        const branch = await app.db.query.branches.findFirst({
+          where: and(
+            eq(branches.id, nextBranchId),
+            eq(branches.tenantId, tenantId),
+          ),
+        });
+        if (!branch) return reply.code(400).send({ error: "Branch not found" });
+      }
+      if (nextSiteId) {
+        const site = await app.db.query.sites.findFirst({
+          where: and(eq(sites.id, nextSiteId), eq(sites.tenantId, tenantId)),
+        });
+        if (!site) return reply.code(400).send({ error: "Site not found" });
+        if (nextBranchId && site.branchId !== nextBranchId) {
+          return reply
+            .code(400)
+            .send({ error: "Site does not belong to the selected branch" });
+        }
+        if (!nextBranchId) nextBranchId = site.branchId;
+      }
+
       const [updated] = await app.db
         .update(employees)
         .set({
           phone: parsed.data.phone ?? emp.phone,
           jobTitle: parsed.data.jobTitle ?? emp.jobTitle,
           status: nextStatus,
+          branchId: nextBranchId,
+          siteId: nextSiteId,
           updatedAt: new Date(),
         })
         .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
@@ -292,6 +340,8 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         phone: employees.phone,
         jobTitle: employees.jobTitle,
         status: employees.status,
+        branchId: employees.branchId,
+        siteId: employees.siteId,
         name: users.name,
         email: users.email,
         role: users.role,

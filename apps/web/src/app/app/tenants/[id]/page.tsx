@@ -37,6 +37,12 @@ type TenantDetail = {
   } | null;
   seatsUsed: number;
   seatLimit: number | null;
+  integrationHealth?: {
+    connections: number;
+    active: number;
+    error: number;
+    lastSyncAt: string | null;
+  };
 };
 
 type Audit = {
@@ -118,7 +124,7 @@ export default function TenantDetailPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-4">
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Plan</CardTitle>
@@ -146,6 +152,20 @@ export default function TenantDetailPage() {
           <CardContent className="text-sm">
             {data.subscription?.currentPeriodEnd
               ? new Date(data.subscription.currentPeriodEnd).toLocaleString()
+              : "—"}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Integrations</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            {data.integrationHealth
+              ? `${data.integrationHealth.active} active / ${data.integrationHealth.connections} total${
+                  data.integrationHealth.error
+                    ? ` · ${data.integrationHealth.error} error`
+                    : ""
+                }`
               : "—"}
           </CardContent>
         </Card>

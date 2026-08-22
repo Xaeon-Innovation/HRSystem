@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
-import { employees, tenants, users } from "@hr/db";
+import { and, count, eq } from "drizzle-orm";
+import { employees, integrationConnections, tenants, users } from "@hr/db";
 import {
   createTenantSchema,
   updateTenantSchema,
@@ -60,12 +60,44 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     if (!tenant) return reply.code(404).send({ error: "Not found" });
     const current = await getTenantSubscription(app.db, id);
     const seatsUsed = await countActiveSeats(app.db, id);
+    const [connCount] = await app.db
+      .select({ n: count() })
+      .from(integrationConnections)
+      .where(eq(integrationConnections.tenantId, id));
+    const [activeCount] = await app.db
+      .select({ n: count() })
+      .from(integrationConnections)
+      .where(
+        and(
+          eq(integrationConnections.tenantId, id),
+          eq(integrationConnections.status, "active"),
+        ),
+      );
+    const [errorCount] = await app.db
+      .select({ n: count() })
+      .from(integrationConnections)
+      .where(
+        and(
+          eq(integrationConnections.tenantId, id),
+          eq(integrationConnections.status, "error"),
+        ),
+      );
+    const latest = await app.db.query.integrationConnections.findFirst({
+      where: eq(integrationConnections.tenantId, id),
+      orderBy: (t, { desc }) => [desc(t.lastSyncAt)],
+    });
     return {
       tenant,
       subscription: current?.subscription ?? null,
       plan: current?.plan ?? null,
       seatsUsed,
       seatLimit: current?.plan?.seatLimit ?? null,
+      integrationHealth: {
+        connections: Number(connCount?.n ?? 0),
+        active: Number(activeCount?.n ?? 0),
+        error: Number(errorCount?.n ?? 0),
+        lastSyncAt: latest?.lastSyncAt ?? null,
+      },
     };
   });
 

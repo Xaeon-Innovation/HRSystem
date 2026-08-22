@@ -1,6 +1,6 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import {
   createDb,
   employees,
@@ -8,6 +8,9 @@ import {
   tenantSubscriptions,
   tenants,
   users,
+  branches,
+  sites,
+  analyticsMetricDefinitions,
 } from "./index.js";
 
 const connectionString =
@@ -23,7 +26,7 @@ const DEFAULT_PLANS = [
     intervalDays: 15,
     seatLimit: 10,
     active: true,
-    features: { trialDays: 14 },
+    features: { trialDays: 14, integrations: true, analytics: true },
   },
   {
     code: "starter",
@@ -45,7 +48,7 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 100,
     active: true,
-    features: {},
+    features: { integrations: true, analytics: true },
   },
   {
     code: "enterprise",
@@ -56,7 +59,7 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: null,
     active: true,
-    features: {},
+    features: { integrations: true, analytics: true },
   },
 ] as const;
 
@@ -90,6 +93,11 @@ async function main() {
     if (!existing) {
       await db.insert(plans).values(plan);
       console.log(`Created plan ${plan.code}`);
+    } else {
+      await db
+        .update(plans)
+        .set({ features: plan.features, updatedAt: new Date() })
+        .where(eq(plans.id, existing.id));
     }
   }
 
@@ -118,6 +126,7 @@ async function main() {
             locationRetentionDays: 60,
             missedClockOutHours: 12,
             brandingName: name,
+            defaultHourlyCost: 15,
           },
         })
         .returning();
@@ -197,7 +206,7 @@ async function main() {
     return tenant;
   }
 
-  await ensureTenant(
+  const cms = await ensureTenant(
     "cms",
     "Creative Multi Solutions",
     "admin@cms.local",
@@ -209,6 +218,136 @@ async function main() {
     "admin@acme.local",
     "Admin123!",
   );
+
+  async function ensureBranch(
+    tenantId: string,
+    name: string,
+    code: string,
+  ) {
+    const existing = await db.query.branches.findFirst({
+      where: eq(branches.tenantId, tenantId),
+    });
+    if (existing) return existing;
+    const [created] = await db
+      .insert(branches)
+      .values({ tenantId, name, code, status: "active" })
+      .returning();
+    await db.insert(sites).values({
+      tenantId,
+      branchId: created.id,
+      name: `${name} HQ`,
+      code: `${code}-hq`,
+    });
+    console.log(`Created branch ${code} for tenant`);
+    return created;
+  }
+
+  await ensureBranch(cms.id, "Cairo HQ", "cairo");
+
+  const defaultMetrics = [
+    {
+      key: "attendance_rate",
+      name: "Attendance rate",
+      description: "Clocked-in employees / active employees",
+      formulaConfig: { expression: "clocked_in / active_employees" },
+    },
+    {
+      key: "lateness_rate",
+      name: "Lateness rate",
+      description: "Employees with lateness / clocked-in employees",
+      formulaConfig: { expression: "late_employees / clocked_in" },
+    },
+    {
+      key: "missed_clock_out_rate",
+      name: "Missed clock-out rate",
+      description: "Missed clock-outs / clocked-in employees",
+      formulaConfig: { expression: "missed_clock_outs / clocked_in" },
+    },
+    {
+      key: "total_work_hours",
+      name: "Total work hours",
+      description: "Sum of work minutes / 60",
+      formulaConfig: { expression: "total_work_minutes / 60" },
+    },
+    {
+      key: "gps_coverage_completeness",
+      name: "GPS coverage completeness",
+      description: "GPS pings received / expected",
+      formulaConfig: { expression: "gps_updates_count / gps_expected_count" },
+    },
+    {
+      key: "jobs_completed",
+      name: "Jobs completed",
+      description: "Canonical jobs completed",
+      formulaConfig: { expression: "jobs_completed_count" },
+    },
+    {
+      key: "visits_completed",
+      name: "Visits completed",
+      description: "Canonical visits completed",
+      formulaConfig: { expression: "visits_completed_count" },
+    },
+    {
+      key: "task_completion_rate",
+      name: "Task completion rate",
+      description: "Completed tasks / assigned tasks",
+      formulaConfig: { expression: "tasks_completed_count / tasks_assigned_count" },
+    },
+    {
+      key: "revenue_per_employee",
+      name: "Revenue per employee",
+      description: "Revenue / active employees",
+      formulaConfig: { expression: "revenue_generated / active_employees" },
+    },
+    {
+      key: "labor_cost_per_output",
+      name: "Labor cost per output",
+      description: "Labor cost / jobs+visits completed",
+      formulaConfig: {
+        expression:
+          "labor_cost_estimate / (jobs_completed_count + visits_completed_count)",
+      },
+    },
+    {
+      key: "productivity_score",
+      name: "Productivity score",
+      description: "Weighted attendance, punctuality, and output",
+      formulaType: "weighted_score" as const,
+      formulaConfig: {
+        weights: {
+          attendance_quality: 0.25,
+          punctuality: 0.15,
+          jobs_completed: 0.2,
+          visits_completed: 0.2,
+          task_completion_rate: 0.1,
+          kpi_score: 0.1,
+        },
+      },
+    },
+  ];
+
+  for (const metric of defaultMetrics) {
+    const existing = await db.query.analyticsMetricDefinitions.findFirst({
+      where: and(
+        eq(analyticsMetricDefinitions.key, metric.key),
+        isNull(analyticsMetricDefinitions.tenantId),
+      ),
+    });
+    if (!existing) {
+      await db.insert(analyticsMetricDefinitions).values({
+        tenantId: null,
+        key: metric.key,
+        name: metric.name,
+        description: metric.description,
+        formulaType: metric.formulaType ?? "expression",
+        formulaConfig: metric.formulaConfig,
+        aggregationLevel: "tenant",
+        timeGrain: "day",
+        version: 1,
+        isActive: true,
+      });
+    }
+  }
 
   await client.end();
   console.log("Seed complete");

@@ -172,6 +172,7 @@ Set:
 POSTGRES_PASSWORD=...
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
+INTEGRATION_SECRETS_KEY=...   # AES-256-GCM key for connector secrets; 32+ chars
 
 WEB_DOMAIN=app.YOURDOMAIN
 API_DOMAIN=api.YOURDOMAIN
@@ -188,6 +189,8 @@ API_PUBLISH_PORT=4000
 SEED_SUPER_ADMIN_EMAIL=you@YOURDOMAIN
 SEED_SUPER_ADMIN_PASSWORD=...
 ```
+
+Outbound HTTPS: custom REST polling only allows HTTPS (HTTP loopback in non-production). Private IPs are blocked (SSRF). Webhook ingest: `https://api.YOURDOMAIN/v1/webhooks/integrations/:connectionId`.
 
 `NEXT_PUBLIC_*` are baked into the web image at **build** time — change them later ⇒ rebuild `web`.
 

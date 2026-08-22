@@ -17,6 +17,7 @@ import { createDb } from "@hr/db";
 import { authRoutes } from "./routes/auth.js";
 import { tenantRoutes } from "./routes/tenants.js";
 import { employeeRoutes } from "./routes/employees.js";
+import { branchRoutes, siteRoutes } from "./routes/branches.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { liveMapRoutes } from "./routes/live-map.js";
 import { kpiRoutes } from "./routes/kpis.js";
@@ -27,6 +28,9 @@ import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { billingRoutes } from "./routes/billing.js";
 import { auditRoutes } from "./routes/audits.js";
 import { paymobWebhookRoutes } from "./routes/webhooks-paymob.js";
+import { integrationWebhookRoutes } from "./routes/webhooks-integrations.js";
+import { integrationRoutes } from "./routes/integrations.js";
+import { analyticsRoutes } from "./routes/analytics.js";
 import { registerWs } from "./ws.js";
 import { startJobs } from "./jobs.js";
 import type { AppEnv } from "./types.js";
@@ -66,7 +70,14 @@ async function main() {
   await app.register(billingRoutes, { prefix: "/v1/billing" });
   await app.register(auditRoutes, { prefix: "/v1/audits" });
   await app.register(paymobWebhookRoutes, { prefix: "/v1/webhooks/paymob" });
+  await app.register(integrationWebhookRoutes, {
+    prefix: "/v1/webhooks/integrations",
+  });
+  await app.register(integrationRoutes, { prefix: "/v1/integrations" });
+  await app.register(analyticsRoutes, { prefix: "/v1/analytics" });
   await app.register(employeeRoutes, { prefix: "/v1/employees" });
+  await app.register(branchRoutes, { prefix: "/v1/branches" });
+  await app.register(siteRoutes, { prefix: "/v1/sites" });
   await app.register(attendanceRoutes, { prefix: "/v1/attendance" });
   await app.register(liveMapRoutes, { prefix: "/v1/admin" });
   await app.register(kpiRoutes, { prefix: "/v1/kpis" });

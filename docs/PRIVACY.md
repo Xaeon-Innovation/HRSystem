@@ -35,3 +35,11 @@
 - Employee clock-in/out and GPS pings are **not** written to the audit log (they remain in attendance / location tables).
 - Recommended retention: keep audits ≥ 1 year for B2B accountability; purge older rows with a controlled ops job if needed.
 - Billing webhooks store provider payloads in `payment_events` for idempotency and dispute support; treat as financial records.
+
+## Integration payloads
+
+- Raw connector payloads live in `integration_raw_events` and are retained per tenant setting `integrationRawRetentionDays` (default 60, range 30–90).
+- Hourly/nightly jobs purge expired raw events. Canonical business events are kept for analytics.
+- Connector API keys and webhook secrets are encrypted at rest (`INTEGRATION_SECRETS_KEY`) and never returned in API responses.
+- Super admin sees connection **health counts only**, not tenant business payloads.
+- Analytics screens are RBAC-scoped: tenant admins see tenant-wide dashboards; employees see only their own profile.

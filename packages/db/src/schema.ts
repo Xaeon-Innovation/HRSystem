@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   doublePrecision,
   index,
   integer,
@@ -53,6 +54,118 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "expired",
 ]);
 
+export const branchStatusEnum = pgEnum("branch_status", ["active", "inactive"]);
+
+export const integrationProviderEnum = pgEnum("integration_provider_type", [
+  "custom_api",
+  "webhook",
+  "csv",
+  "crm",
+  "cms",
+  "erp",
+]);
+
+export const integrationStatusEnum = pgEnum("integration_connection_status", [
+  "draft",
+  "active",
+  "paused",
+  "error",
+]);
+
+export const integrationAuthTypeEnum = pgEnum("integration_auth_type", [
+  "api_key",
+  "bearer",
+  "oauth2",
+  "basic",
+  "none",
+]);
+
+export const integrationSyncModeEnum = pgEnum("integration_sync_mode", [
+  "webhook",
+  "polling",
+  "manual",
+  "hybrid",
+]);
+
+export const integrationSyncTriggerEnum = pgEnum("integration_sync_trigger", [
+  "schedule",
+  "webhook",
+  "manual",
+  "replay",
+  "csv",
+]);
+
+export const integrationSyncRunStatusEnum = pgEnum(
+  "integration_sync_run_status",
+  ["running", "success", "partial", "failed"],
+);
+
+export const integrationProcessingStatusEnum = pgEnum(
+  "integration_processing_status",
+  ["pending", "processed", "failed", "dead_letter"],
+);
+
+export const identityMatchMethodEnum = pgEnum("identity_match_method", [
+  "direct_id",
+  "email",
+  "phone",
+  "manual",
+]);
+
+export const fieldTransformTypeEnum = pgEnum("field_transform_type", [
+  "direct",
+  "enum_map",
+  "date_parse",
+  "number_parse",
+  "custom",
+]);
+
+export const analyticsAlertTypeEnum = pgEnum("analytics_alert_type", [
+  "attendance_drop",
+  "off_route",
+  "low_productivity",
+  "sync_failure",
+  "reconciliation_drift",
+  "stale_sync",
+]);
+
+export const analyticsAlertSeverityEnum = pgEnum("analytics_alert_severity", [
+  "low",
+  "medium",
+  "high",
+]);
+
+export const analyticsAlertStatusEnum = pgEnum("analytics_alert_status", [
+  "open",
+  "acknowledged",
+  "resolved",
+]);
+
+export const analyticsEntityTypeEnum = pgEnum("analytics_entity_type", [
+  "employee",
+  "branch",
+  "connection",
+  "tenant",
+]);
+
+export const metricFormulaTypeEnum = pgEnum("metric_formula_type", [
+  "sql",
+  "expression",
+  "weighted_score",
+]);
+
+export const metricAggregationLevelEnum = pgEnum("metric_aggregation_level", [
+  "employee",
+  "branch",
+  "tenant",
+]);
+
+export const metricTimeGrainEnum = pgEnum("metric_time_grain", [
+  "day",
+  "week",
+  "month",
+]);
+
 export type TenantSettings = {
   brandingName?: string;
   logoUrl?: string | null;
@@ -60,6 +173,51 @@ export type TenantSettings = {
   pingIntervalSec?: number;
   locationRetentionDays?: number;
   missedClockOutHours?: number;
+  defaultHourlyCost?: number;
+  integrationRawRetentionDays?: number;
+  latenessGraceMinutes?: number;
+  shiftStartHour?: number;
+};
+
+export type IntegrationConnectorConfig = {
+  entities?: Array<{
+    sourceEntity: string;
+    path: string;
+    method?: string;
+    itemsPath?: string;
+    idField?: string;
+    updatedAtField?: string;
+    eventType?: string;
+  }>;
+  pagination?: {
+    type: "none" | "page" | "cursor";
+    pageParam?: string;
+    cursorParam?: string;
+    cursorPath?: string;
+  };
+  hmacHeader?: string;
+  hmacPayloadPath?: string;
+};
+
+export type IntegrationAuthConfig = {
+  apiKey?: string;
+  apiKeyHeader?: string;
+  bearerToken?: string;
+  username?: string;
+  password?: string;
+  headerName?: string;
+};
+
+export type FieldTransformConfig = {
+  enumMap?: Record<string, string>;
+  dateFormat?: string;
+  customExpression?: string;
+};
+
+export type MetricFormulaConfig = {
+  expression?: string;
+  weights?: Record<string, number>;
+  sql?: string;
 };
 
 export type PlanFeatures = Record<string, boolean | number | string>;
@@ -106,6 +264,56 @@ export const users = pgTable(
   ],
 );
 
+export const branches = pgTable(
+  "branches",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    code: text("code").notNull(),
+    status: branchStatusEnum("status").notNull().default("active"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("branches_tenant_code_uidx").on(t.tenantId, t.code),
+    index("branches_tenant_idx").on(t.tenantId),
+  ],
+);
+
+export const sites = pgTable(
+  "sites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    code: text("code").notNull(),
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sites_tenant_code_uidx").on(t.tenantId, t.code),
+    index("sites_tenant_branch_idx").on(t.tenantId, t.branchId),
+  ],
+);
+
 export const employees = pgTable(
   "employees",
   {
@@ -116,6 +324,12 @@ export const employees = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    siteId: uuid("site_id").references(() => sites.id, {
+      onDelete: "set null",
+    }),
     phone: text("phone"),
     jobTitle: text("job_title"),
     deviceInfo: text("device_info"),
@@ -131,6 +345,7 @@ export const employees = pgTable(
     uniqueIndex("employees_user_uidx").on(t.userId),
     index("employees_tenant_idx").on(t.tenantId),
     index("employees_tenant_status_idx").on(t.tenantId, t.status),
+    index("employees_tenant_branch_idx").on(t.tenantId, t.branchId),
   ],
 );
 
@@ -487,5 +702,680 @@ export const auditLogs = pgTable(
     index("audit_logs_created_idx").on(t.createdAt),
     index("audit_logs_tenant_created_idx").on(t.tenantId, t.createdAt),
     index("audit_logs_action_created_idx").on(t.action, t.createdAt),
+  ],
+);
+
+export const integrationConnections = pgTable(
+  "integration_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    providerType: integrationProviderEnum("provider_type").notNull(),
+    status: integrationStatusEnum("status").notNull().default("draft"),
+    authType: integrationAuthTypeEnum("auth_type").notNull().default("none"),
+    authConfigEncrypted: text("auth_config_encrypted"),
+    baseUrl: text("base_url"),
+    webhookSecretEncrypted: text("webhook_secret_encrypted"),
+    syncMode: integrationSyncModeEnum("sync_mode").notNull().default("manual"),
+    pollIntervalMinutes: integer("poll_interval_minutes"),
+    connectorConfig: jsonb("connector_config")
+      .$type<IntegrationConnectorConfig>()
+      .notNull()
+      .default({}),
+    lastSyncAt: timestamp("last_sync_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    createdBy: uuid("created_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("integration_connections_tenant_idx").on(t.tenantId),
+    index("integration_connections_tenant_status_idx").on(t.tenantId, t.status),
+  ],
+);
+
+export const integrationFieldMappings = pgTable(
+  "integration_field_mappings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    sourceEntity: text("source_entity").notNull(),
+    sourceField: text("source_field").notNull(),
+    targetEntity: text("target_entity").notNull(),
+    targetField: text("target_field").notNull(),
+    transformType: fieldTransformTypeEnum("transform_type")
+      .notNull()
+      .default("direct"),
+    transformConfig: jsonb("transform_config")
+      .$type<FieldTransformConfig>()
+      .notNull()
+      .default({}),
+    isRequired: boolean("is_required").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("integration_mappings_connection_idx").on(
+      t.tenantId,
+      t.connectionId,
+    ),
+  ],
+);
+
+export const integrationSyncRuns = pgTable(
+  "integration_sync_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    triggerType: integrationSyncTriggerEnum("trigger_type").notNull(),
+    status: integrationSyncRunStatusEnum("status").notNull().default("running"),
+    startedAt: timestamp("started_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    recordsReceived: integer("records_received").notNull().default(0),
+    recordsProcessed: integer("records_processed").notNull().default(0),
+    recordsFailed: integer("records_failed").notNull().default(0),
+    errorSummary: text("error_summary"),
+    cursorJson: jsonb("cursor_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+  },
+  (t) => [
+    index("integration_sync_runs_connection_idx").on(
+      t.tenantId,
+      t.connectionId,
+      t.startedAt,
+    ),
+  ],
+);
+
+export const integrationRawEvents = pgTable(
+  "integration_raw_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    syncRunId: uuid("sync_run_id").references(() => integrationSyncRuns.id, {
+      onDelete: "set null",
+    }),
+    sourceEventType: text("source_event_type").notNull(),
+    externalRecordId: text("external_record_id").notNull(),
+    payloadJson: jsonb("payload_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    processingStatus: integrationProcessingStatusEnum("processing_status")
+      .notNull()
+      .default("pending"),
+    errorDetails: text("error_details"),
+  },
+  (t) => [
+    uniqueIndex("integration_raw_events_ext_uidx").on(
+      t.tenantId,
+      t.connectionId,
+      t.externalRecordId,
+      t.sourceEventType,
+    ),
+    index("integration_raw_events_status_idx").on(
+      t.tenantId,
+      t.processingStatus,
+    ),
+    index("integration_raw_events_received_idx").on(t.tenantId, t.receivedAt),
+  ],
+);
+
+export const externalEmployeeLinks = pgTable(
+  "external_employee_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalEmployeeKey: text("external_employee_key").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "cascade",
+    }),
+    matchConfidence: doublePrecision("match_confidence").notNull().default(1),
+    matchMethod: identityMatchMethodEnum("match_method").notNull(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_employee_links_uidx").on(
+      t.tenantId,
+      t.connectionId,
+      t.externalEmployeeKey,
+    ),
+    index("external_employee_links_employee_idx").on(t.tenantId, t.employeeId),
+  ],
+);
+
+export const externalBranchLinks = pgTable(
+  "external_branch_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    connectionId: uuid("connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalBranchKey: text("external_branch_key").notNull(),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    siteId: uuid("site_id").references(() => sites.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("external_branch_links_uidx").on(
+      t.tenantId,
+      t.connectionId,
+      t.externalBranchKey,
+    ),
+  ],
+);
+
+export const canonicalCustomers = pgTable(
+  "canonical_customers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    name: text("name").notNull(),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_customers_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+  ],
+);
+
+export const canonicalProjects = pgTable(
+  "canonical_projects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    customerId: uuid("customer_id").references(() => canonicalCustomers.id, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    status: text("status"),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_projects_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+  ],
+);
+
+export const canonicalJobEvents = pgTable(
+  "canonical_job_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    siteId: uuid("site_id").references(() => sites.id, {
+      onDelete: "set null",
+    }),
+    customerId: uuid("customer_id").references(() => canonicalCustomers.id, {
+      onDelete: "set null",
+    }),
+    projectId: uuid("project_id").references(() => canonicalProjects.id, {
+      onDelete: "set null",
+    }),
+    eventType: text("event_type").notNull().default("completed"),
+    status: text("status"),
+    title: text("title"),
+    category: text("category"),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull(),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    durationMinutes: integer("duration_minutes"),
+    valueAmount: doublePrecision("value_amount"),
+    currency: text("currency"),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_job_events_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+    index("canonical_job_events_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+      t.occurredAt,
+    ),
+    index("canonical_job_events_branch_idx").on(
+      t.tenantId,
+      t.branchId,
+      t.occurredAt,
+    ),
+  ],
+);
+
+export const canonicalVisitEvents = pgTable(
+  "canonical_visit_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    siteId: uuid("site_id").references(() => sites.id, {
+      onDelete: "set null",
+    }),
+    customerId: uuid("customer_id").references(() => canonicalCustomers.id, {
+      onDelete: "set null",
+    }),
+    checkInAt: timestamp("check_in_at", { withTimezone: true }),
+    checkOutAt: timestamp("check_out_at", { withTimezone: true }),
+    visitDurationMinutes: integer("visit_duration_minutes"),
+    visitStatus: text("visit_status"),
+    revenueAmount: doublePrecision("revenue_amount"),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_visit_events_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+    index("canonical_visit_events_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+      t.checkInAt,
+    ),
+  ],
+);
+
+export const canonicalTaskEvents = pgTable(
+  "canonical_task_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    assignedAt: timestamp("assigned_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    taskType: text("task_type"),
+    priority: text("priority"),
+    status: text("status"),
+    points: doublePrecision("points"),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_task_events_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+    index("canonical_task_events_employee_idx").on(t.tenantId, t.employeeId),
+  ],
+);
+
+export const canonicalSalesEvents = pgTable(
+  "canonical_sales_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    sourceConnectionId: uuid("source_connection_id")
+      .notNull()
+      .references(() => integrationConnections.id, { onDelete: "cascade" }),
+    externalRecordId: text("external_record_id").notNull(),
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    customerId: uuid("customer_id").references(() => canonicalCustomers.id, {
+      onDelete: "set null",
+    }),
+    eventDate: timestamp("event_date", { withTimezone: true }).notNull(),
+    amount: doublePrecision("amount").notNull().default(0),
+    currency: text("currency"),
+    status: text("status"),
+    metadataJson: jsonb("metadata_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("canonical_sales_events_ext_uidx").on(
+      t.tenantId,
+      t.sourceConnectionId,
+      t.externalRecordId,
+    ),
+    index("canonical_sales_events_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+      t.eventDate,
+    ),
+  ],
+);
+
+export const employeeDailyAnalytics = pgTable(
+  "employee_daily_analytics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    branchId: uuid("branch_id").references(() => branches.id, {
+      onDelete: "set null",
+    }),
+    wasClockedIn: boolean("was_clocked_in").notNull().default(false),
+    totalWorkMinutes: integer("total_work_minutes").notNull().default(0),
+    overtimeMinutes: integer("overtime_minutes").notNull().default(0),
+    latenessMinutes: integer("lateness_minutes").notNull().default(0),
+    gpsUpdatesCount: integer("gps_updates_count").notNull().default(0),
+    gpsExpectedCount: integer("gps_expected_count").notNull().default(0),
+    offRouteFlags: integer("off_route_flags").notNull().default(0),
+    jobsCompletedCount: integer("jobs_completed_count").notNull().default(0),
+    visitsCompletedCount: integer("visits_completed_count").notNull().default(0),
+    tasksCompletedCount: integer("tasks_completed_count").notNull().default(0),
+    tasksAssignedCount: integer("tasks_assigned_count").notNull().default(0),
+    revenueGenerated: doublePrecision("revenue_generated").notNull().default(0),
+    laborCostEstimate: doublePrecision("labor_cost_estimate")
+      .notNull()
+      .default(0),
+    kpiScore: doublePrecision("kpi_score"),
+    productivityScore: doublePrecision("productivity_score")
+      .notNull()
+      .default(0),
+    anomalyScore: doublePrecision("anomaly_score").notNull().default(0),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("employee_daily_analytics_uidx").on(
+      t.tenantId,
+      t.employeeId,
+      t.day,
+    ),
+    index("employee_daily_analytics_branch_idx").on(t.tenantId, t.branchId, t.day),
+  ],
+);
+
+export const branchDailyAnalytics = pgTable(
+  "branch_daily_analytics",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    branchId: uuid("branch_id")
+      .notNull()
+      .references(() => branches.id, { onDelete: "cascade" }),
+    day: date("day").notNull(),
+    activeEmployees: integer("active_employees").notNull().default(0),
+    clockedInEmployees: integer("clocked_in_employees").notNull().default(0),
+    attendanceRate: doublePrecision("attendance_rate").notNull().default(0),
+    latenessRate: doublePrecision("lateness_rate").notNull().default(0),
+    missedClockOuts: integer("missed_clock_outs").notNull().default(0),
+    jobsCompletedCount: integer("jobs_completed_count").notNull().default(0),
+    visitsCompletedCount: integer("visits_completed_count").notNull().default(0),
+    revenueGenerated: doublePrecision("revenue_generated").notNull().default(0),
+    laborCostEstimate: doublePrecision("labor_cost_estimate")
+      .notNull()
+      .default(0),
+    productivityIndex: doublePrecision("productivity_index")
+      .notNull()
+      .default(0),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("branch_daily_analytics_uidx").on(t.tenantId, t.branchId, t.day),
+  ],
+);
+
+export const analyticsMetricDefinitions = pgTable(
+  "analytics_metric_definitions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "cascade",
+    }),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    formulaType: metricFormulaTypeEnum("formula_type")
+      .notNull()
+      .default("expression"),
+    formulaConfig: jsonb("formula_config")
+      .$type<MetricFormulaConfig>()
+      .notNull()
+      .default({}),
+    aggregationLevel: metricAggregationLevelEnum("aggregation_level")
+      .notNull()
+      .default("tenant"),
+    timeGrain: metricTimeGrainEnum("time_grain").notNull().default("day"),
+    version: integer("version").notNull().default(1),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("analytics_metric_defs_uidx").on(t.tenantId, t.key, t.version),
+    index("analytics_metric_defs_key_idx").on(t.key),
+  ],
+);
+
+export const analyticsMetricResults = pgTable(
+  "analytics_metric_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    metricDefinitionId: uuid("metric_definition_id")
+      .notNull()
+      .references(() => analyticsMetricDefinitions.id, { onDelete: "cascade" }),
+    entityType: analyticsEntityTypeEnum("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    dateBucket: date("date_bucket").notNull(),
+    valueNumeric: doublePrecision("value_numeric").notNull().default(0),
+    valueJson: jsonb("value_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    version: integer("version").notNull().default(1),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("analytics_metric_results_uidx").on(
+      t.tenantId,
+      t.metricDefinitionId,
+      t.entityType,
+      t.entityId,
+      t.dateBucket,
+      t.version,
+    ),
+    index("analytics_metric_results_lookup_idx").on(
+      t.tenantId,
+      t.entityType,
+      t.dateBucket,
+    ),
+  ],
+);
+
+export const analyticsAlerts = pgTable(
+  "analytics_alerts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    alertType: analyticsAlertTypeEnum("alert_type").notNull(),
+    severity: analyticsAlertSeverityEnum("severity").notNull().default("medium"),
+    entityType: analyticsEntityTypeEnum("entity_type").notNull(),
+    entityId: uuid("entity_id").notNull(),
+    alertDate: date("alert_date").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    payloadJson: jsonb("payload_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    status: analyticsAlertStatusEnum("status").notNull().default("open"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("analytics_alerts_tenant_status_idx").on(t.tenantId, t.status),
+    index("analytics_alerts_tenant_date_idx").on(t.tenantId, t.alertDate),
   ],
 );

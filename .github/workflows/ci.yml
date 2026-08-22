@@ -26,6 +26,7 @@ jobs:
       DATABASE_URL: postgresql://hr:hr@localhost:5432/hr_system
       JWT_SECRET: ci-jwt-secret-change-me-please-32chars
       JWT_REFRESH_SECRET: ci-refresh-secret-change-me-32chars
+      INTEGRATION_SECRETS_KEY: ci-integration-secrets-key-32chars
       NEXT_PUBLIC_API_URL: http://localhost:4000
       NEXT_PUBLIC_WS_URL: ws://localhost:4000/ws
     steps:

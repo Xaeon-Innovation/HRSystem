@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { describe, expect, it } from "vitest";
 import { and, eq, ne } from "drizzle-orm";
-import { createDb, employees, tenants } from "@hr/db";
+import { createDb, employees, integrationConnections, tenants } from "@hr/db";
 
 const DATABASE_URL =
   process.env.DATABASE_URL ?? "postgresql://hr:hr@localhost:5432/hr_system";
@@ -40,6 +40,11 @@ describe("db tenant isolation", () => {
 
       const bOnly = aEmployees.filter((e) => e.tenantId === b.id);
       expect(bOnly).toHaveLength(0);
+
+      const aConns = await db.query.integrationConnections.findMany({
+        where: eq(integrationConnections.tenantId, a.id),
+      });
+      expect(aConns.every((c) => c.tenantId === a.id)).toBe(true);
     } finally {
       await client.end({ timeout: 1 });
     }

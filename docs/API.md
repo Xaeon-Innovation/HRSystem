@@ -46,8 +46,60 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 | Method | Path | Notes |
 |--------|------|-------|
 | POST | `/v1/webhooks/paymob` | HMAC-verified; no JWT |
+| POST | `/v1/webhooks/integrations/:connectionId` | Tenant connection HMAC; stores raw events then canonicalizes |
 
 See [BILLING.md](./BILLING.md).
+
+## Branches / sites (tenant scoped)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET/POST | `/v1/branches` | tenant_admin write |
+| PATCH/DELETE | `/v1/branches/:id` | |
+| GET/POST | `/v1/sites` | Optional `branchId` query on GET |
+| PATCH/DELETE | `/v1/sites/:id` | |
+
+## Integrations (tenant_admin, plan feature `integrations`)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/integrations/catalog` | Providers + canonical field lists |
+| GET/POST | `/v1/integrations/connections` | Secrets encrypted at rest; never returned |
+| GET/PATCH | `/v1/integrations/connections/:id` | |
+| POST | `/v1/integrations/connections/:id/test` | SSRF-safe REST probe |
+| POST | `/v1/integrations/connections/:id/sync` | Poll + transform |
+| GET | `/v1/integrations/connections/:id/sync-runs` | |
+| GET/POST | `/v1/integrations/connections/:id/mappings` | POST replaces mapping set |
+| GET | `/v1/integrations/connections/:id/raw-events` | |
+| POST | `/v1/integrations/connections/:id/replay` | Dead-letter → pending |
+| POST | `/v1/integrations/connections/:id/csv/preview` | |
+| POST | `/v1/integrations/connections/:id/csv/import` | |
+| GET | `/v1/integrations/connections/:id/links` | External employee/branch links |
+| POST | `/v1/integrations/links/employees` | Manual identity link |
+| POST | `/v1/integrations/links/branches` | |
+
+## Analytics (plan feature `analytics`)
+
+Dashboards read **summary / canonical tables**, never raw payloads. Employees may only query their own `/employees/:id` and `/timeline`.
+
+| Method | Path |
+|--------|------|
+| GET | `/v1/analytics/summary` |
+| GET | `/v1/analytics/attendance` |
+| GET | `/v1/analytics/productivity` |
+| GET | `/v1/analytics/field-ops` |
+| GET | `/v1/analytics/business-output` |
+| GET | `/v1/analytics/branches/:branchId` |
+| GET | `/v1/analytics/employees/:employeeId` |
+| GET | `/v1/analytics/alerts` |
+| PATCH | `/v1/analytics/alerts/:id` |
+| GET | `/v1/analytics/drilldown` |
+| GET | `/v1/analytics/timeline` |
+| GET | `/v1/analytics/correlation` |
+
+Query filters: `from`, `to` (`YYYY-MM-DD`), optional `branchId`.
+
+Attendance rate = clocked-in / active employees (no roster). Labor cost uses tenant setting `defaultHourlyCost`.
 
 ## Employees (tenant scoped)
 
