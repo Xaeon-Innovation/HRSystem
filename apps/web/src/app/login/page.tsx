@@ -94,9 +94,20 @@ export default function LoginPage() {
             </Button>
           </form>
           <p className="mt-4 text-xs text-muted-foreground">
-            Try admin@cms.local / Admin123! (slug: cms) or
-            superadmin@hr.local / SuperAdmin123!
+            <span className="font-medium text-foreground">Integrations &amp; Analytics</span>{" "}
+            are on the <span className="font-medium">tenant admin</span> account, not the
+            platform super admin.
           </p>
+          <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+            <li>
+              Tenant admin: <code>admin@cms.local</code> / Admin123! · slug{" "}
+              <code>cms</code>
+            </li>
+            <li>
+              Platform super admin: <code>superadmin@hr.local</code> / SuperAdmin123! · no
+              slug (Tenants / Plans only)
+            </li>
+          </ul>
         </CardContent>
       </Card>
     </div>

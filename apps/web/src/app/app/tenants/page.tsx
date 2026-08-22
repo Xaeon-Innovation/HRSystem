@@ -63,6 +63,15 @@ export default function TenantsPage() {
           Platform super-admin provisioning
         </p>
       </div>
+      <Card className="border-primary/20 bg-primary/5">
+        <CardContent className="py-3 text-sm text-muted-foreground">
+          Integrations Hub and Analytics live in the{" "}
+          <span className="font-medium text-foreground">tenant admin</span> app, not
+          here. Sign out and log in as that tenant&apos;s admin (e.g.{" "}
+          <code>admin@cms.local</code>, slug <code>cms</code>) to configure connectors
+          and dashboards. Connection health counts appear on each tenant detail page.
+        </CardContent>
+      </Card>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
         {tenants.map((t) => (

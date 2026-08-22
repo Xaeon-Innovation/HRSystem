@@ -37,11 +37,11 @@ const linksFor = (user: AuthUser) => {
   if (user.role === "tenant_admin") {
     return [
       { href: "/app", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/app/integrations", label: "Integrations", icon: Plug },
+      { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/app/employees", label: "Employees", icon: Users },
       { href: "/app/map", label: "Live Map", icon: MapPinned },
       { href: "/app/kpis", label: "KPIs", icon: ClipboardList },
-      { href: "/app/integrations", label: "Integrations", icon: Plug },
-      { href: "/app/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/app/notifications", label: "Alerts", icon: Bell },
       { href: "/app/billing", label: "Billing", icon: CreditCard },
       { href: "/app/health", label: "Health", icon: ClipboardList },
