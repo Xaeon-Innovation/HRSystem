@@ -135,6 +135,8 @@ export default function IntegrationDetailPage() {
     targetEntity: "canonical_job_event",
     targetField: "external_record_id",
   });
+  const [editingMappingId, setEditingMappingId] = useState<string | null>(null);
+  const [mappingSaving, setMappingSaving] = useState(false);
 
   async function load() {
     const [c, m, r, e, l] = await Promise.all([
@@ -386,29 +388,130 @@ export default function IntegrationDetailPage() {
     }
   }
 
+  async function persistMappings(next: Array<{
+    sourceEntity: string;
+    sourceField: string;
+    targetEntity: string;
+    targetField: string;
+    transformType?: string;
+    isRequired?: boolean;
+  }>) {
+    await api(`/v1/integrations/connections/${params.id}/mappings`, {
+      method: "POST",
+      body: JSON.stringify({
+        mappings: next.map((m) => ({
+          sourceEntity: m.sourceEntity,
+          sourceField: m.sourceField,
+          targetEntity: m.targetEntity,
+          targetField: m.targetField,
+          transformType: m.transformType ?? "direct",
+          isRequired: m.isRequired ?? false,
+        })),
+      }),
+    });
+    await load();
+  }
+
   async function saveMappings(e: FormEvent) {
     e.preventDefault();
+    setMappingSaving(true);
+    setError(null);
     try {
-      await api(`/v1/integrations/connections/${params.id}/mappings`, {
-        method: "POST",
-        body: JSON.stringify({
-          mappings: [
-            ...mappings.map((m) => ({
-              sourceEntity: m.sourceEntity,
-              sourceField: m.sourceField,
-              targetEntity: m.targetEntity,
-              targetField: m.targetField,
-              transformType: m.transformType,
-              isRequired: m.isRequired,
-            })),
-            newMap,
-          ],
-        }),
-      });
-      await load();
+      const payload = {
+        sourceEntity: newMap.sourceEntity,
+        sourceField: newMap.sourceField,
+        targetEntity: newMap.targetEntity,
+        targetField: newMap.targetField,
+        transformType: "direct",
+        isRequired: false,
+      };
+      if (editingMappingId) {
+        await persistMappings(
+          mappings.map((m) =>
+            m.id === editingMappingId
+              ? { ...payload, transformType: m.transformType, isRequired: m.isRequired }
+              : {
+                  sourceEntity: m.sourceEntity,
+                  sourceField: m.sourceField,
+                  targetEntity: m.targetEntity,
+                  targetField: m.targetField,
+                  transformType: m.transformType,
+                  isRequired: m.isRequired,
+                },
+          ),
+        );
+        setEditingMappingId(null);
+      } else {
+        await persistMappings([
+          ...mappings.map((m) => ({
+            sourceEntity: m.sourceEntity,
+            sourceField: m.sourceField,
+            targetEntity: m.targetEntity,
+            targetField: m.targetField,
+            transformType: m.transformType,
+            isRequired: m.isRequired,
+          })),
+          payload,
+        ]);
+      }
+      setNewMap((s) => ({
+        ...s,
+        sourceField: "id",
+        targetField: canonical[s.targetEntity]?.[0] ?? "external_record_id",
+      }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setMappingSaving(false);
     }
+  }
+
+  async function removeMapping(id: string) {
+    setMappingSaving(true);
+    setError(null);
+    try {
+      if (editingMappingId === id) {
+        setEditingMappingId(null);
+      }
+      await persistMappings(
+        mappings
+          .filter((m) => m.id !== id)
+          .map((m) => ({
+            sourceEntity: m.sourceEntity,
+            sourceField: m.sourceField,
+            targetEntity: m.targetEntity,
+            targetField: m.targetField,
+            transformType: m.transformType,
+            isRequired: m.isRequired,
+          })),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove");
+    } finally {
+      setMappingSaving(false);
+    }
+  }
+
+  function startEditMapping(m: Mapping) {
+    setEditingMappingId(m.id);
+    setNewMap({
+      sourceEntity: m.sourceEntity,
+      sourceField: m.sourceField,
+      targetEntity: m.targetEntity,
+      targetField: m.targetField,
+    });
+  }
+
+  function cancelEditMapping() {
+    setEditingMappingId(null);
+    const firstEntity =
+      conn?.connectorConfig?.entities?.[0]?.sourceEntity ?? "job";
+    setNewMap({
+      sourceEntity: firstEntity,
+      sourceField: "id",
+      targetEntity: "canonical_job_event",
+      targetField: canonical.canonical_job_event?.[0] ?? "external_record_id",
+    });
   }
 
   async function importCsv() {
@@ -924,16 +1027,55 @@ export default function IntegrationDetailPage() {
                 <code>id → external_record_id</code> and an employee identity field.
               </p>
             ) : (
-              <ul className="space-y-1 text-sm">
+              <ul className="space-y-2 text-sm">
                 {mappings.map((m) => (
-                  <li key={m.id}>
-                    {m.sourceEntity}.{m.sourceField} → {m.targetEntity}.{m.targetField}{" "}
-                    <span className="text-muted-foreground">({m.transformType})</span>
+                  <li
+                    key={m.id}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between",
+                      editingMappingId === m.id && "border-amber-300 bg-amber-50/40",
+                    )}
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {m.sourceEntity}.{m.sourceField} → {m.targetEntity}.
+                        {m.targetField}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {m.transformType}
+                        {editingMappingId === m.id ? " · editing below" : ""}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={mappingSaving}
+                        onClick={() => startEditMapping(m)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={mappingSaving}
+                        onClick={() => removeMapping(m.id)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
             )}
             <form className="grid gap-3 md:grid-cols-2" onSubmit={saveMappings}>
+              {editingMappingId ? (
+                <p className="md:col-span-2 text-sm text-amber-700">
+                  Editing an existing mapping — save to update it, or cancel.
+                </p>
+              ) : null}
               {sourceEntityOptions.length > 0 ? (
                 <select
                   className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -994,7 +1136,25 @@ export default function IntegrationDetailPage() {
                   </option>
                 ))}
               </select>
-              <Button type="submit">Add mapping</Button>
+              <div className="flex flex-wrap gap-2 md:col-span-2">
+                <Button type="submit" disabled={mappingSaving}>
+                  {mappingSaving
+                    ? "Saving…"
+                    : editingMappingId
+                      ? "Save changes"
+                      : "Add mapping"}
+                </Button>
+                {editingMappingId ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={mappingSaving}
+                    onClick={cancelEditMapping}
+                  >
+                    Cancel
+                  </Button>
+                ) : null}
+              </div>
             </form>
           </CardContent>
         </Card>
