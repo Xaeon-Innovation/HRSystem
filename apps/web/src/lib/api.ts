@@ -66,7 +66,9 @@ export async function api<T>(
 ): Promise<T> {
   const { access, refresh } = getTokens();
   const headers = new Headers(options.headers);
-  headers.set("Content-Type", "application/json");
+  if (options.body !== undefined && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
   if (access) headers.set("Authorization", `Bearer ${access}`);
 
   let res = await fetch(`${API_URL}${path}`, { ...options, headers });

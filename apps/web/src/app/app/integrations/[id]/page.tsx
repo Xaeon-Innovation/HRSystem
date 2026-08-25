@@ -1,13 +1,23 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { api } from "@/lib/api";
+import { CheckCircle2, CircleAlert } from "lucide-react";
+import { API_URL, api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+type EntityConfig = {
+  sourceEntity: string;
+  path: string;
+  itemsPath?: string;
+  idField?: string;
+  eventType?: string;
+};
 
 type Connection = {
   id: string;
@@ -21,12 +31,7 @@ type Connection = {
   syncMode: string;
   pollIntervalMinutes: number | null;
   connectorConfig: {
-    entities?: Array<{
-      sourceEntity: string;
-      path: string;
-      itemsPath?: string;
-      idField?: string;
-    }>;
+    entities?: EntityConfig[];
   };
   lastSyncAt: string | null;
   lastError: string | null;
@@ -74,6 +79,7 @@ type LinkRow = {
 
 const TABS = [
   "Overview",
+  "Endpoints",
   "Authentication",
   "Mapping",
   "Sync history",
@@ -81,9 +87,21 @@ const TABS = [
   "CSV",
 ] as const;
 
+type Tab = (typeof TABS)[number];
+
+const IDENTITY_TARGETS = new Set(["employee_email", "employee_external_key", "employee_phone"]);
+
+const emptyEntity = (): EntityConfig => ({
+  sourceEntity: "job",
+  path: "/jobs",
+  itemsPath: "",
+  idField: "id",
+  eventType: "",
+});
+
 export default function IntegrationDetailPage() {
   const params = useParams<{ id: string }>();
-  const [tab, setTab] = useState<(typeof TABS)[number]>("Overview");
+  const [tab, setTab] = useState<Tab>("Overview");
   const [conn, setConn] = useState<Connection | null>(null);
   const [mappings, setMappings] = useState<Mapping[]>([]);
   const [canonical, setCanonical] = useState<Record<string, string[]>>({});
@@ -94,16 +112,27 @@ export default function IntegrationDetailPage() {
     branches: [],
   });
   const [error, setError] = useState<string | null>(null);
+  const [authType, setAuthType] = useState("none");
   const [apiKey, setApiKey] = useState("");
+  const [apiKeyHeader, setApiKeyHeader] = useState("X-API-Key");
+  const [bearerToken, setBearerToken] = useState("");
+  const [basicUser, setBasicUser] = useState("");
+  const [basicPass, setBasicPass] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [testOk, setTestOk] = useState(false);
   const [csv, setCsv] = useState("id,employee_email,status,completed_at,amount\n");
   const [sourceEntity, setSourceEntity] = useState("task");
   const [targetEntity, setTargetEntity] = useState("canonical_task_event");
+  const [entities, setEntities] = useState<EntityConfig[]>([emptyEntity()]);
+  const [baseUrl, setBaseUrl] = useState("");
+  const [pollInterval, setPollInterval] = useState("15");
+  const [syncMode, setSyncMode] = useState("polling");
+  const [saving, setSaving] = useState(false);
   const [newMap, setNewMap] = useState({
-    sourceEntity: "task",
+    sourceEntity: "job",
     sourceField: "id",
-    targetEntity: "canonical_task_event",
+    targetEntity: "canonical_job_event",
     targetField: "external_record_id",
   });
 
@@ -127,27 +156,195 @@ export default function IntegrationDetailPage() {
     setRuns(r.runs);
     setEvents(e.events);
     setLinks(l);
+    setAuthType(c.connection.authType || "none");
+    setSyncMode(c.connection.syncMode || "polling");
+    setBaseUrl(c.connection.baseUrl ?? "");
+    setPollInterval(String(c.connection.pollIntervalMinutes ?? 15));
+    const ents = c.connection.connectorConfig?.entities ?? [];
+    setEntities(
+      ents.length
+        ? ents.map((ent) => ({
+            sourceEntity: ent.sourceEntity,
+            path: ent.path,
+            itemsPath: ent.itemsPath ?? "",
+            idField: ent.idField ?? "id",
+            eventType: ent.eventType ?? "",
+          }))
+        : [emptyEntity()],
+    );
+    if (ents[0]?.sourceEntity) {
+      setNewMap((s) => ({ ...s, sourceEntity: ents[0].sourceEntity }));
+      setSourceEntity(ents[0].sourceEntity);
+    }
   }
 
   useEffect(() => {
     load().catch((err) => setError(err.message));
   }, [params.id]);
 
+  const hasIdentityMapping = useMemo(
+    () => mappings.some((m) => IDENTITY_TARGETS.has(m.targetField)),
+    [mappings],
+  );
+
+  const deadLetterCount = useMemo(
+    () => events.filter((ev) => ev.processingStatus === "dead_letter").length,
+    [events],
+  );
+
+  const checklist = useMemo(() => {
+    if (!conn) return [];
+    const entityCount = conn.connectorConfig?.entities?.length ?? 0;
+    const needsEndpoints =
+      conn.syncMode === "polling" || conn.syncMode === "hybrid";
+    const endpointsDone = needsEndpoints
+      ? entityCount > 0
+      : true;
+    const authDone = conn.hasAuth || conn.authType === "none";
+    const mappingsDone = mappings.length > 0;
+    const syncedOrTested = Boolean(conn.lastSyncAt) || testOk;
+    return [
+      {
+        id: "baseUrl",
+        label: "Base URL",
+        done: Boolean(conn.baseUrl),
+        tab: "Overview" as Tab,
+        hint: "Set the HTTPS API root on the Endpoints tab and save.",
+      },
+      {
+        id: "endpoints",
+        label: "Endpoints",
+        done: endpointsDone,
+        tab: "Endpoints" as Tab,
+        hint: needsEndpoints
+          ? "Add at least one resource path (e.g. /jobs) so polling knows what to fetch."
+          : "Webhook / manual mode — endpoints optional.",
+      },
+      {
+        id: "auth",
+        label: "Authentication",
+        done: authDone,
+        tab: "Authentication" as Tab,
+        hint: conn.authType === "none" && !conn.hasAuth
+          ? "Public APIs can stay on None. Otherwise add API key, Bearer, or Basic."
+          : "Credentials stored.",
+      },
+      {
+        id: "mappings",
+        label: "Field mappings",
+        done: mappingsDone && hasIdentityMapping,
+        tab: "Mapping" as Tab,
+        hint: !mappingsDone
+          ? "Without mappings, synced records become dead letters."
+          : !hasIdentityMapping
+            ? "Map employee_email or employee_external_key so analytics can attribute records."
+            : "Mappings ready.",
+      },
+      {
+        id: "tested",
+        label: "Tested or synced",
+        done: syncedOrTested,
+        tab: "Overview" as Tab,
+        hint: "Use Test fetch, then Sync now.",
+      },
+      {
+        id: "active",
+        label: "Active",
+        done: conn.status === "active",
+        tab: "Overview" as Tab,
+        hint: "Activate when endpoints and mappings look correct.",
+      },
+    ];
+  }, [conn, mappings.length, hasIdentityMapping, testOk]);
+
+  const progress = useMemo(() => {
+    const doneCount = checklist.filter((s) => s.done).length;
+    const total = checklist.length;
+    const pct = total === 0 ? 0 : Math.round((doneCount / total) * 100);
+    return {
+      doneCount,
+      total,
+      pct,
+      allDone: total > 0 && doneCount === total,
+    };
+  }, [checklist]);
+
+  const webhookUrl = `${API_URL.replace(/\/$/, "")}/v1/webhooks/integrations/${params.id}`;
+
+  async function patchConnection(body: Record<string, unknown>) {
+    await api(`/v1/integrations/connections/${params.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    await load();
+  }
+
   async function saveAuth(e: FormEvent) {
     e.preventDefault();
+    setSaving(true);
+    setError(null);
     try {
-      await api(`/v1/integrations/connections/${params.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          authType: apiKey ? "api_key" : conn?.authType,
-          authConfig: apiKey ? { apiKey } : undefined,
-          webhookSecret: webhookSecret || undefined,
-          status: "active",
-        }),
-      });
+      const authConfig: Record<string, string> = {};
+      if (authType === "api_key" && apiKey) {
+        authConfig.apiKey = apiKey;
+        authConfig.apiKeyHeader = apiKeyHeader || "X-API-Key";
+      }
+      if (authType === "bearer" && bearerToken) {
+        authConfig.bearerToken = bearerToken;
+      }
+      if (authType === "basic" && basicUser && basicPass) {
+        authConfig.username = basicUser;
+        authConfig.password = basicPass;
+      }
+      const payload: Record<string, unknown> = { authType };
+      if (Object.keys(authConfig).length) payload.authConfig = authConfig;
+      if (webhookSecret) payload.webhookSecret = webhookSecret;
+      await patchConnection(payload);
       setApiKey("");
+      setBearerToken("");
+      setBasicPass("");
       setWebhookSecret("");
-      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveEndpoints(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      const cleaned = entities
+        .filter((ent) => ent.sourceEntity.trim() && ent.path.trim())
+        .map((ent) => ({
+          sourceEntity: ent.sourceEntity.trim(),
+          path: ent.path.trim(),
+          ...(ent.itemsPath?.trim() ? { itemsPath: ent.itemsPath.trim() } : {}),
+          ...(ent.idField?.trim() ? { idField: ent.idField.trim() } : {}),
+          ...(ent.eventType?.trim() ? { eventType: ent.eventType.trim() } : {}),
+        }));
+      const interval = Number(pollInterval);
+      const trimmedBase = baseUrl.trim();
+      await patchConnection({
+        baseUrl: trimmedBase || null,
+        syncMode,
+        pollIntervalMinutes:
+          Number.isFinite(interval) && interval >= 5 ? interval : 15,
+        connectorConfig: { entities: cleaned },
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setStatus(status: "active" | "paused" | "draft") {
+    setError(null);
+    try {
+      await patchConnection({ status });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     }
@@ -159,8 +356,10 @@ export default function IntegrationDetailPage() {
         `/v1/integrations/connections/${params.id}/test`,
         { method: "POST" },
       );
+      setTestOk(Boolean(res.ok));
       setTestResult(res.ok ? JSON.stringify(res.sample, null, 2) : res.error ?? "Failed");
     } catch (err) {
+      setTestOk(false);
       setError(err instanceof Error ? err.message : "Test failed");
     }
   }
@@ -228,6 +427,9 @@ export default function IntegrationDetailPage() {
     return <p className="text-muted-foreground">{error ?? "Loading…"}</p>;
   }
 
+  const configuredEntities = conn.connectorConfig?.entities ?? [];
+  const sourceEntityOptions = configuredEntities.map((e) => e.sourceEntity);
+
   return (
     <div className="space-y-6">
       <div>
@@ -254,51 +456,341 @@ export default function IntegrationDetailPage() {
       </div>
 
       {tab === "Overview" ? (
-        <Card>
-          <CardContent className="space-y-3 py-4 text-sm">
-            <p>Base URL: {conn.baseUrl ?? "—"}</p>
-            <p>
-              Last sync:{" "}
-              {conn.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleString() : "never"}
-            </p>
-            {conn.lastError ? (
-              <p className="text-destructive">{conn.lastError}</p>
-            ) : null}
-            <p>
-              Webhook URL:{" "}
-              <code className="text-xs">
-                /v1/webhooks/integrations/{conn.id}
-              </code>
-            </p>
-            <div className="flex gap-2">
-              <Button onClick={testFetch}>Test fetch</Button>
-              <Button variant="secondary" onClick={syncNow}>
-                Sync now
-              </Button>
-              <Button variant="outline" onClick={replay}>
-                Replay dead letters
-              </Button>
-            </div>
-            {testResult ? (
-              <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">
-                {testResult}
-              </pre>
-            ) : null}
-            <div>
-              <p className="font-medium">Unmatched identity links</p>
-              <ul className="text-xs text-muted-foreground">
-                {links.employees
-                  .filter((l) => !l.employeeId)
-                  .map((l) => (
-                    <li key={l.id}>employee key {l.externalEmployeeKey}</li>
-                  ))}
-                {links.branches
-                  .filter((l) => !l.branchId)
-                  .map((l) => (
-                    <li key={l.id}>branch key {l.externalBranchKey}</li>
-                  ))}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Setup progress</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="font-medium text-foreground">
+                    {progress.doneCount} of {progress.total} complete
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {progress.pct}%
+                  </span>
+                </div>
+                <div
+                  className="h-2.5 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-valuenow={progress.pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label="Setup progress"
+                >
+                  <div
+                    className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
+                    style={{ width: `${progress.pct}%` }}
+                  />
+                </div>
+                {progress.allDone ? (
+                  <p className="text-sm text-emerald-700">
+                    Setup complete — you can sync and use Analytics.
+                  </p>
+                ) : null}
+              </div>
+              <ul className="space-y-2 text-sm">
+                {checklist.map((step) => (
+                  <li
+                    key={step.id}
+                    className={cn(
+                      "flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-colors sm:flex-row sm:items-center sm:justify-between",
+                      step.done
+                        ? "border-emerald-200/60 bg-emerald-50/50"
+                        : "border-amber-200/60 bg-amber-50/40",
+                    )}
+                  >
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      {step.done ? (
+                        <CheckCircle2
+                          className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
+                          aria-hidden
+                        />
+                      ) : (
+                        <CircleAlert
+                          className="mt-0.5 h-5 w-5 shrink-0 text-amber-500"
+                          aria-hidden
+                        />
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-medium text-foreground">{step.label}</p>
+                        {!step.done ? (
+                          <p className="text-xs text-muted-foreground">{step.hint}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    {!step.done ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0 self-start sm:self-center"
+                        onClick={() => setTab(step.tab)}
+                      >
+                        Go to {step.tab}
+                      </Button>
+                    ) : null}
+                  </li>
+                ))}
               </ul>
-            </div>
+              {deadLetterCount > 0 ? (
+                <p className="text-sm text-destructive">
+                  {deadLetterCount} dead-letter event(s). Usually missing field
+                  mappings or a mismatched source entity — fix under Mapping, then
+                  Replay.
+                </p>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="space-y-3 py-4 text-sm">
+              <p>
+                Base URL: {conn.baseUrl ?? "—"}{" "}
+                <button
+                  type="button"
+                  className="text-xs text-muted-foreground underline hover:text-foreground"
+                  onClick={() => setTab("Endpoints")}
+                >
+                  Edit
+                </button>
+              </p>
+              <div>
+                <p className="font-medium">Configured endpoints</p>
+                {configuredEntities.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    None yet — add paths on the Endpoints tab before Sync.
+                  </p>
+                ) : (
+                  <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                    {configuredEntities.map((ent) => (
+                      <li key={`${ent.sourceEntity}-${ent.path}`}>
+                        {ent.sourceEntity}: {ent.path}
+                        {ent.itemsPath ? ` (items: ${ent.itemsPath})` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <p>
+                Last sync:{" "}
+                {conn.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleString() : "never"}
+              </p>
+              {conn.lastError ? (
+                <p className="text-destructive">{conn.lastError}</p>
+              ) : null}
+              <p>
+                Webhook URL:{" "}
+                <code className="break-all text-xs">{webhookUrl}</code>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button onClick={testFetch}>Test fetch</Button>
+                <Button variant="secondary" onClick={syncNow}>
+                  Sync now
+                </Button>
+                <Button variant="outline" onClick={replay}>
+                  Replay dead letters
+                </Button>
+                {conn.status === "active" ? (
+                  <Button variant="outline" onClick={() => setStatus("paused")}>
+                    Pause
+                  </Button>
+                ) : (
+                  <Button onClick={() => setStatus("active")}>Activate</Button>
+                )}
+              </div>
+              {testResult ? (
+                <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">
+                  {testResult}
+                </pre>
+              ) : null}
+              <div>
+                <p className="font-medium">Unmatched identity links</p>
+                <ul className="text-xs text-muted-foreground">
+                  {links.employees
+                    .filter((l) => !l.employeeId)
+                    .map((l) => (
+                      <li key={l.id}>employee key {l.externalEmployeeKey}</li>
+                    ))}
+                  {links.branches
+                    .filter((l) => !l.branchId)
+                    .map((l) => (
+                      <li key={l.id}>branch key {l.externalBranchKey}</li>
+                    ))}
+                  {links.employees.every((l) => l.employeeId) &&
+                  links.branches.every((l) => l.branchId) ? (
+                    <li>None</li>
+                  ) : null}
+                </ul>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Prefer mapping employee_email so records match HR employees
+                  automatically. Unmatched keys will not appear in Analytics.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+
+      {tab === "Endpoints" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">API endpoints</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={saveEndpoints}>
+              <p className="text-sm text-muted-foreground">
+                Base URL is the API root. Add one row per JSON collection the platform
+                should poll — for example source entity <code>job</code>, path{" "}
+                <code>/api/jobs</code>, and <code>itemsPath</code>{" "}
+                <code>data</code> if the array is nested under{" "}
+                <code>{`{ "data": [ ... ] }`}</code>.
+              </p>
+              <div className="space-y-1">
+                <Label>Base URL</Label>
+                <Input
+                  type="url"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com/api/v1"
+                />
+                <p className="text-xs text-muted-foreground">
+                  HTTPS API root only — resource paths below are appended to this.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-1">
+                  <Label>Sync mode</Label>
+                  <select
+                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                    value={syncMode}
+                    onChange={(e) => setSyncMode(e.target.value)}
+                  >
+                    <option value="polling">Polling</option>
+                    <option value="webhook">Webhook</option>
+                    <option value="manual">Manual / CSV</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>Poll interval (minutes)</Label>
+                  <Input
+                    type="number"
+                    min={5}
+                    max={1440}
+                    value={pollInterval}
+                    onChange={(e) => setPollInterval(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">Minimum 5 minutes.</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {entities.map((ent, idx) => (
+                  <div
+                    key={idx}
+                    className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-2"
+                  >
+                    <div className="space-y-1">
+                      <Label>Source entity</Label>
+                      <Input
+                        value={ent.sourceEntity}
+                        onChange={(e) =>
+                          setEntities((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, sourceEntity: e.target.value } : r,
+                            ),
+                          )
+                        }
+                        placeholder="job"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Path</Label>
+                      <Input
+                        value={ent.path}
+                        onChange={(e) =>
+                          setEntities((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, path: e.target.value } : r,
+                            ),
+                          )
+                        }
+                        placeholder="/jobs"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Items path (optional)</Label>
+                      <Input
+                        value={ent.itemsPath ?? ""}
+                        onChange={(e) =>
+                          setEntities((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, itemsPath: e.target.value } : r,
+                            ),
+                          )
+                        }
+                        placeholder="data.items"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>ID field</Label>
+                      <Input
+                        value={ent.idField ?? "id"}
+                        onChange={(e) =>
+                          setEntities((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, idField: e.target.value } : r,
+                            ),
+                          )
+                        }
+                        placeholder="id"
+                      />
+                    </div>
+                    <div className="space-y-1 md:col-span-2">
+                      <Label>Event type override (optional)</Label>
+                      <Input
+                        value={ent.eventType ?? ""}
+                        onChange={(e) =>
+                          setEntities((rows) =>
+                            rows.map((r, i) =>
+                              i === idx ? { ...r, eventType: e.target.value } : r,
+                            ),
+                          )
+                        }
+                        placeholder="Defaults to source entity"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          setEntities((rows) => rows.filter((_, i) => i !== idx))
+                        }
+                        disabled={entities.length <= 1}
+                      >
+                        Remove row
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEntities((rows) => [...rows, emptyEntity()])}
+                >
+                  Add endpoint
+                </Button>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : "Save endpoints"}
+                </Button>
+              </div>
+            </form>
           </CardContent>
         </Card>
       ) : null}
@@ -312,26 +804,88 @@ export default function IntegrationDetailPage() {
             <form className="grid gap-3" onSubmit={saveAuth}>
               <p className="text-xs text-muted-foreground">
                 Auth stored: {conn.hasAuth ? "yes" : "no"} · Webhook secret:{" "}
-                {conn.hasWebhookSecret ? "yes" : "no"}
+                {conn.hasWebhookSecret ? "yes" : "no"}. Saving credentials does not
+                activate the connection — use Activate on Overview when ready.
               </p>
               <div className="space-y-1">
-                <Label>API key</Label>
-                <Input
-                  type="password"
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="Leave blank to keep existing"
-                />
+                <Label>Auth type</Label>
+                <select
+                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={authType}
+                  onChange={(e) => setAuthType(e.target.value)}
+                >
+                  <option value="none">None (public API)</option>
+                  <option value="api_key">API key</option>
+                  <option value="bearer">Bearer token</option>
+                  <option value="basic">Basic username / password</option>
+                </select>
               </div>
+              {authType === "api_key" ? (
+                <>
+                  <div className="space-y-1">
+                    <Label>API key</Label>
+                    <Input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="Leave blank to keep existing"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>API key header</Label>
+                    <Input
+                      value={apiKeyHeader}
+                      onChange={(e) => setApiKeyHeader(e.target.value)}
+                      placeholder="X-API-Key"
+                    />
+                  </div>
+                </>
+              ) : null}
+              {authType === "bearer" ? (
+                <div className="space-y-1">
+                  <Label>Bearer token</Label>
+                  <Input
+                    type="password"
+                    value={bearerToken}
+                    onChange={(e) => setBearerToken(e.target.value)}
+                    placeholder="Leave blank to keep existing"
+                  />
+                </div>
+              ) : null}
+              {authType === "basic" ? (
+                <>
+                  <div className="space-y-1">
+                    <Label>Username</Label>
+                    <Input
+                      value={basicUser}
+                      onChange={(e) => setBasicUser(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label>Password</Label>
+                    <Input
+                      type="password"
+                      value={basicPass}
+                      onChange={(e) => setBasicPass(e.target.value)}
+                      placeholder="Leave blank to keep existing"
+                    />
+                  </div>
+                </>
+              ) : null}
               <div className="space-y-1">
-                <Label>Webhook HMAC secret</Label>
+                <Label>Webhook HMAC secret (optional)</Label>
                 <Input
                   type="password"
                   value={webhookSecret}
                   onChange={(e) => setWebhookSecret(e.target.value)}
                 />
               </div>
-              <Button type="submit">Save</Button>
+              <p className="text-xs text-muted-foreground">
+                Webhook URL: <code className="break-all">{webhookUrl}</code>
+              </p>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Saving…" : "Save authentication"}
+              </Button>
             </form>
           </CardContent>
         </Card>
@@ -343,22 +897,66 @@ export default function IntegrationDetailPage() {
             <CardTitle className="text-base">Field mapping</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <ul className="space-y-1 text-sm">
-              {mappings.map((m) => (
-                <li key={m.id}>
-                  {m.sourceEntity}.{m.sourceField} → {m.targetEntity}.{m.targetField}{" "}
-                  <span className="text-muted-foreground">({m.transformType})</span>
-                </li>
-              ))}
-            </ul>
+            <div className="space-y-2 text-sm text-muted-foreground">
+              <p>
+                <strong className="text-foreground">sourceEntity</strong> must match
+                an Endpoints source entity
+                {sourceEntityOptions.length
+                  ? ` (${sourceEntityOptions.join(", ")})`
+                  : " (configure Endpoints first)"}{" "}
+                or the webhook event type. Mismatches become dead letters.
+              </p>
+              <p>
+                Always map an identity field to{" "}
+                <code>employee_email</code> or <code>employee_external_key</code>{" "}
+                so Analytics can attribute work to HR employees.
+              </p>
+              {!hasIdentityMapping && mappings.length > 0 ? (
+                <p className="text-destructive">
+                  No employee identity mapping yet — analytics will skip unmatched
+                  records.
+                </p>
+              ) : null}
+            </div>
+            {mappings.length === 0 ? (
+              <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
+                Without mappings, synced records become dead letters. Add at least{" "}
+                <code>id → external_record_id</code> and an employee identity field.
+              </p>
+            ) : (
+              <ul className="space-y-1 text-sm">
+                {mappings.map((m) => (
+                  <li key={m.id}>
+                    {m.sourceEntity}.{m.sourceField} → {m.targetEntity}.{m.targetField}{" "}
+                    <span className="text-muted-foreground">({m.transformType})</span>
+                  </li>
+                ))}
+              </ul>
+            )}
             <form className="grid gap-3 md:grid-cols-2" onSubmit={saveMappings}>
-              <Input
-                placeholder="Source entity"
-                value={newMap.sourceEntity}
-                onChange={(e) =>
-                  setNewMap((s) => ({ ...s, sourceEntity: e.target.value }))
-                }
-              />
+              {sourceEntityOptions.length > 0 ? (
+                <select
+                  className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  value={newMap.sourceEntity}
+                  onChange={(e) =>
+                    setNewMap((s) => ({ ...s, sourceEntity: e.target.value }))
+                  }
+                >
+                  {sourceEntityOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <Input
+                  placeholder="Source entity"
+                  value={newMap.sourceEntity}
+                  onChange={(e) =>
+                    setNewMap((s) => ({ ...s, sourceEntity: e.target.value }))
+                  }
+                />
+              )}
               <Input
                 placeholder="Source field"
                 value={newMap.sourceField}
@@ -404,6 +1002,9 @@ export default function IntegrationDetailPage() {
 
       {tab === "Sync history" ? (
         <div className="space-y-2">
+          {runs.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No sync runs yet.</p>
+          ) : null}
           {runs.map((run) => (
             <Card key={run.id}>
               <CardContent className="py-3 text-sm">
@@ -426,6 +1027,9 @@ export default function IntegrationDetailPage() {
 
       {tab === "Raw events" ? (
         <div className="space-y-2">
+          {events.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No raw events yet.</p>
+          ) : null}
           {events.map((ev) => (
             <Card key={ev.id}>
               <CardContent className="py-3 text-sm">
@@ -450,6 +1054,10 @@ export default function IntegrationDetailPage() {
             <CardTitle className="text-base">CSV import</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Use the same source entity name as your mappings. Import still requires
+              field mappings for that entity.
+            </p>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 value={sourceEntity}
