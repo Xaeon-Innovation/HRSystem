@@ -7,6 +7,8 @@ import {
   externalEmployeeLinks,
   externalBranchLinks,
   type Db,
+  type IntegrationAuthConfig,
+  type IntegrationConnectorConfig,
 } from "@hr/db";
 import {
   CANONICAL_FIELD_MAP,
@@ -21,15 +23,27 @@ import {
 import { writeAudit } from "../lib/audit.js";
 import { requirePlanFeature } from "../lib/features.js";
 import { requireRoles, tenantIdOf } from "../types.js";
-import { encryptJson } from "../integrations/crypto.js";
+import { decryptJson, encryptJson } from "../integrations/crypto.js";
 import { parseCsv } from "../integrations/connectors/csv.js";
 import { pollRestConnection, testRestFetch } from "../integrations/connectors/rest.js";
+import {
+  ensureCmsAccessToken,
+  isCmsJwtConnection,
+  loginCms,
+  parseExpiresIn,
+} from "../integrations/connectors/cms-jwt.js";
 import { hashExternalId } from "../integrations/mapper.js";
 import {
   processRawEvent,
   replayDeadLetters,
   storeRawEvents,
 } from "../integrations/process-raw.js";
+import {
+  CREATIVE_CMS_GOALS_DEFAULT_BASE_URL,
+  CREATIVE_CMS_GOALS_PRESET,
+  creativeCmsGoalsConnectorConfig,
+  creativeCmsGoalsMappings,
+} from "../integrations/presets/creative-cms-goals.js";
 import type { FastifyPluginAsync } from "fastify";
 
 function publicConnection(row: typeof integrationConnections.$inferSelect) {
@@ -53,6 +67,57 @@ function publicConnection(row: typeof integrationConnections.$inferSelect) {
   };
 }
 
+function mergeAuthConfig(
+  existingEncrypted: string | null,
+  incoming: IntegrationAuthConfig,
+): IntegrationAuthConfig {
+  const existing = existingEncrypted
+    ? decryptJson<IntegrationAuthConfig>(existingEncrypted)
+    : {};
+  const merged: IntegrationAuthConfig = { ...existing, ...incoming };
+  if (incoming.password === undefined || incoming.password === "") {
+    merged.password = existing.password;
+  }
+  if (incoming.username === undefined || incoming.username === "") {
+    merged.username = existing.username;
+  }
+  if (incoming.bearerToken === undefined || incoming.bearerToken === "") {
+    merged.bearerToken = existing.bearerToken;
+  }
+  if (incoming.refreshToken === undefined || incoming.refreshToken === "") {
+    merged.refreshToken = existing.refreshToken;
+  }
+  return merged;
+}
+
+async function applyPresetMappings(
+  db: Db,
+  tenantId: string,
+  connectionId: string,
+) {
+  await db
+    .delete(integrationFieldMappings)
+    .where(
+      and(
+        eq(integrationFieldMappings.tenantId, tenantId),
+        eq(integrationFieldMappings.connectionId, connectionId),
+      ),
+    );
+  await db.insert(integrationFieldMappings).values(
+    creativeCmsGoalsMappings.map((m) => ({
+      tenantId,
+      connectionId,
+      sourceEntity: m.sourceEntity,
+      sourceField: m.sourceField,
+      targetEntity: m.targetEntity,
+      targetField: m.targetField,
+      transformType: m.transformType ?? "direct",
+      transformConfig: {},
+      isRequired: m.isRequired ?? false,
+    })),
+  );
+}
+
 export const integrationRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requirePlanFeature("integrations"));
   app.addHook("preHandler", requireRoles("tenant_admin"));
@@ -62,8 +127,13 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       { type: "custom_api", label: "Custom REST API", implemented: true },
       { type: "webhook", label: "Webhook endpoint", implemented: true },
       { type: "csv", label: "CSV import", implemented: true },
+      {
+        type: "cms",
+        label: "Creative Intelligent CMS (Goals)",
+        implemented: true,
+        preset: CREATIVE_CMS_GOALS_PRESET,
+      },
       { type: "crm", label: "CRM (via custom REST/mapping)", implemented: false },
-      { type: "cms", label: "CMS (via custom REST/mapping)", implemented: false },
       { type: "erp", label: "ERP (via custom REST/mapping)", implemented: false },
     ],
     canonicalFields: CANONICAL_FIELD_MAP,
@@ -89,6 +159,72 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       }
       const data = parsed.data;
       const actor = request.user as JwtPayload;
+      const useCmsPreset = data.preset === CREATIVE_CMS_GOALS_PRESET;
+
+      if (useCmsPreset) {
+        const phone = data.authConfig?.username?.trim();
+        const password = data.authConfig?.password;
+        if (!phone || !password) {
+          return reply.code(400).send({
+            error: "CMS Goals requires service account phone and password",
+          });
+        }
+        const baseUrl = data.baseUrl ?? CREATIVE_CMS_GOALS_DEFAULT_BASE_URL;
+        let tokens;
+        try {
+          tokens = await loginCms(baseUrl, phone, password);
+        } catch (err) {
+          return reply.code(400).send({
+            error: err instanceof Error ? err.message : "CMS login failed",
+          });
+        }
+
+        const authConfig: IntegrationAuthConfig = {
+          username: phone,
+          password,
+          bearerToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenExpiresAt: parseExpiresIn(tokens.expiresIn).toISOString(),
+        };
+
+        const [row] = await app.db
+          .insert(integrationConnections)
+          .values({
+            tenantId,
+            name: data.name || "Creative Intelligent CMS Goals",
+            providerType: "cms",
+            status: "active",
+            authType: "bearer",
+            authConfigEncrypted: encryptJson(authConfig),
+            baseUrl,
+            syncMode: "polling",
+            pollIntervalMinutes: data.pollIntervalMinutes ?? 15,
+            connectorConfig: creativeCmsGoalsConnectorConfig,
+            createdBy: actor.sub,
+          })
+          .returning();
+
+        await applyPresetMappings(app.db, tenantId, row.id);
+
+        await writeAudit(app, {
+          actor,
+          action: "integration.connection.create",
+          tenantId,
+          resourceType: "integration_connection",
+          resourceId: row.id,
+          metadata: {
+            name: row.name,
+            providerType: row.providerType,
+            preset: CREATIVE_CMS_GOALS_PRESET,
+          },
+          request,
+        });
+        return reply.code(201).send({
+          connection: publicConnection(row),
+          setupComplete: true,
+        });
+      }
+
       const [row] = await app.db
         .insert(integrationConnections)
         .values({
@@ -154,17 +290,53 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       });
       if (!existing) return reply.code(404).send({ error: "Not found" });
       const data = parsed.data;
+
+      let authConfigEncrypted = existing.authConfigEncrypted;
+      let authType = data.authType ?? existing.authType;
+      let lastError: string | null | undefined = undefined;
+      let status = data.status ?? existing.status;
+
+      if (data.authConfig !== undefined) {
+        const merged = mergeAuthConfig(existing.authConfigEncrypted, data.authConfig);
+        const cfg = (data.connectorConfig ??
+          existing.connectorConfig ??
+          {}) as IntegrationConnectorConfig;
+        const isCms =
+          cfg.authStrategy === "cms_jwt" || isCmsJwtConnection(existing);
+
+        if (isCms && merged.username && merged.password) {
+          const baseUrl =
+            data.baseUrl === undefined ? existing.baseUrl : data.baseUrl;
+          if (!baseUrl) {
+            return reply
+              .code(400)
+              .send({ error: "CMS base URL is required to update credentials" });
+          }
+          try {
+            const tokens = await loginCms(baseUrl, merged.username, merged.password);
+            merged.bearerToken = tokens.accessToken;
+            merged.refreshToken = tokens.refreshToken;
+            merged.tokenExpiresAt = parseExpiresIn(tokens.expiresIn).toISOString();
+            authType = "bearer";
+            lastError = null;
+            if (data.status === undefined) status = "active";
+          } catch (err) {
+            return reply.code(400).send({
+              error: err instanceof Error ? err.message : "CMS login failed",
+            });
+          }
+        }
+        authConfigEncrypted = encryptJson(merged);
+      }
+
       const [updated] = await app.db
         .update(integrationConnections)
         .set({
           name: data.name ?? existing.name,
           providerType: data.providerType ?? existing.providerType,
-          status: data.status ?? existing.status,
-          authType: data.authType ?? existing.authType,
-          authConfigEncrypted:
-            data.authConfig !== undefined
-              ? encryptJson(data.authConfig)
-              : existing.authConfigEncrypted,
+          status,
+          authType,
+          authConfigEncrypted,
           webhookSecretEncrypted:
             data.webhookSecret === undefined
               ? existing.webhookSecretEncrypted
@@ -178,6 +350,7 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
               ? existing.pollIntervalMinutes
               : data.pollIntervalMinutes,
           connectorConfig: data.connectorConfig ?? existing.connectorConfig,
+          ...(lastError !== undefined ? { lastError } : {}),
           updatedAt: new Date(),
         })
         .where(
@@ -213,8 +386,25 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
         ),
       });
       if (!row) return reply.code(404).send({ error: "Not found" });
-      const result = await testRestFetch(row);
-      return result;
+      try {
+        const fresh = isCmsJwtConnection(row)
+          ? await ensureCmsAccessToken(app.db, row)
+          : row;
+        const result = await testRestFetch(fresh);
+        if (!result.ok && result.error?.startsWith("HTTP 401")) {
+          return {
+            ok: false,
+            error:
+              "CMS rejected the request (401). Update the service account phone/password on Authentication.",
+          };
+        }
+        return result;
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Test failed",
+        };
+      }
     },
   );
 
@@ -231,7 +421,17 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
         ),
       });
       if (!row) return reply.code(404).send({ error: "Not found" });
-      const run = await runConnectionSync(app.db, row, "manual");
+      let connection = row;
+      try {
+        if (isCmsJwtConnection(row)) {
+          connection = await ensureCmsAccessToken(app.db, row);
+        }
+      } catch (err) {
+        return reply.code(400).send({
+          error: err instanceof Error ? err.message : "CMS authentication failed",
+        });
+      }
+      const run = await runConnectionSync(app.db, connection, "manual");
       const actor = request.user as JwtPayload;
       await writeAudit(app, {
         actor,
@@ -593,8 +793,12 @@ export async function runConnectionSync(
     .returning();
 
   try {
+    let conn = connection;
+    if (isCmsJwtConnection(connection)) {
+      conn = await ensureCmsAccessToken(db, connection);
+    }
     const { records, nextCursor } = await pollRestConnection(
-      connection,
+      conn,
       last?.cursorJson ?? {},
     );
     for (const rec of records) {

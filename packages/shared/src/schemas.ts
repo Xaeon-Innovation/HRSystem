@@ -237,6 +237,8 @@ export const integrationAuthConfigSchema = z.object({
   username: z.string().max(200).optional(),
   password: z.string().max(500).optional(),
   headerName: z.string().max(80).optional(),
+  refreshToken: z.string().max(4000).optional(),
+  tokenExpiresAt: z.string().max(40).optional(),
 });
 
 export const integrationConnectorEntitySchema = z.object({
@@ -261,6 +263,8 @@ export const integrationConnectorConfigSchema = z.object({
     .optional(),
   hmacHeader: z.string().max(80).optional(),
   hmacPayloadPath: z.string().max(80).optional(),
+  preset: z.string().max(80).optional(),
+  authStrategy: z.string().max(40).optional(),
 });
 
 export const createIntegrationConnectionSchema = z.object({
@@ -274,6 +278,7 @@ export const createIntegrationConnectionSchema = z.object({
   syncMode: z.enum(INTEGRATION_SYNC_MODES).optional(),
   pollIntervalMinutes: z.number().int().min(5).max(1440).optional().nullable(),
   connectorConfig: integrationConnectorConfigSchema.optional(),
+  preset: z.enum(["creative_cms_goals"]).optional(),
 });
 
 export const updateIntegrationConnectionSchema =

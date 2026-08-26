@@ -32,6 +32,8 @@ type Connection = {
   pollIntervalMinutes: number | null;
   connectorConfig: {
     entities?: EntityConfig[];
+    preset?: string;
+    authStrategy?: string;
   };
   lastSyncAt: string | null;
   lastError: string | null;
@@ -137,6 +139,9 @@ export default function IntegrationDetailPage() {
   });
   const [editingMappingId, setEditingMappingId] = useState<string | null>(null);
   const [mappingSaving, setMappingSaving] = useState(false);
+  const [advancedCustomize, setAdvancedCustomize] = useState(false);
+  const [cmsPhone, setCmsPhone] = useState("");
+  const [cmsPassword, setCmsPassword] = useState("");
 
   async function load() {
     const [c, m, r, e, l] = await Promise.all([
@@ -334,7 +339,15 @@ export default function IntegrationDetailPage() {
         syncMode,
         pollIntervalMinutes:
           Number.isFinite(interval) && interval >= 5 ? interval : 15,
-        connectorConfig: { entities: cleaned },
+        connectorConfig: {
+          ...(conn?.connectorConfig?.preset
+            ? {
+                preset: conn.connectorConfig.preset,
+                authStrategy: conn.connectorConfig.authStrategy,
+              }
+            : {}),
+          entities: cleaned,
+        },
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
@@ -514,6 +527,26 @@ export default function IntegrationDetailPage() {
     });
   }
 
+  async function saveCmsCredentials(e: FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await patchConnection({
+        authType: "bearer",
+        authConfig: {
+          username: cmsPhone.trim(),
+          ...(cmsPassword ? { password: cmsPassword } : {}),
+        },
+      });
+      setCmsPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update CMS login");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function importCsv() {
     try {
       await api(`/v1/integrations/connections/${params.id}/csv/import`, {
@@ -531,6 +564,9 @@ export default function IntegrationDetailPage() {
   }
 
   const configuredEntities = conn.connectorConfig?.entities ?? [];
+  const isCmsGoalsPreset =
+    conn.connectorConfig?.preset === "creative_cms_goals" ||
+    conn.connectorConfig?.authStrategy === "cms_jwt";
   const sourceEntityOptions = configuredEntities.map((e) => e.sourceEntity);
 
   return (
@@ -541,10 +577,20 @@ export default function IntegrationDetailPage() {
         </Link>
         <h1 className="text-2xl font-semibold">{conn.name}</h1>
         <p className="text-sm text-muted-foreground">
-          {conn.providerType} · {conn.syncMode} · {conn.status}
+          {isCmsGoalsPreset
+            ? "Creative Intelligent CMS Goals"
+            : conn.providerType}{" "}
+          · {conn.syncMode} · {conn.status}
         </p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {isCmsGoalsPreset ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900">
+          Connected to CMS Goals — tokens refresh automatically. Use{" "}
+          <strong>Sync now</strong> to pull the latest goals. Open Authentication
+          only if the CMS password changes.
+        </p>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
           <Button
@@ -638,9 +684,10 @@ export default function IntegrationDetailPage() {
               </ul>
               {deadLetterCount > 0 ? (
                 <p className="text-sm text-destructive">
-                  {deadLetterCount} dead-letter event(s). Usually missing field
-                  mappings or a mismatched source entity — fix under Mapping, then
-                  Replay.
+                  {deadLetterCount} record(s) could not be processed
+                  {isCmsGoalsPreset
+                    ? ". Open Mapping (advanced) or check that HR employees use the CMS UUID as external ID."
+                    : ". Usually missing field mappings or a mismatched source entity — fix under Mapping, then Replay."}
                 </p>
               ) : null}
             </CardContent>
@@ -726,8 +773,9 @@ export default function IntegrationDetailPage() {
                   ) : null}
                 </ul>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Prefer mapping employee_email so records match HR employees
-                  automatically. Unmatched keys will not appear in Analytics.
+                  {isCmsGoalsPreset
+                    ? "Unmatched keys mean HR employees are missing the CMS UUID as external ID."
+                    : "Prefer mapping employee_email so records match HR employees automatically. Unmatched keys will not appear in Analytics."}
                 </p>
               </div>
             </CardContent>
@@ -740,8 +788,54 @@ export default function IntegrationDetailPage() {
           <CardHeader>
             <CardTitle className="text-base">API endpoints</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {isCmsGoalsPreset && !advancedCustomize ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground">
+                  Endpoints are preconfigured for CMS Goals. You normally do not
+                  need to change them.
+                </p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {configuredEntities.map((ent) => (
+                    <li key={`${ent.sourceEntity}-${ent.path}`}>
+                      <span className="font-medium text-foreground">
+                        {ent.sourceEntity}
+                      </span>
+                      : {ent.path}
+                      {ent.itemsPath ? ` · items ${ent.itemsPath}` : ""}
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  Base URL: {conn.baseUrl ?? "—"} · Poll every{" "}
+                  {conn.pollIntervalMinutes ?? 15} minutes
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAdvancedCustomize(true)}
+                >
+                  Customize (advanced)
+                </Button>
+              </div>
+            ) : (
             <form className="space-y-4" onSubmit={saveEndpoints}>
+              {isCmsGoalsPreset ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-amber-700">
+                    Advanced mode — changes can break the CMS Goals sync.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAdvancedCustomize(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              ) : null}
               <p className="text-sm text-muted-foreground">
                 Base URL is the API root. Add one row per JSON collection the platform
                 should poll — for example source entity <code>job</code>, path{" "}
@@ -894,6 +988,7 @@ export default function IntegrationDetailPage() {
                 </Button>
               </div>
             </form>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -901,9 +996,41 @@ export default function IntegrationDetailPage() {
       {tab === "Authentication" ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Secrets</CardTitle>
+            <CardTitle className="text-base">
+              {isCmsGoalsPreset ? "CMS service account" : "Secrets"}
+            </CardTitle>
           </CardHeader>
           <CardContent>
+            {isCmsGoalsPreset ? (
+              <form className="grid gap-3" onSubmit={saveCmsCredentials}>
+                <p className="text-sm text-muted-foreground">
+                  Tokens refresh automatically. Update phone/password only if the
+                  CMS service account changes or sync starts failing.
+                </p>
+                <div className="space-y-1">
+                  <Label>Phone</Label>
+                  <Input
+                    value={cmsPhone}
+                    onChange={(e) => setCmsPhone(e.target.value)}
+                    placeholder="+9715XXXXXXXX"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label>Password</Label>
+                  <Input
+                    type="password"
+                    value={cmsPassword}
+                    onChange={(e) => setCmsPassword(e.target.value)}
+                    placeholder="Enter to update stored password"
+                    required
+                  />
+                </div>
+                <Button type="submit" disabled={saving}>
+                  {saving ? "Saving…" : "Update CMS login"}
+                </Button>
+              </form>
+            ) : (
             <form className="grid gap-3" onSubmit={saveAuth}>
               <p className="text-xs text-muted-foreground">
                 Auth stored: {conn.hasAuth ? "yes" : "no"} · Webhook secret:{" "}
@@ -990,6 +1117,7 @@ export default function IntegrationDetailPage() {
                 {saving ? "Saving…" : "Save authentication"}
               </Button>
             </form>
+            )}
           </CardContent>
         </Card>
       ) : null}
@@ -1000,7 +1128,47 @@ export default function IntegrationDetailPage() {
             <CardTitle className="text-base">Field mapping</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {isCmsGoalsPreset && !advancedCustomize ? (
+              <div className="space-y-3 text-sm">
+                <p className="text-muted-foreground">
+                  Field mappings are preconfigured for CMS goals → job events.
+                  You normally do not need to change them.
+                </p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {mappings.map((m) => (
+                    <li key={m.id}>
+                      {m.sourceEntity}.{m.sourceField} → {m.targetEntity}.
+                      {m.targetField}
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setAdvancedCustomize(true)}
+                >
+                  Customize (advanced)
+                </Button>
+              </div>
+            ) : (
+            <>
             <div className="space-y-2 text-sm text-muted-foreground">
+              {isCmsGoalsPreset ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-amber-700">
+                    Advanced mapping editor — incorrect changes can break sync.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAdvancedCustomize(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              ) : null}
               <p>
                 <strong className="text-foreground">sourceEntity</strong> must match
                 an Endpoints source entity
@@ -1156,6 +1324,8 @@ export default function IntegrationDetailPage() {
                 ) : null}
               </div>
             </form>
+            </>
+            )}
           </CardContent>
         </Card>
       ) : null}

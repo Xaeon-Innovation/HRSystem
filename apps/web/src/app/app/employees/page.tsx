@@ -134,6 +134,22 @@ export default function EmployeesPage() {
     }
   }
 
+  async function removeBranch(branch: Branch) {
+    const ok = window.confirm(
+      `Remove branch “${branch.name}”? Sites under it will be deleted and employees will be unassigned.`,
+    );
+    if (!ok) return;
+    setError(null);
+    try {
+      await api(`/v1/branches/${branch.id}`, { method: "DELETE" });
+      if (siteBranchId === branch.id) setSiteBranchId("");
+      if (branchId === branch.id) setBranchId("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove branch");
+    }
+  }
+
   async function createSite(e: FormEvent) {
     e.preventDefault();
     try {
@@ -257,17 +273,33 @@ export default function EmployeesPage() {
         <CardContent className="space-y-4">
           <ul className="space-y-2 text-sm">
             {org.map((b) => (
-              <li key={b.id}>
-                <span className="font-medium">{b.name}</span>{" "}
-                <span className="text-muted-foreground">({b.code})</span>
-                {b.sites.length ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    — {b.sites.map((s) => s.name).join(", ")}
-                  </span>
-                ) : null}
+              <li
+                key={b.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+              >
+                <div>
+                  <span className="font-medium">{b.name}</span>{" "}
+                  <span className="text-muted-foreground">({b.code})</span>
+                  {b.sites.length ? (
+                    <span className="text-muted-foreground">
+                      {" "}
+                      — {b.sites.map((s) => s.name).join(", ")}
+                    </span>
+                  ) : null}
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => removeBranch(b)}
+                >
+                  Remove
+                </Button>
               </li>
             ))}
+            {org.length === 0 ? (
+              <li className="text-muted-foreground">No branches yet.</li>
+            ) : null}
           </ul>
           <form className="grid gap-3 md:grid-cols-3" onSubmit={createBranch}>
             <Input

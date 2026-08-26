@@ -197,6 +197,10 @@ export type IntegrationConnectorConfig = {
   };
   hmacHeader?: string;
   hmacPayloadPath?: string;
+  /** Built-in connector pack, e.g. creative_cms_goals */
+  preset?: string;
+  /** When "cms_jwt", platform logs in / refreshes CMS tokens automatically */
+  authStrategy?: string;
 };
 
 export type IntegrationAuthConfig = {
@@ -206,6 +210,8 @@ export type IntegrationAuthConfig = {
   username?: string;
   password?: string;
   headerName?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: string;
 };
 
 export type FieldTransformConfig = {
