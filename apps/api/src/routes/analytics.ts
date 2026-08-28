@@ -23,6 +23,7 @@ import {
   updateAlertSchema,
   type JwtPayload,
 } from "@hr/shared";
+import { avatarUrlFor } from "../lib/avatar.js";
 import { requirePlanFeature } from "../lib/features.js";
 import { addDays, todayInZone, zonedDayBounds } from "../lib/timezone.js";
 import { requireRoles, tenantIdOf } from "../types.js";
@@ -273,12 +274,20 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
         name: users.name,
         jobTitle: employees.jobTitle,
         branchId: employees.branchId,
+        userId: users.id,
+        avatarMime: users.avatarMime,
+        userUpdatedAt: users.updatedAt,
       })
       .from(employees)
       .innerJoin(users, eq(users.id, employees.userId))
       .where(and(eq(employees.id, employeeId), eq(employees.tenantId, tenantId)))
       .limit(1);
     if (!empRows[0]) return reply.code(404).send({ error: "Not found" });
+    const { avatarMime, userUpdatedAt, userId, ...empRest } = empRows[0];
+    const employee = {
+      ...empRest,
+      avatarUrl: avatarUrlFor(userId, avatarMime, userUpdatedAt),
+    };
     const tz = await tenantTz(tenantId);
     const parsed = analyticsQuerySchema.safeParse(request.query);
     const { from, to } = range(tz, parsed.data?.from, parsed.data?.to);
@@ -291,7 +300,7 @@ export const analyticsRoutes: FastifyPluginAsync = async (app) => {
       ),
       orderBy: [desc(employeeDailyAnalytics.day)],
     });
-    return { employee: empRows[0], from, to, days };
+    return { employee, from, to, days };
   });
 
   app.get("/alerts", async (request) => {

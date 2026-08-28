@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { UserAvatar } from "@/components/user-avatar";
 
 type Day = {
   day: string;
@@ -30,14 +31,14 @@ type Timeline = {
 export default function EmployeeAnalyticsPage() {
   const params = useParams<{ id: string }>();
   const [data, setData] = useState<{
-    employee: { name: string; jobTitle: string | null };
+    employee: { name: string; jobTitle: string | null; avatarUrl?: string | null };
     days: Day[];
   } | null>(null);
   const [timeline, setTimeline] = useState<Timeline | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api<{ employee: { name: string; jobTitle: string | null }; days: Day[] }>(
+    api<{ employee: { name: string; jobTitle: string | null; avatarUrl?: string | null }; days: Day[] }>(
       `/v1/analytics/employees/${params.id}`,
     )
       .then((res) => {
@@ -61,10 +62,19 @@ export default function EmployeeAnalyticsPage() {
         <Link href="/app/analytics" className="text-sm text-muted-foreground hover:underline">
           ← Analytics
         </Link>
-        <h1 className="text-2xl font-semibold">{data.employee.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {data.employee.jobTitle ?? "Employee"}
-        </p>
+        <div className="mt-2 flex items-center gap-3">
+          <UserAvatar
+            name={data.employee.name}
+            avatarUrl={data.employee.avatarUrl}
+            size="lg"
+          />
+          <div>
+            <h1 className="text-2xl font-semibold">{data.employee.name}</h1>
+            <p className="text-sm text-muted-foreground">
+              {data.employee.jobTitle ?? "Employee"}
+            </p>
+          </div>
+        </div>
       </div>
       <div className="space-y-2">
         {data.days.map((d) => (

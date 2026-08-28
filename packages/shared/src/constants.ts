@@ -19,6 +19,7 @@ export const NOTIFICATION_TYPES = [
   "missed_clock_out",
   "kpi_due",
   "announcement",
+  "alert",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
@@ -26,6 +27,186 @@ export const DEFAULT_PING_INTERVAL_SEC = 20;
 export const MIN_PING_INTERVAL_SEC = 15;
 export const MAX_PING_INTERVAL_SEC = 30;
 export const DEFAULT_LOCATION_RETENTION_DAYS = 60;
+
+export const MIN_GEOFENCE_RADIUS_METERS = 50;
+export const MAX_GEOFENCE_RADIUS_METERS = 50_000;
+export const DEFAULT_GEOFENCE_RADIUS_METERS = 500;
+
+export const MAP_TILE_STYLES = [
+  "voyager",
+  "positron",
+  "osm",
+  "dark",
+] as const;
+export type MapTileStyle = (typeof MAP_TILE_STYLES)[number];
+
+export const MAP_MARKER_STYLES = ["pulse", "soft", "pin"] as const;
+export type MapMarkerStyle = (typeof MAP_MARKER_STYLES)[number];
+
+export const MAP_THEME_IDS = [
+  "teal",
+  "ocean",
+  "forest",
+  "sunset",
+  "midnight",
+  "minimal",
+  "coral",
+  "slate",
+  "custom",
+] as const;
+export type MapThemeId = (typeof MAP_THEME_IDS)[number];
+
+export type MapAppearance = {
+  themeId: MapThemeId;
+  tileStyle: MapTileStyle;
+  markerStyle: MapMarkerStyle;
+  onShiftColor: string;
+  lastSeenColor: string;
+  trailColor: string;
+  showInitials: boolean;
+};
+
+export type MapTheme = {
+  id: Exclude<MapThemeId, "custom">;
+  name: string;
+  description: string;
+  appearance: Omit<MapAppearance, "themeId"> & { themeId: Exclude<MapThemeId, "custom"> };
+};
+
+export const MAP_THEMES: MapTheme[] = [
+  {
+    id: "teal",
+    name: "Teal Field",
+    description: "Colorful map with teal on-shift markers",
+    appearance: {
+      themeId: "teal",
+      tileStyle: "voyager",
+      markerStyle: "pulse",
+      onShiftColor: "#0d9488",
+      lastSeenColor: "#94a3b8",
+      trailColor: "#0f766e",
+      showInitials: true,
+    },
+  },
+  {
+    id: "ocean",
+    name: "Ocean",
+    description: "Bright blues on a soft light basemap",
+    appearance: {
+      themeId: "ocean",
+      tileStyle: "positron",
+      markerStyle: "pulse",
+      onShiftColor: "#0284c7",
+      lastSeenColor: "#94a3b8",
+      trailColor: "#0369a1",
+      showInitials: true,
+    },
+  },
+  {
+    id: "forest",
+    name: "Forest",
+    description: "Deep greens with soft blob markers",
+    appearance: {
+      themeId: "forest",
+      tileStyle: "voyager",
+      markerStyle: "soft",
+      onShiftColor: "#15803d",
+      lastSeenColor: "#a3a3a3",
+      trailColor: "#166534",
+      showInitials: true,
+    },
+  },
+  {
+    id: "sunset",
+    name: "Sunset",
+    description: "Warm coral accents on a colorful map",
+    appearance: {
+      themeId: "sunset",
+      tileStyle: "voyager",
+      markerStyle: "pin",
+      onShiftColor: "#ea580c",
+      lastSeenColor: "#a8a29e",
+      trailColor: "#c2410c",
+      showInitials: true,
+    },
+  },
+  {
+    id: "midnight",
+    name: "Midnight",
+    description: "Dark basemap with bright aqua pins",
+    appearance: {
+      themeId: "midnight",
+      tileStyle: "dark",
+      markerStyle: "pulse",
+      onShiftColor: "#22d3ee",
+      lastSeenColor: "#64748b",
+      trailColor: "#06b6d4",
+      showInitials: true,
+    },
+  },
+  {
+    id: "minimal",
+    name: "Minimal",
+    description: "Clean light map with subtle markers",
+    appearance: {
+      themeId: "minimal",
+      tileStyle: "positron",
+      markerStyle: "soft",
+      onShiftColor: "#475569",
+      lastSeenColor: "#cbd5e1",
+      trailColor: "#334155",
+      showInitials: true,
+    },
+  },
+  {
+    id: "coral",
+    name: "Coral",
+    description: "Friendly pinks on classic OSM tiles",
+    appearance: {
+      themeId: "coral",
+      tileStyle: "osm",
+      markerStyle: "soft",
+      onShiftColor: "#e11d48",
+      lastSeenColor: "#a1a1aa",
+      trailColor: "#be123c",
+      showInitials: true,
+    },
+  },
+  {
+    id: "slate",
+    name: "Slate Pro",
+    description: "Professional navy pins on a light map",
+    appearance: {
+      themeId: "slate",
+      tileStyle: "positron",
+      markerStyle: "pin",
+      onShiftColor: "#1e40af",
+      lastSeenColor: "#94a3b8",
+      trailColor: "#1e3a8a",
+      showInitials: true,
+    },
+  },
+];
+
+export const DEFAULT_MAP_APPEARANCE: MapAppearance =
+  MAP_THEMES.find((t) => t.id === "teal")!.appearance;
+
+export function getMapTheme(id: string | undefined | null): MapTheme | undefined {
+  if (!id || id === "custom") return undefined;
+  return MAP_THEMES.find((t) => t.id === id);
+}
+
+export function resolveMapAppearance(
+  partial?: Partial<MapAppearance> | null,
+): MapAppearance {
+  const incoming = partial ?? {};
+  const themeId = incoming.themeId ?? "teal";
+  const theme = getMapTheme(themeId);
+  if (theme) {
+    return { ...theme.appearance, ...incoming, themeId: theme.id };
+  }
+  return { ...DEFAULT_MAP_APPEARANCE, ...incoming, themeId: "custom" };
+}
 
 export const SUBSCRIPTION_STATUSES = [
   "trialing",

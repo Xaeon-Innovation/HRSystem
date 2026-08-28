@@ -182,12 +182,21 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!current) return reply.code(404).send({ error: "Not found" });
 
+    const incomingSettings = parsed.data.settings ?? {};
+    const nextSettings = {
+      ...current.settings,
+      ...incomingSettings,
+      map: incomingSettings.map
+        ? { ...(current.settings.map ?? {}), ...incomingSettings.map }
+        : current.settings.map,
+    };
+
     const [updated] = await app.db
       .update(tenants)
       .set({
         name: parsed.data.name ?? current.name,
         status: parsed.data.status ?? current.status,
-        settings: { ...current.settings, ...(parsed.data.settings ?? {}) },
+        settings: nextSettings,
         updatedAt: new Date(),
       })
       .where(eq(tenants.id, id))

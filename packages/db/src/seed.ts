@@ -11,6 +11,7 @@ import {
   branches,
   sites,
   analyticsMetricDefinitions,
+  notifications,
 } from "./index.js";
 
 const connectionString =
@@ -154,6 +155,11 @@ async function main() {
         tenantId: tenant.id,
         userId: admin.id,
         jobTitle: "Tenant Admin",
+        phone: "+201000000010",
+        nationalId: `${slug}-admin-nid`,
+        dateOfBirth: "1985-06-01",
+        address: `${name} HQ`,
+        hireDate: "2020-01-15",
         status: "active",
       });
       console.log(`Created tenant admin ${adminEmail}`);
@@ -179,6 +185,11 @@ async function main() {
         tenantId: tenant.id,
         userId: empUser.id,
         jobTitle: "Field Worker",
+        phone: "+201000000011",
+        nationalId: `${slug}-emp-nid`,
+        dateOfBirth: "1992-03-20",
+        address: `${name} field office`,
+        hireDate: "2023-06-01",
         status: "active",
       });
       console.log(`Created employee ${empEmail}`);
@@ -346,6 +357,102 @@ async function main() {
         version: 1,
         isActive: true,
       });
+    }
+  }
+
+  const cmsAdmin = await db.query.users.findFirst({
+    where: eq(users.email, "admin@cms.local"),
+  });
+  if (cmsAdmin?.tenantId) {
+    const existingNote = await db.query.notifications.findFirst({
+      where: and(
+        eq(notifications.tenantId, cmsAdmin.tenantId),
+        eq(notifications.userId, cmsAdmin.id),
+      ),
+    });
+    if (!existingNote) {
+      const now = Date.now();
+      await db.insert(notifications).values([
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "Leave request from Nour Ali",
+          body: "Annual leave 12–16 Sep is waiting on your approval.",
+          category: "leave",
+          urgency: "info",
+          eventKey: "leave_request_submitted",
+          read: false,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 12 * 60 * 1000),
+        },
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "Contract expiring — Karim Haddad",
+          body: "Fixed-term contract ends in 18 days. Renewal decision is due.",
+          category: "employee",
+          urgency: "critical",
+          eventKey: "contract_expiring",
+          read: false,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 2 * 60 * 60 * 1000),
+        },
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "KPI below target — Field quality",
+          body: "Amina Hassan scored 54 against a target of 80 for August.",
+          category: "kpi",
+          urgency: "warning",
+          eventKey: "kpi_below_target",
+          read: false,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 5 * 60 * 60 * 1000),
+        },
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "Three no-shows this morning",
+          body: "Cairo branch has 3 employees absent today with no leave request.",
+          category: "attendance",
+          urgency: "critical",
+          eventKey: "noshow_without_request",
+          read: false,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 26 * 60 * 60 * 1000),
+        },
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "Payroll cutoff in 2 days",
+          body: "Missing overtime input for 4 field staff before Thursday cutoff.",
+          category: "payroll",
+          urgency: "warning",
+          eventKey: "payroll_cutoff_approaching",
+          read: true,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 2 * 24 * 60 * 60 * 1000),
+        },
+        {
+          tenantId: cmsAdmin.tenantId,
+          userId: cmsAdmin.id,
+          type: "alert",
+          title: "Creative CMS sync failed",
+          body: "The 06:00 polling run returned 502. Last successful sync was yesterday.",
+          category: "system",
+          urgency: "critical",
+          eventKey: "integration_sync_failed",
+          read: true,
+          deliveryStatus: "delivered_local",
+          createdAt: new Date(now - 3 * 24 * 60 * 60 * 1000),
+        },
+      ]);
+      console.log("Seeded demo alerts for admin@cms.local");
     }
   }
 

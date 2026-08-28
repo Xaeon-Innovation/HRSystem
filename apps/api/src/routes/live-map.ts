@@ -8,7 +8,15 @@ import {
   tenants,
   users,
 } from "@hr/db";
-import { DEFAULT_LOCATION_RETENTION_DAYS } from "@hr/shared";
+import {
+  DEFAULT_LOCATION_RETENTION_DAYS,
+  resolveMapAppearance,
+  updateMapAppearanceSchema,
+  type JwtPayload,
+  type MapAppearance,
+} from "@hr/shared";
+import { writeAudit } from "../lib/audit.js";
+import { avatarUrlFor } from "../lib/avatar.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
 const MAX_HISTORY_MS = 24 * 60 * 60 * 1000;
@@ -16,6 +24,58 @@ const MAX_HISTORY_MS = 24 * 60 * 60 * 1000;
 export const liveMapRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
   app.addHook("preHandler", requireRoles("tenant_admin"));
+
+  app.get("/map-settings", async (request) => {
+    const tenantId = tenantIdOf(request);
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    return {
+      map: resolveMapAppearance(tenant?.settings.map as Partial<MapAppearance>),
+    };
+  });
+
+  app.patch("/map-settings", async (request, reply) => {
+    const tenantId = tenantIdOf(request);
+    const parsed = updateMapAppearanceSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    if (!tenant) return reply.code(404).send({ error: "Not found" });
+
+    const previous = resolveMapAppearance(
+      tenant.settings.map as Partial<MapAppearance>,
+    );
+    const next = resolveMapAppearance({ ...previous, ...parsed.data });
+
+    const [updated] = await app.db
+      .update(tenants)
+      .set({
+        settings: { ...tenant.settings, map: next },
+        updatedAt: new Date(),
+      })
+      .where(eq(tenants.id, tenantId))
+      .returning();
+
+    const actor = request.user as JwtPayload;
+    await writeAudit(app, {
+      actor,
+      action: "tenant.map_settings.update",
+      tenantId,
+      resourceType: "tenant",
+      resourceId: tenantId,
+      metadata: { before: previous, after: next },
+      request,
+    });
+
+    return {
+      map: resolveMapAppearance(updated.settings.map as Partial<MapAppearance>),
+    };
+  });
 
   app.get("/live-map", async (request) => {
     const tenantId = tenantIdOf(request);
@@ -45,6 +105,12 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
         role: users.role,
         jobTitle: employees.jobTitle,
         status: employees.status,
+        userId: users.id,
+        avatarMime: users.avatarMime,
+        userUpdatedAt: users.updatedAt,
+        geofenceLat: employees.geofenceLat,
+        geofenceLng: employees.geofenceLng,
+        geofenceRadiusMeters: employees.geofenceRadiusMeters,
       })
       .from(employeeLiveLocations)
       .innerJoin(
@@ -73,12 +139,16 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
       : rows;
 
     return {
-      locations: filtered.map((r) => ({
-        ...r,
-        secondsSinceUpdate: Math.floor(
-          (Date.now() - new Date(r.updatedAt).getTime()) / 1000,
-        ),
-      })),
+      locations: filtered.map((r) => {
+        const { avatarMime, userUpdatedAt, userId, ...rest } = r;
+        return {
+          ...rest,
+          avatarUrl: avatarUrlFor(userId, avatarMime, userUpdatedAt),
+          secondsSinceUpdate: Math.floor(
+            (Date.now() - new Date(r.updatedAt).getTime()) / 1000,
+          ),
+        };
+      }),
       polledAt: new Date().toISOString(),
     };
   });
@@ -116,6 +186,9 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
         id: employees.id,
         name: users.name,
         jobTitle: employees.jobTitle,
+        userId: users.id,
+        avatarMime: users.avatarMime,
+        userUpdatedAt: users.updatedAt,
       })
       .from(employees)
       .innerJoin(users, eq(users.id, employees.userId))
@@ -152,8 +225,12 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
       )
       .orderBy(asc(locationPings.recordedAt));
 
+    const { avatarMime, userUpdatedAt, userId, ...employeeRest } = emp[0];
     return {
-      employee: emp[0],
+      employee: {
+        ...employeeRest,
+        avatarUrl: avatarUrlFor(userId, avatarMime, userUpdatedAt),
+      },
       from: from.toISOString(),
       to: to.toISOString(),
       points: points.map((p) => ({

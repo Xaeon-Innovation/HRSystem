@@ -127,6 +127,8 @@ Attendance rate = clocked-in / active employees (no roster). Labor cost uses ten
 | Method | Path | Notes |
 |--------|------|-------|
 | GET | `/v1/admin/live-map` | REST fallback. Field `employee` role only. Query: `presence=on_shift\|last_seen\|all` (default `all`), optional `q`, `status` |
+| GET | `/v1/admin/map-settings` | Map appearance for the tenant (tiles, marker style, colors, initials) |
+| PATCH | `/v1/admin/map-settings` | Partial update: `tileStyle`, `markerStyle`, `onShiftColor`, `lastSeenColor`, `trailColor`, `showInitials` |
 | GET | `/v1/admin/location-history` | `employeeId`, `from`, `to` (ISO). Max range 24h. Returns retained pings |
 | GET | `/v1/admin/location-sessions` | `employeeId`, `date=YYYY-MM-DD`. Attendance intervals for History presets |
 | GET | `/v1/admin/dashboard` | Aggregates |

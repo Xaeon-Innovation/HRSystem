@@ -44,6 +44,78 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "missed_clock_out",
   "kpi_due",
   "announcement",
+  "alert",
+]);
+
+export const alertCategoryEnum = pgEnum("alert_category", [
+  "employee",
+  "leave",
+  "kpi",
+  "attendance",
+  "payroll",
+  "system",
+  "custom",
+]);
+
+export const alertUrgencyEnum = pgEnum("alert_urgency", [
+  "info",
+  "warning",
+  "critical",
+]);
+
+export const alertFrequencyEnum = pgEnum("alert_frequency", [
+  "instant",
+  "daily_digest",
+  "weekly_digest",
+]);
+
+export const alertRuleKindEnum = pgEnum("alert_rule_kind", [
+  "catalog",
+  "custom",
+]);
+
+export const alertSourceEnum = pgEnum("alert_source", [
+  "leave",
+  "attendance",
+  "kpi",
+  "employee",
+  "payroll",
+  "documents",
+  "location",
+]);
+
+export const alertConditionEnum = pgEnum("alert_condition", [
+  "above",
+  "below",
+  "equal",
+  "missing",
+  "overdue",
+  "unchanged_days",
+  "trend_drop",
+]);
+
+export const alertMetricEnum = pgEnum("alert_metric", [
+  "leave_balance",
+  "lateness_count",
+  "kpi_score",
+  "absences",
+  "expiring_document_days",
+  "pending_approvals",
+  "location_inactivity",
+]);
+
+export const alertScopeEnum = pgEnum("alert_scope", [
+  "company",
+  "branch",
+  "department",
+  "role",
+  "employee",
+]);
+
+export const alertDurationUnitEnum = pgEnum("alert_duration_unit", [
+  "hours",
+  "days",
+  "months",
 ]);
 
 export const subscriptionStatusEnum = pgEnum("subscription_status", [
@@ -166,6 +238,25 @@ export const metricTimeGrainEnum = pgEnum("metric_time_grain", [
   "month",
 ]);
 
+export type MapAppearanceSettings = {
+  themeId?:
+    | "teal"
+    | "ocean"
+    | "forest"
+    | "sunset"
+    | "midnight"
+    | "minimal"
+    | "coral"
+    | "slate"
+    | "custom";
+  tileStyle?: "voyager" | "positron" | "osm" | "dark";
+  markerStyle?: "pulse" | "soft" | "pin";
+  onShiftColor?: string;
+  lastSeenColor?: string;
+  trailColor?: string;
+  showInitials?: boolean;
+};
+
 export type TenantSettings = {
   brandingName?: string;
   logoUrl?: string | null;
@@ -177,6 +268,7 @@ export type TenantSettings = {
   integrationRawRetentionDays?: number;
   latenessGraceMinutes?: number;
   shiftStartHour?: number;
+  map?: MapAppearanceSettings;
 };
 
 export type IntegrationConnectorConfig = {
@@ -257,6 +349,8 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     name: text("name").notNull(),
     role: roleEnum("role").notNull(),
+    avatarMime: text("avatar_mime"),
+    avatarBytes: text("avatar_bytes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -338,8 +432,19 @@ export const employees = pgTable(
     }),
     phone: text("phone"),
     jobTitle: text("job_title"),
+    nationalId: text("national_id"),
+    dateOfBirth: date("date_of_birth"),
+    address: text("address"),
+    hireDate: date("hire_date"),
+    emergencyContactName: text("emergency_contact_name"),
+    emergencyContactPhone: text("emergency_contact_phone"),
     deviceInfo: text("device_info"),
     status: employeeStatusEnum("status").notNull().default("active"),
+    /** Allowed work zone center (WGS84). Null = no geofence. */
+    geofenceLat: doublePrecision("geofence_lat"),
+    geofenceLng: doublePrecision("geofence_lng"),
+    /** Allowed radius in meters around the center. */
+    geofenceRadiusMeters: integer("geofence_radius_meters"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -545,6 +650,13 @@ export const notifications = pgTable(
     read: boolean("read").notNull().default(false),
     deliveryStatus: text("delivery_status").notNull().default("pending"),
     deliveryError: text("delivery_error"),
+    category: alertCategoryEnum("category"),
+    urgency: alertUrgencyEnum("urgency"),
+    eventKey: text("event_key"),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -552,6 +664,7 @@ export const notifications = pgTable(
   (t) => [
     index("notifications_tenant_user_idx").on(t.tenantId, t.userId),
     index("notifications_tenant_unread_idx").on(t.tenantId, t.userId, t.read),
+    index("notifications_tenant_event_idx").on(t.tenantId, t.eventKey),
   ],
 );
 
@@ -1383,5 +1496,61 @@ export const analyticsAlerts = pgTable(
   (t) => [
     index("analytics_alerts_tenant_status_idx").on(t.tenantId, t.status),
     index("analytics_alerts_tenant_date_idx").on(t.tenantId, t.alertDate),
+  ],
+);
+
+export const alertRules = pgTable(
+  "alert_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    kind: alertRuleKindEnum("kind").notNull().default("catalog"),
+    eventKey: text("event_key").notNull(),
+    category: alertCategoryEnum("category").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    enabled: boolean("enabled").notNull().default(true),
+    urgency: alertUrgencyEnum("urgency").notNull().default("warning"),
+    channels: jsonb("channels")
+      .$type<Array<"in_app" | "email" | "digest">>()
+      .notNull()
+      .default(["in_app"]),
+    frequency: alertFrequencyEnum("frequency").notNull().default("instant"),
+    recipients: jsonb("recipients")
+      .$type<
+        Array<
+          | "admin"
+          | "hr_manager"
+          | "direct_manager"
+          | "branch_manager"
+          | "employee"
+        >
+      >()
+      .notNull()
+      .default(["admin"]),
+    escalateAfterHours: integer("escalate_after_hours"),
+    source: alertSourceEnum("source"),
+    condition: alertConditionEnum("condition"),
+    metric: alertMetricEnum("metric"),
+    threshold: doublePrecision("threshold"),
+    durationValue: integer("duration_value"),
+    durationUnit: alertDurationUnitEnum("duration_unit"),
+    scope: alertScopeEnum("scope"),
+    scopeId: uuid("scope_id"),
+    titleTemplate: text("title_template"),
+    bodyTemplate: text("body_template"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("alert_rules_tenant_event_uidx").on(t.tenantId, t.eventKey),
+    index("alert_rules_tenant_kind_idx").on(t.tenantId, t.kind),
+    index("alert_rules_tenant_category_idx").on(t.tenantId, t.category),
   ],
 );

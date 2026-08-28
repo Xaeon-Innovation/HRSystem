@@ -163,6 +163,12 @@ describe("platform admin seat + audit + webhook", () => {
         name: "Overflow User",
         email: `overflow-${Date.now()}@cms.local`,
         role: "employee",
+        phone: "+201000000000",
+        jobTitle: "Tester",
+        nationalId: `overflow-${Date.now()}`,
+        dateOfBirth: "1990-01-01",
+        address: "Cairo",
+        hireDate: "2024-01-01",
       },
     });
     expect(create.statusCode).toBe(403);

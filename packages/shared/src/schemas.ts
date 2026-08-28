@@ -18,6 +18,18 @@ import {
   BRANCH_STATUSES,
   ANALYTICS_ALERT_STATUSES,
 } from "./constants.js";
+import {
+  ALERT_CATEGORIES,
+  ALERT_CHANNELS,
+  ALERT_CONDITIONS,
+  ALERT_DURATION_UNITS,
+  ALERT_FREQUENCIES,
+  ALERT_METRICS,
+  ALERT_RECIPIENTS,
+  ALERT_SCOPES,
+  ALERT_SOURCES,
+  ALERT_URGENCIES,
+} from "./alerts.js";
 
 export const loginSchema = z.object({
   email: z.string().email(),
@@ -27,6 +39,10 @@ export const loginSchema = z.object({
 
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
+});
+
+export const uploadAvatarSchema = z.object({
+  imageBase64: z.string().min(32).max(2_800_000),
 });
 
 export const createTenantSchema = z.object({
@@ -40,6 +56,32 @@ export const createTenantSchema = z.object({
   adminPassword: z.string().min(8),
   adminName: z.string().min(2).max(120),
 });
+
+const hexColor = z
+  .string()
+  .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Must be a hex color");
+
+export const mapAppearanceSchema = z.object({
+  themeId: z.enum([
+    "teal",
+    "ocean",
+    "forest",
+    "sunset",
+    "midnight",
+    "minimal",
+    "coral",
+    "slate",
+    "custom",
+  ]),
+  tileStyle: z.enum(["voyager", "positron", "osm", "dark"]),
+  markerStyle: z.enum(["pulse", "soft", "pin"]),
+  onShiftColor: hexColor,
+  lastSeenColor: hexColor,
+  trailColor: hexColor,
+  showInitials: z.boolean(),
+});
+
+export const updateMapAppearanceSchema = mapAppearanceSchema.partial();
 
 export const updateTenantSchema = z.object({
   name: z.string().min(2).max(120).optional(),
@@ -56,34 +98,122 @@ export const updateTenantSchema = z.object({
       integrationRawRetentionDays: z.number().int().min(30).max(90).optional(),
       latenessGraceMinutes: z.number().int().min(0).max(180).optional(),
       shiftStartHour: z.number().int().min(0).max(23).optional(),
+      map: updateMapAppearanceSchema.optional(),
     })
     .partial()
     .optional(),
 });
 
-export const createEmployeeSchema = z.object({
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+
+const employeeBaseFields = {
   name: z.string().min(2).max(120),
   email: z.string().email(),
   password: z.string().min(8).optional(),
   role: z.enum(["tenant_admin", "employee"]).default("employee"),
-  phone: z.string().max(40).optional().nullable(),
-  jobTitle: z.string().max(120).optional().nullable(),
+  phone: z.string().min(6).max(40),
+  jobTitle: z.string().min(1).max(120),
+  nationalId: z.string().min(5).max(40),
+  dateOfBirth: isoDate,
+  address: z.string().min(3).max(300),
+  hireDate: isoDate,
+  emergencyContactName: z.string().max(120).optional().nullable(),
+  emergencyContactPhone: z.string().max(40).optional().nullable(),
   status: z.enum(EMPLOYEE_STATUSES).default("active"),
   branchId: z.string().uuid().optional().nullable(),
   siteId: z.string().uuid().optional().nullable(),
-});
+  branchCode: z.string().max(40).optional().nullable(),
+  geofenceLat: z.number().min(-90).max(90).optional().nullable(),
+  geofenceLng: z.number().min(-180).max(180).optional().nullable(),
+  geofenceRadiusMeters: z
+    .number()
+    .int()
+    .min(50)
+    .max(50_000)
+    .optional()
+    .nullable(),
+};
 
-export const updateEmployeeSchema = createEmployeeSchema.partial().omit({
-  email: true,
-  password: true,
-}).extend({
-  phone: z.string().max(40).optional().nullable(),
-  jobTitle: z.string().max(120).optional().nullable(),
-  status: z.enum(EMPLOYEE_STATUSES).optional(),
-  contactPhone: z.string().max(40).optional().nullable(),
-  branchId: z.string().uuid().optional().nullable(),
-  siteId: z.string().uuid().optional().nullable(),
-});
+export const createEmployeeSchema = z
+  .object(employeeBaseFields)
+  .superRefine((data, ctx) => {
+    const parts = [data.geofenceLat, data.geofenceLng, data.geofenceRadiusMeters];
+    const provided = parts.filter((v) => v != null).length;
+    if (provided > 0 && provided < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Geofence requires lat, lng, and radiusMeters together (or all null to clear)",
+        path: ["geofenceRadiusMeters"],
+      });
+    }
+  });
+
+export const updateEmployeeSchema = z
+  .object(employeeBaseFields)
+  .partial()
+  .omit({
+    password: true,
+    branchCode: true,
+  })
+  .extend({
+    phone: z.string().min(6).max(40).optional().nullable(),
+    jobTitle: z.string().min(1).max(120).optional().nullable(),
+    nationalId: z.string().min(5).max(40).optional().nullable(),
+    dateOfBirth: isoDate.optional().nullable(),
+    address: z.string().min(3).max(300).optional().nullable(),
+    hireDate: isoDate.optional().nullable(),
+    emergencyContactName: z.string().max(120).optional().nullable(),
+    emergencyContactPhone: z.string().max(40).optional().nullable(),
+    status: z.enum(EMPLOYEE_STATUSES).optional(),
+    contactPhone: z.string().max(40).optional().nullable(),
+    branchId: z.string().uuid().optional().nullable(),
+    siteId: z.string().uuid().optional().nullable(),
+    geofenceLat: z.number().min(-90).max(90).optional().nullable(),
+    geofenceLng: z.number().min(-180).max(180).optional().nullable(),
+    geofenceRadiusMeters: z
+      .number()
+      .int()
+      .min(50)
+      .max(50_000)
+      .optional()
+      .nullable(),
+  })
+  .superRefine((data, ctx) => {
+    const hasAny =
+      data.geofenceLat !== undefined ||
+      data.geofenceLng !== undefined ||
+      data.geofenceRadiusMeters !== undefined;
+    if (!hasAny) return;
+    const clearing =
+      data.geofenceLat === null &&
+      data.geofenceLng === null &&
+      data.geofenceRadiusMeters === null;
+    if (clearing) return;
+    if (
+      data.geofenceLat == null ||
+      data.geofenceLng == null ||
+      data.geofenceRadiusMeters == null
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Geofence requires lat, lng, and radiusMeters together (or all null to clear)",
+        path: ["geofenceRadiusMeters"],
+      });
+    }
+  });
+
+export const importEmployeesBodySchema = z
+  .object({
+    csv: z.string().min(1).max(2_000_000).optional(),
+    employees: z.array(createEmployeeSchema).min(1).max(500).optional(),
+  })
+  .refine((d) => Boolean(d.csv || d.employees?.length), {
+    message: "csv or employees required",
+  });
 
 export const clockEventSchema = z.object({
   lat: z.number().min(-90).max(90),
@@ -113,6 +243,18 @@ export const createKpiSchema = z.object({
   description: z.string().max(1000).optional().nullable(),
 });
 
+export const updateKpiSchema = z
+  .object({
+    name: z.string().min(2).max(120).optional(),
+    type: z.enum(KPI_TYPES).optional(),
+    targetValue: z.number().optional().nullable(),
+    reviewPeriod: z.enum(REVIEW_PERIODS).optional(),
+    description: z.string().max(1000).optional().nullable(),
+  })
+  .refine((value) => Object.values(value).some((v) => v !== undefined), {
+    message: "No fields to update",
+  });
+
 export const assignKpiSchema = z.object({
   kpiId: z.string().uuid(),
   employeeId: z.string().uuid().optional(),
@@ -131,6 +273,60 @@ export const announcementSchema = z.object({
   title: z.string().min(1).max(200),
   body: z.string().min(1).max(5000),
   roleFilter: z.enum(["tenant_admin", "employee"]).optional(),
+});
+
+const alertChannelsSchema = z.array(z.enum(ALERT_CHANNELS)).min(1);
+const alertRecipientsSchema = z.array(z.enum(ALERT_RECIPIENTS)).min(1);
+
+export const updateAlertRuleSchema = z.object({
+  enabled: z.boolean().optional(),
+  name: z.string().min(1).max(160).optional(),
+  description: z.string().max(500).nullable().optional(),
+  urgency: z.enum(ALERT_URGENCIES).optional(),
+  channels: alertChannelsSchema.optional(),
+  frequency: z.enum(ALERT_FREQUENCIES).optional(),
+  recipients: alertRecipientsSchema.optional(),
+  escalateAfterHours: z.number().int().min(1).max(720).nullable().optional(),
+  source: z.enum(ALERT_SOURCES).optional(),
+  condition: z.enum(ALERT_CONDITIONS).optional(),
+  metric: z.enum(ALERT_METRICS).optional(),
+  threshold: z.number().nullable().optional(),
+  durationValue: z.number().int().min(1).max(3650).nullable().optional(),
+  durationUnit: z.enum(ALERT_DURATION_UNITS).nullable().optional(),
+  scope: z.enum(ALERT_SCOPES).optional(),
+  scopeId: z.string().uuid().nullable().optional(),
+  titleTemplate: z.string().min(1).max(200).nullable().optional(),
+  bodyTemplate: z.string().min(1).max(2000).nullable().optional(),
+});
+
+export const createCustomAlertRuleSchema = z.object({
+  name: z.string().min(1).max(160),
+  description: z.string().max(500).optional().nullable(),
+  urgency: z.enum(ALERT_URGENCIES),
+  channels: alertChannelsSchema,
+  frequency: z.enum(ALERT_FREQUENCIES),
+  recipients: alertRecipientsSchema,
+  escalateAfterHours: z.number().int().min(1).max(720).nullable().optional(),
+  enabled: z.boolean().optional().default(true),
+  source: z.enum(ALERT_SOURCES),
+  condition: z.enum(ALERT_CONDITIONS),
+  metric: z.enum(ALERT_METRICS),
+  threshold: z.number().nullable().optional(),
+  durationValue: z.number().int().min(1).max(3650).nullable().optional(),
+  durationUnit: z.enum(ALERT_DURATION_UNITS).nullable().optional(),
+  scope: z.enum(ALERT_SCOPES),
+  scopeId: z.string().uuid().nullable().optional(),
+  titleTemplate: z.string().min(1).max(200),
+  bodyTemplate: z.string().min(1).max(2000),
+});
+
+export const notificationListQuerySchema = z.object({
+  unread: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => (v == null ? undefined : v === "true")),
+  category: z.enum(ALERT_CATEGORIES).optional(),
+  urgency: z.enum(ALERT_URGENCIES).optional(),
 });
 
 export const jwtPayloadSchema = z.object({
@@ -196,6 +392,7 @@ export const auditQuerySchema = z.object({
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
+export type ImportEmployeesBody = z.infer<typeof importEmployeesBodySchema>;
 export type ClockEventInput = z.infer<typeof clockEventSchema>;
 export type JwtPayload = z.infer<typeof jwtPayloadSchema>;
 export type NotificationTypeInput = (typeof NOTIFICATION_TYPES)[number];
@@ -203,6 +400,8 @@ export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
 export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
+export type UpdateAlertRuleInput = z.infer<typeof updateAlertRuleSchema>;
+export type CreateCustomAlertRuleInput = z.infer<typeof createCustomAlertRuleSchema>;
 
 export const createBranchSchema = z.object({
   name: z.string().min(1).max(120),

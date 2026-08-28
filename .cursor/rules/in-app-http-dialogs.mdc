@@ -1,0 +1,38 @@
+---
+description: Never use native browser dialogs for HTTP or mutation confirmations
+alwaysApply: true
+---
+
+# In-app dialogs for HTTP actions
+
+Never use `window.alert`, `window.confirm`, or `window.prompt` for anything tied to an API call, mutation, or user-facing HTTP result.
+
+The browser box that says “hostname says …” (for example `hr.creativeintelligent.ae says`) is a bug, not an acceptable pattern.
+
+## Required pattern
+
+- Confirmations before create, update, delete, assign, or other mutations use the shared `ConfirmDialog` in `apps/web/src/components/ui/confirm-dialog.tsx`.
+- API errors stay in-app: inline on the form or page, or the same modal style. Never a native dialog.
+- Destructive actions use `variant="destructive"` on `ConfirmDialog`.
+
+## Do not
+
+```tsx
+window.confirm(`Delete “${name}”?`);
+alert(err.message);
+```
+
+## Do
+
+```tsx
+<ConfirmDialog
+  open={Boolean(pending)}
+  title={`Delete “${pending?.name}”?`}
+  description="This cannot be undone."
+  confirmLabel="Delete"
+  variant="destructive"
+  busy={busy}
+  onConfirm={confirmDelete}
+  onOpenChange={(open) => { if (!open && !busy) setPending(null); }}
+/>
+```

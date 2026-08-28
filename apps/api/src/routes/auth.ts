@@ -2,9 +2,35 @@ import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
 import { employees, tenants, users } from "@hr/db";
-import { loginSchema, refreshSchema, type JwtPayload } from "@hr/shared";
+import {
+  loginSchema,
+  refreshSchema,
+  uploadAvatarSchema,
+  type JwtPayload,
+} from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
+import { avatarUrlFor, decodeBase64Image, detectImageMime } from "../lib/avatar.js";
 import { authenticate } from "../types.js";
+
+type UserRow = typeof users.$inferSelect;
+
+function toAuthUser(
+  user: Pick<
+    UserRow,
+    "id" | "email" | "name" | "role" | "tenantId" | "avatarMime" | "updatedAt"
+  >,
+  employeeId: string | null,
+) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    tenantId: user.tenantId,
+    employeeId,
+    avatarUrl: avatarUrlFor(user.id, user.avatarMime, user.updatedAt),
+  };
+}
 
 function signTokens(app: Parameters<FastifyPluginAsync>[0], payload: JwtPayload) {
   const accessToken = app.jwt.sign(payload, { expiresIn: "15m" });
@@ -104,14 +130,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     return {
       ...tokens,
-      user: {
-        id: resolved.id,
-        email: resolved.email,
-        name: resolved.name,
-        role: resolved.role,
-        tenantId: resolved.tenantId,
-        employeeId,
-      },
+      user: toAuthUser(resolved, employeeId),
     };
   });
 
@@ -136,19 +155,107 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.get("/me", { preHandler: authenticate }, async (request) => {
+  app.get("/me", { preHandler: authenticate }, async (request, reply) => {
     const payload = request.user as JwtPayload;
     const user = await app.db.query.users.findFirst({
       where: eq(users.id, payload.sub),
+      columns: {
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        tenantId: true,
+        avatarMime: true,
+        updatedAt: true,
+      },
     });
-    if (!user) return { error: "Not found" };
-    return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      tenantId: user.tenantId,
-      employeeId: payload.employeeId ?? null,
-    };
+    if (!user) return reply.code(404).send({ error: "Not found" });
+    return toAuthUser(user, payload.employeeId ?? null);
+  });
+
+  app.post("/me/avatar", { preHandler: authenticate }, async (request, reply) => {
+    const payload = request.user as JwtPayload;
+    const parsed = uploadAvatarSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    let buf: Buffer;
+    try {
+      buf = decodeBase64Image(parsed.data.imageBase64);
+    } catch (err) {
+      return reply
+        .code(400)
+        .send({ error: err instanceof Error ? err.message : "Invalid image" });
+    }
+    const mime = detectImageMime(buf);
+    if (!mime) {
+      return reply
+        .code(400)
+        .send({ error: "Use a JPEG, PNG, WebP, or GIF image" });
+    }
+
+    const [updated] = await app.db
+      .update(users)
+      .set({
+        avatarMime: mime,
+        avatarBytes: buf.toString("base64"),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, payload.sub))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        tenantId: users.tenantId,
+        avatarMime: users.avatarMime,
+        updatedAt: users.updatedAt,
+      });
+    if (!updated) return reply.code(404).send({ error: "Not found" });
+
+    await writeAudit(app, {
+      actor: payload,
+      action: "user.avatar.update",
+      tenantId: payload.tenantId,
+      resourceType: "user",
+      resourceId: updated.id,
+      request,
+    });
+
+    return { user: toAuthUser(updated, payload.employeeId ?? null) };
+  });
+
+  app.delete("/me/avatar", { preHandler: authenticate }, async (request, reply) => {
+    const payload = request.user as JwtPayload;
+    const [updated] = await app.db
+      .update(users)
+      .set({
+        avatarMime: null,
+        avatarBytes: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, payload.sub))
+      .returning({
+        id: users.id,
+        email: users.email,
+        name: users.name,
+        role: users.role,
+        tenantId: users.tenantId,
+        avatarMime: users.avatarMime,
+        updatedAt: users.updatedAt,
+      });
+    if (!updated) return reply.code(404).send({ error: "Not found" });
+
+    await writeAudit(app, {
+      actor: payload,
+      action: "user.avatar.delete",
+      tenantId: payload.tenantId,
+      resourceType: "user",
+      resourceId: updated.id,
+      request,
+    });
+
+    return { user: toAuthUser(updated, payload.employeeId ?? null) };
   });
 };

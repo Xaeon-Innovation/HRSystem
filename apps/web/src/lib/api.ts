@@ -7,6 +7,7 @@ export type AuthUser = {
   role: "super_admin" | "tenant_admin" | "employee";
   tenantId: string | null;
   employeeId?: string | null;
+  avatarUrl?: string | null;
 };
 
 const TOKEN_KEY = "hr_access_token";
@@ -60,6 +61,45 @@ export function getUser(): AuthUser | null {
   }
 }
 
+export function updateSessionUser(user: AuthUser) {
+  const s = store();
+  if (!s) return;
+  const { access, refresh } = getTokens();
+  if (access && refresh) {
+    setSession(access, refresh, user);
+  } else {
+    s.setItem(USER_KEY, JSON.stringify(user));
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("hr-session-user"));
+  }
+}
+
+export function mediaUrl(path?: string | null): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path) || path.startsWith("data:")) return path;
+  return `${API_URL}${path}`;
+}
+
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("Could not read that image"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function request(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch {
+    throw new Error(
+      "Could not reach the server. Try a smaller photo, or check your connection.",
+    );
+  }
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -71,10 +111,10 @@ export async function api<T>(
   }
   if (access) headers.set("Authorization", `Bearer ${access}`);
 
-  let res = await fetch(`${API_URL}${path}`, { ...options, headers });
+  let res = await request(`${API_URL}${path}`, { ...options, headers });
 
   if (res.status === 401 && refresh) {
-    const refreshed = await fetch(`${API_URL}/v1/auth/refresh`, {
+    const refreshed = await request(`${API_URL}/v1/auth/refresh`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refreshToken: refresh }),
@@ -87,7 +127,7 @@ export async function api<T>(
       const user = getUser();
       if (user) setSession(data.accessToken, data.refreshToken, user);
       headers.set("Authorization", `Bearer ${data.accessToken}`);
-      res = await fetch(`${API_URL}${path}`, { ...options, headers });
+      res = await request(`${API_URL}${path}`, { ...options, headers });
     }
   }
 

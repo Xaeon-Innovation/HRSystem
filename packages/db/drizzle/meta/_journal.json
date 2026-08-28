@@ -22,6 +22,34 @@
       "when": 1786984911417,
       "tag": "0002_flippant_roughhouse",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787730000000,
+      "tag": "0003_employee_geofence",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787900000000,
+      "tag": "0004_employee_personal",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788100000000,
+      "tag": "0005_user_avatar",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788300000000,
+      "tag": "0006_alert_rules",
+      "breakpoints": true
     }
   ]
 }

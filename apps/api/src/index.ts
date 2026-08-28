@@ -15,11 +15,13 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { createDb } from "@hr/db";
 import { authRoutes } from "./routes/auth.js";
+import { uploadRoutes } from "./routes/uploads.js";
 import { tenantRoutes } from "./routes/tenants.js";
 import { employeeRoutes } from "./routes/employees.js";
 import { branchRoutes, siteRoutes } from "./routes/branches.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { liveMapRoutes } from "./routes/live-map.js";
+import { placesRoutes } from "./routes/places.js";
 import { kpiRoutes } from "./routes/kpis.js";
 import { notificationRoutes } from "./routes/notifications.js";
 import { healthRoutes } from "./routes/health.js";
@@ -45,7 +47,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN ?? "http://localhost:3000";
 
 async function main() {
   const { db, client } = createDb(DATABASE_URL);
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, bodyLimit: 4 * 1024 * 1024 });
 
   await app.register(cors, {
     origin: CORS_ORIGIN.split(",").map((s) => s.trim()),
@@ -64,6 +66,7 @@ async function main() {
 
   await app.register(healthRoutes);
   await app.register(authRoutes, { prefix: "/v1/auth" });
+  await app.register(uploadRoutes, { prefix: "/v1/uploads" });
   await app.register(tenantRoutes, { prefix: "/v1/tenants" });
   await app.register(planRoutes, { prefix: "/v1/plans" });
   await app.register(subscriptionRoutes, { prefix: "/v1/subscriptions" });
@@ -80,6 +83,7 @@ async function main() {
   await app.register(siteRoutes, { prefix: "/v1/sites" });
   await app.register(attendanceRoutes, { prefix: "/v1/attendance" });
   await app.register(liveMapRoutes, { prefix: "/v1/admin" });
+  await app.register(placesRoutes, { prefix: "/v1/admin" });
   await app.register(kpiRoutes, { prefix: "/v1/kpis" });
   await app.register(notificationRoutes, { prefix: "/v1/notifications" });
   await registerWs(app);

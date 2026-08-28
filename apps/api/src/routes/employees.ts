@@ -4,15 +4,173 @@ import { and, eq, ilike, or } from "drizzle-orm";
 import { branches, employees, sites, users } from "@hr/db";
 import {
   createEmployeeSchema,
+  importEmployeesBodySchema,
   updateEmployeeSchema,
+  draftToCreatePayload,
+  isEmployeeDraftComplete,
+  parseEmployeeCsv,
+  type CreateEmployeeInput,
   type JwtPayload,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
+import { avatarUrlFor } from "../lib/avatar.js";
 import { assertSeatAvailable } from "../lib/billing.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
+function asDateOnly(value: unknown): string | null {
+  if (value == null) return null;
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  return String(value).slice(0, 10);
+}
+
+function emptyToNull(value: string | null | undefined): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value == null) return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+const employeeSelect = {
+  id: employees.id,
+  tenantId: employees.tenantId,
+  phone: employees.phone,
+  jobTitle: employees.jobTitle,
+  nationalId: employees.nationalId,
+  dateOfBirth: employees.dateOfBirth,
+  address: employees.address,
+  hireDate: employees.hireDate,
+  emergencyContactName: employees.emergencyContactName,
+  emergencyContactPhone: employees.emergencyContactPhone,
+  status: employees.status,
+  branchId: employees.branchId,
+  siteId: employees.siteId,
+  geofenceLat: employees.geofenceLat,
+  geofenceLng: employees.geofenceLng,
+  geofenceRadiusMeters: employees.geofenceRadiusMeters,
+  userId: users.id,
+  name: users.name,
+  email: users.email,
+  role: users.role,
+  avatarMime: users.avatarMime,
+  userUpdatedAt: users.updatedAt,
+  createdAt: employees.createdAt,
+};
+
+function serializeEmployee<T extends Record<string, unknown>>(row: T) {
+  const { avatarMime, userUpdatedAt, ...rest } = row;
+  return {
+    ...rest,
+    dateOfBirth: asDateOnly(row.dateOfBirth),
+    hireDate: asDateOnly(row.hireDate),
+    avatarUrl: avatarUrlFor(
+      String(row.userId ?? ""),
+      typeof avatarMime === "string" ? avatarMime : null,
+      userUpdatedAt as Date | string | null | undefined,
+    ),
+  };
+}
+
 export const employeeRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
+
+  async function resolveBranchId(
+    tenantId: string,
+    branchId: string | null | undefined,
+    branchCode: string | null | undefined,
+  ): Promise<string | null> {
+    if (branchId) {
+      const branch = await app.db.query.branches.findFirst({
+        where: and(eq(branches.id, branchId), eq(branches.tenantId, tenantId)),
+      });
+      if (!branch) throw new Error("Branch not found");
+      return branch.id;
+    }
+    const code = branchCode?.trim();
+    if (!code) return null;
+    const branch = await app.db.query.branches.findFirst({
+      where: and(eq(branches.tenantId, tenantId), eq(branches.code, code)),
+    });
+    if (!branch) throw new Error(`Unknown branch code: ${code}`);
+    return branch.id;
+  }
+
+  async function insertEmployee(
+    tenantId: string,
+    data: CreateEmployeeInput,
+  ) {
+    const password =
+      data.password ?? `Temp${Math.random().toString(36).slice(2, 10)}!`;
+    const branchId = await resolveBranchId(
+      tenantId,
+      data.branchId,
+      data.branchCode,
+    );
+    if (data.siteId) {
+      const site = await app.db.query.sites.findFirst({
+        where: and(eq(sites.id, data.siteId), eq(sites.tenantId, tenantId)),
+      });
+      if (!site) throw new Error("Site not found");
+    }
+
+    const existing = await app.db.query.users.findFirst({
+      where: and(eq(users.email, data.email), eq(users.tenantId, tenantId)),
+    });
+    if (existing) throw new Error("Email already exists in tenant");
+
+    const existingNid = await app.db.query.employees.findFirst({
+      where: and(
+        eq(employees.tenantId, tenantId),
+        eq(employees.nationalId, data.nationalId),
+      ),
+    });
+    if (existingNid) throw new Error("National ID already exists in tenant");
+
+    const [user] = await app.db
+      .insert(users)
+      .values({
+        tenantId,
+        email: data.email,
+        name: data.name,
+        role: data.role,
+        passwordHash: await bcrypt.hash(password, 10),
+      })
+      .returning();
+
+    const [employee] = await app.db
+      .insert(employees)
+      .values({
+        tenantId,
+        userId: user.id,
+        phone: data.phone,
+        jobTitle: data.jobTitle,
+        nationalId: data.nationalId,
+        dateOfBirth: data.dateOfBirth,
+        address: data.address,
+        hireDate: data.hireDate,
+        emergencyContactName: emptyToNull(data.emergencyContactName) ?? null,
+        emergencyContactPhone: emptyToNull(data.emergencyContactPhone) ?? null,
+        status: data.status,
+        branchId,
+        siteId: data.siteId ?? null,
+        geofenceLat: data.geofenceLat ?? null,
+        geofenceLng: data.geofenceLng ?? null,
+        geofenceRadiusMeters: data.geofenceRadiusMeters ?? null,
+      })
+      .returning();
+
+    return {
+      employee: serializeEmployee({
+        ...employee,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }),
+      temporaryPassword: data.password ? undefined : password,
+    };
+  }
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);
@@ -20,20 +178,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     const status = (request.query as { status?: string }).status;
 
     const rows = await app.db
-      .select({
-        id: employees.id,
-        tenantId: employees.tenantId,
-        phone: employees.phone,
-        jobTitle: employees.jobTitle,
-        status: employees.status,
-        branchId: employees.branchId,
-        siteId: employees.siteId,
-        userId: users.id,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-        createdAt: employees.createdAt,
-      })
+      .select(employeeSelect)
       .from(employees)
       .innerJoin(users, eq(users.id, employees.userId))
       .where(
@@ -47,13 +192,15 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
                 ilike(users.name, `%${q}%`),
                 ilike(users.email, `%${q}%`),
                 ilike(employees.jobTitle, `%${q}%`),
+                ilike(employees.phone, `%${q}%`),
+                ilike(employees.nationalId, `%${q}%`),
               )
             : undefined,
         ),
       )
       .orderBy(users.name);
 
-    return { employees: rows };
+    return { employees: rows.map((row) => serializeEmployee(row)) };
   });
 
   app.post(
@@ -66,7 +213,6 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(400).send({ error: parsed.error.flatten() });
       }
       const data = parsed.data;
-      const password = data.password ?? `Temp${Math.random().toString(36).slice(2, 10)}!`;
 
       if (data.status !== "inactive") {
         const seats = await assertSeatAvailable(app.db, tenantId, 1);
@@ -75,68 +221,29 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
-      const existing = await app.db.query.users.findFirst({
-        where: and(eq(users.email, data.email), eq(users.tenantId, tenantId)),
-      });
-      if (existing) {
-        return reply.code(409).send({ error: "Email already exists in tenant" });
-      }
-
-      if (data.branchId) {
-        const branch = await app.db.query.branches.findFirst({
-          where: and(
-            eq(branches.id, data.branchId),
-            eq(branches.tenantId, tenantId),
-          ),
-        });
-        if (!branch) return reply.code(400).send({ error: "Branch not found" });
-      }
-      if (data.siteId) {
-        const site = await app.db.query.sites.findFirst({
-          where: and(eq(sites.id, data.siteId), eq(sites.tenantId, tenantId)),
-        });
-        if (!site) return reply.code(400).send({ error: "Site not found" });
-      }
-
-      const [user] = await app.db
-        .insert(users)
-        .values({
+      try {
+        const created = await insertEmployee(tenantId, data);
+        const actor = request.user as JwtPayload;
+        await writeAudit(app, {
+          actor,
+          action: "employee.create",
           tenantId,
-          email: data.email,
-          name: data.name,
-          role: data.role,
-          passwordHash: await bcrypt.hash(password, 10),
-        })
-        .returning();
-
-      const [employee] = await app.db
-        .insert(employees)
-        .values({
-          tenantId,
-          userId: user.id,
-          phone: data.phone ?? null,
-          jobTitle: data.jobTitle ?? null,
-          status: data.status,
-          branchId: data.branchId ?? null,
-          siteId: data.siteId ?? null,
-        })
-        .returning();
-
-      const actor = request.user as JwtPayload;
-      await writeAudit(app, {
-        actor,
-        action: "employee.create",
-        tenantId,
-        resourceType: "employee",
-        resourceId: employee.id,
-        metadata: { email: user.email, role: user.role },
-        request,
-      });
-
-      return reply.code(201).send({
-        employee: { ...employee, name: user.name, email: user.email, role: user.role },
-        temporaryPassword: data.password ? undefined : password,
-      });
+          resourceType: "employee",
+          resourceId: created.employee.id as string,
+          metadata: { email: created.employee.email, role: created.employee.role },
+          request,
+        });
+        return reply.code(201).send(created);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed";
+        const code =
+          message.includes("already exists") || message.includes("not found")
+            ? message.includes("already exists")
+              ? 409
+              : 400
+            : 400;
+        return reply.code(code).send({ error: message });
+      }
     },
   );
 
@@ -145,73 +252,94 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: requireRoles("tenant_admin") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
-      const body = request.body as { csv?: string };
-      if (!body.csv) return reply.code(400).send({ error: "csv required" });
-
-      const lines = body.csv
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter(Boolean);
-      if (lines.length < 2) {
-        return reply.code(400).send({ error: "CSV needs header + rows" });
+      const parsed = importEmployeesBodySchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: parsed.error.flatten() });
       }
-      const header = lines[0].split(",").map((h) => h.trim().toLowerCase());
-      const nameIdx = header.indexOf("name");
-      const emailIdx = header.indexOf("email");
-      const roleIdx = header.indexOf("role");
-      const titleIdx = header.indexOf("jobtitle");
-      if (nameIdx < 0 || emailIdx < 0) {
-        return reply.code(400).send({ error: "CSV must include name,email" });
+
+      let payloads: CreateEmployeeInput[] = [];
+
+      if (parsed.data.employees?.length) {
+        payloads = parsed.data.employees;
+      } else if (parsed.data.csv) {
+        const preview = parseEmployeeCsv(parsed.data.csv);
+        if (preview.rows.length === 0) {
+          return reply.code(400).send({ error: "CSV needs header + rows" });
+        }
+        const incomplete = preview.rows.filter(
+          (row) => !isEmployeeDraftComplete(row.data),
+        );
+        if (incomplete.length > 0) {
+          return reply.code(422).send({
+            imported: false,
+            error:
+              "Fill missing employee information before adding them to the system",
+            incomplete: incomplete.map((row) => ({
+              line: row.line,
+              missing: row.missing,
+              errors: row.errors,
+              data: row.data,
+            })),
+            readyCount: preview.rows.length - incomplete.length,
+          });
+        }
+        const converted = [];
+        for (const row of preview.rows) {
+          const candidate = createEmployeeSchema.safeParse(
+            draftToCreatePayload(row.data),
+          );
+          if (!candidate.success) {
+            return reply.code(422).send({
+              imported: false,
+              error:
+                "Fill missing employee information before adding them to the system",
+              incomplete: [
+                {
+                  line: row.line,
+                  missing: row.missing,
+                  errors: candidate.error.issues.map((issue) => ({
+                    field: String(issue.path[0] ?? "row"),
+                    message: issue.message,
+                  })),
+                  data: row.data,
+                },
+              ],
+            });
+          }
+          converted.push(candidate.data);
+        }
+        payloads = converted;
       }
 
       const created: unknown[] = [];
-      const errors: { line: number; error: string }[] = [];
+      const errors: { index: number; error: string }[] = [];
       let pendingSeats = 0;
 
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(",").map((c) => c.trim());
-        const name = cols[nameIdx];
-        const email = cols[emailIdx];
-        const role =
-          roleIdx >= 0 && cols[roleIdx] === "tenant_admin"
-            ? "tenant_admin"
-            : "employee";
-        const jobTitle = titleIdx >= 0 ? cols[titleIdx] : null;
+      for (let i = 0; i < payloads.length; i++) {
+        const data = payloads[i];
         try {
-          const seats = await assertSeatAvailable(
-            app.db,
-            tenantId,
-            pendingSeats + 1,
-          );
-          if (!seats.ok) {
-            errors.push({ line: i + 1, error: seats.error });
-            continue;
+          if (data.status !== "inactive") {
+            const seats = await assertSeatAvailable(
+              app.db,
+              tenantId,
+              pendingSeats + 1,
+            );
+            if (!seats.ok) {
+              errors.push({ index: i, error: seats.error });
+              continue;
+            }
           }
-          const password = `Temp${Math.random().toString(36).slice(2, 10)}!`;
-          const [user] = await app.db
-            .insert(users)
-            .values({
-              tenantId,
-              email,
-              name,
-              role,
-              passwordHash: await bcrypt.hash(password, 10),
-            })
-            .returning();
-          const [employee] = await app.db
-            .insert(employees)
-            .values({
-              tenantId,
-              userId: user.id,
-              jobTitle,
-              status: "active",
-            })
-            .returning();
-          created.push({ id: employee.id, email, temporaryPassword: password });
-          pendingSeats += 1;
+          const result = await insertEmployee(tenantId, data);
+          created.push({
+            id: result.employee.id,
+            email: result.employee.email,
+            name: result.employee.name,
+            temporaryPassword: result.temporaryPassword,
+          });
+          if (data.status !== "inactive") pendingSeats += 1;
         } catch (e) {
           errors.push({
-            line: i + 1,
+            index: i,
             error: e instanceof Error ? e.message : "failed",
           });
         }
@@ -283,23 +411,112 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         if (!nextBranchId) nextBranchId = site.branchId;
       }
 
+      if (parsed.data.nationalId) {
+        const clash = await app.db.query.employees.findFirst({
+          where: and(
+            eq(employees.tenantId, tenantId),
+            eq(employees.nationalId, parsed.data.nationalId),
+          ),
+        });
+        if (clash && clash.id !== emp.id) {
+          return reply
+            .code(409)
+            .send({ error: "National ID already exists in tenant" });
+        }
+      }
+
+      const clearingGeofence =
+        parsed.data.geofenceLat === null &&
+        parsed.data.geofenceLng === null &&
+        parsed.data.geofenceRadiusMeters === null;
+      const nextGeofenceLat = clearingGeofence
+        ? null
+        : parsed.data.geofenceLat !== undefined
+          ? parsed.data.geofenceLat
+          : emp.geofenceLat;
+      const nextGeofenceLng = clearingGeofence
+        ? null
+        : parsed.data.geofenceLng !== undefined
+          ? parsed.data.geofenceLng
+          : emp.geofenceLng;
+      const nextGeofenceRadius = clearingGeofence
+        ? null
+        : parsed.data.geofenceRadiusMeters !== undefined
+          ? parsed.data.geofenceRadiusMeters
+          : emp.geofenceRadiusMeters;
+
+      const user = await app.db.query.users.findFirst({
+        where: eq(users.id, emp.userId),
+      });
+      if (!user) return reply.code(404).send({ error: "Not found" });
+
+      const nextEmail = parsed.data.email?.trim().toLowerCase();
+      if (nextEmail && nextEmail !== user.email) {
+        const emailClash = await app.db.query.users.findFirst({
+          where: and(eq(users.email, nextEmail), eq(users.tenantId, tenantId)),
+        });
+        if (emailClash) {
+          return reply.code(409).send({ error: "Email already exists in tenant" });
+        }
+      }
+
       const [updated] = await app.db
         .update(employees)
         .set({
-          phone: parsed.data.phone ?? emp.phone,
-          jobTitle: parsed.data.jobTitle ?? emp.jobTitle,
+          phone:
+            parsed.data.phone !== undefined ? parsed.data.phone : emp.phone,
+          jobTitle:
+            parsed.data.jobTitle !== undefined
+              ? parsed.data.jobTitle
+              : emp.jobTitle,
+          nationalId:
+            parsed.data.nationalId !== undefined
+              ? parsed.data.nationalId
+              : emp.nationalId,
+          dateOfBirth:
+            parsed.data.dateOfBirth !== undefined
+              ? parsed.data.dateOfBirth
+              : emp.dateOfBirth,
+          address:
+            parsed.data.address !== undefined
+              ? parsed.data.address
+              : emp.address,
+          hireDate:
+            parsed.data.hireDate !== undefined
+              ? parsed.data.hireDate
+              : emp.hireDate,
+          emergencyContactName:
+            parsed.data.emergencyContactName !== undefined
+              ? emptyToNull(parsed.data.emergencyContactName) ?? null
+              : emp.emergencyContactName,
+          emergencyContactPhone:
+            parsed.data.emergencyContactPhone !== undefined
+              ? emptyToNull(parsed.data.emergencyContactPhone) ?? null
+              : emp.emergencyContactPhone,
           status: nextStatus,
           branchId: nextBranchId,
           siteId: nextSiteId,
+          geofenceLat: nextGeofenceLat,
+          geofenceLng: nextGeofenceLng,
+          geofenceRadiusMeters: nextGeofenceRadius,
           updatedAt: new Date(),
         })
         .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
         .returning();
 
-      if (parsed.data.name) {
+      if (
+        parsed.data.name ||
+        parsed.data.role ||
+        (nextEmail && nextEmail !== user.email)
+      ) {
         await app.db
           .update(users)
-          .set({ name: parsed.data.name, updatedAt: new Date() })
+          .set({
+            ...(parsed.data.name ? { name: parsed.data.name } : {}),
+            ...(parsed.data.role ? { role: parsed.data.role } : {}),
+            ...(nextEmail && nextEmail !== user.email ? { email: nextEmail } : {}),
+            updatedAt: new Date(),
+          })
           .where(eq(users.id, emp.userId));
       }
 
@@ -326,7 +543,14 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         request,
       });
 
-      return { employee: updated };
+      const rows = await app.db
+        .select(employeeSelect)
+        .from(employees)
+        .innerJoin(users, eq(users.id, employees.userId))
+        .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
+        .limit(1);
+
+      return { employee: serializeEmployee(rows[0] ?? updated) };
     },
   );
 
@@ -334,23 +558,12 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     const tenantId = tenantIdOf(request);
     const { id } = request.params as { id: string };
     const rows = await app.db
-      .select({
-        id: employees.id,
-        tenantId: employees.tenantId,
-        phone: employees.phone,
-        jobTitle: employees.jobTitle,
-        status: employees.status,
-        branchId: employees.branchId,
-        siteId: employees.siteId,
-        name: users.name,
-        email: users.email,
-        role: users.role,
-      })
+      .select(employeeSelect)
       .from(employees)
       .innerJoin(users, eq(users.id, employees.userId))
       .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
       .limit(1);
     if (!rows[0]) return reply.code(404).send({ error: "Not found" });
-    return { employee: rows[0] };
+    return { employee: serializeEmployee(rows[0]) };
   });
 };

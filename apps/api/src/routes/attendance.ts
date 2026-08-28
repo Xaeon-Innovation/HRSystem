@@ -1,5 +1,5 @@
 import type { FastifyPluginAsync } from "fastify";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
 import {
   attendanceCorrections,
   attendanceRecords,
@@ -10,6 +10,8 @@ import {
 import { clockEventSchema, correctAttendanceSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
+import { isInsideGeofence } from "../lib/geo.js";
+import type { App } from "../types.js";
 import {
   requireRoles,
   requireTenantScope,
@@ -17,6 +19,41 @@ import {
 } from "../types.js";
 import { createNotification } from "../services/notifications.js";
 import { broadcastToTenant } from "../ws-hub.js";
+
+async function assertWithinGeofence(
+  app: App,
+  tenantId: string,
+  employeeId: string,
+  point: { lat: number; lng: number },
+) {
+  const emp = await app.db.query.employees.findFirst({
+    where: and(eq(employees.id, employeeId), eq(employees.tenantId, tenantId)),
+    columns: {
+      geofenceLat: true,
+      geofenceLng: true,
+      geofenceRadiusMeters: true,
+    },
+  });
+  if (
+    !emp ||
+    emp.geofenceLat == null ||
+    emp.geofenceLng == null ||
+    emp.geofenceRadiusMeters == null
+  ) {
+    return null;
+  }
+  const check = isInsideGeofence(point, {
+    lat: emp.geofenceLat,
+    lng: emp.geofenceLng,
+    radiusMeters: emp.geofenceRadiusMeters,
+  });
+  if (check.inside) return null;
+  return {
+    error: "Outside allowed work zone",
+    distanceMeters: Math.round(check.distanceMeters),
+    allowedRadiusMeters: emp.geofenceRadiusMeters,
+  };
+}
 
 export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
@@ -51,6 +88,14 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     });
     if (open) {
       return reply.code(409).send({ error: "Already clocked in", attendance: open });
+    }
+
+    const outside = await assertWithinGeofence(app, tenantId, user.employeeId, {
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+    });
+    if (outside) {
+      return reply.code(403).send(outside);
     }
 
     const now = new Date();
@@ -142,6 +187,14 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(409).send({ error: "Not clocked in" });
     }
 
+    const outside = await assertWithinGeofence(app, tenantId, user.employeeId, {
+      lat: parsed.data.lat,
+      lng: parsed.data.lng,
+    });
+    if (outside) {
+      return reply.code(403).send(outside);
+    }
+
     const now = new Date();
     const [record] = await app.db
       .update(attendanceRecords)
@@ -228,6 +281,64 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     });
     return { records: rows };
   });
+
+  app.get(
+    "/period",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const q = request.query as {
+        from?: string;
+        to?: string;
+        employeeId?: string;
+      };
+      if (!q.from || !q.to) {
+        return reply.code(400).send({ error: "from and to dates are required" });
+      }
+      const from = new Date(`${q.from.slice(0, 10)}T00:00:00.000Z`);
+      const to = new Date(`${q.to.slice(0, 10)}T23:59:59.999Z`);
+      if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+        return reply.code(400).send({ error: "Invalid date range" });
+      }
+
+      const rows = await app.db.query.attendanceRecords.findMany({
+        where: and(
+          eq(attendanceRecords.tenantId, tenantId),
+          q.employeeId
+            ? eq(attendanceRecords.employeeId, q.employeeId)
+            : undefined,
+          or(
+            and(
+              gte(attendanceRecords.clockInAt, from),
+              lte(attendanceRecords.clockInAt, to),
+            ),
+            and(
+              isNull(attendanceRecords.clockOutAt),
+              lte(attendanceRecords.clockInAt, to),
+            ),
+          ),
+        ),
+        orderBy: [desc(attendanceRecords.clockInAt)],
+        limit: 5000,
+      });
+
+      return {
+        from: q.from.slice(0, 10),
+        to: q.to.slice(0, 10),
+        records: rows.map((r) => ({
+          id: r.id,
+          employeeId: r.employeeId,
+          clockInAt:
+            r.clockInAt instanceof Date ? r.clockInAt.toISOString() : r.clockInAt,
+          clockOutAt: r.clockOutAt
+            ? r.clockOutAt instanceof Date
+              ? r.clockOutAt.toISOString()
+              : r.clockOutAt
+            : null,
+        })),
+      };
+    },
+  );
 
   app.get("/status", async (request) => {
     const tenantId = tenantIdOf(request);

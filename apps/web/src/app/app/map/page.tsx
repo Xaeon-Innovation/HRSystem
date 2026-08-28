@@ -7,7 +7,19 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import type { HistoryPoint, LiveLoc } from "@/components/live-map";
+import { UserAvatar } from "@/components/user-avatar";
+import type { HistoryPoint, LiveLoc, MapAppearance } from "@/components/live-map";
+import {
+  DEFAULT_GEOFENCE_RADIUS_METERS,
+  DEFAULT_MAP_APPEARANCE,
+  MAP_MARKER_STYLES,
+  MAP_THEMES,
+  MAP_TILE_STYLES,
+  MAX_GEOFENCE_RADIUS_METERS,
+  MIN_GEOFENCE_RADIUS_METERS,
+  type MapThemeId,
+} from "@hr/shared";
+import { Building2, MapPin, Palette, RotateCcw, Search, Settings2 } from "lucide-react";
 
 const LiveMap = dynamic(() => import("@/components/live-map"), { ssr: false });
 
@@ -23,6 +35,44 @@ type Session = {
   id: string;
   clockInAt: string;
   clockOutAt: string | null;
+};
+
+const TILE_LABELS: Record<(typeof MAP_TILE_STYLES)[number], string> = {
+  voyager: "Voyager (colorful)",
+  positron: "Positron (light)",
+  osm: "OpenStreetMap",
+  dark: "Dark",
+};
+
+const MARKER_LABELS: Record<(typeof MAP_MARKER_STYLES)[number], string> = {
+  pulse: "Pulse",
+  soft: "Soft blob",
+  pin: "Pin",
+};
+
+const TILE_SWATCH: Record<(typeof MAP_TILE_STYLES)[number], string> = {
+  voyager: "linear-gradient(135deg, #dbeafe, #bbf7d0 45%, #fde68a)",
+  positron: "linear-gradient(135deg, #f8fafc, #e2e8f0)",
+  osm: "linear-gradient(135deg, #e8f5e9, #c8e6c9 40%, #fff3e0)",
+  dark: "linear-gradient(135deg, #0f172a, #1e293b 50%, #334155)",
+};
+
+const PLACE_QUICK_SEARCHES = [
+  "hospital",
+  "school",
+  "clinic",
+  "building",
+  "mall",
+  "office",
+] as const;
+
+type PlaceHit = {
+  id: string;
+  name: string;
+  label: string;
+  lat: number;
+  lng: number;
+  type: string | null;
 };
 
 function nearestPoint(
@@ -68,6 +118,25 @@ export default function MapPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedLiveId, setSelectedLiveId] = useState<string | null>(null);
 
+  const [appearance, setAppearance] = useState<MapAppearance>(
+    DEFAULT_MAP_APPEARANCE,
+  );
+  const [draftAppearance, setDraftAppearance] =
+    useState<MapAppearance>(DEFAULT_MAP_APPEARANCE);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+  const [zoneRadius, setZoneRadius] = useState(DEFAULT_GEOFENCE_RADIUS_METERS);
+  const [zoneLat, setZoneLat] = useState<number | null>(null);
+  const [zoneLng, setZoneLng] = useState<number | null>(null);
+  const [zoneBusy, setZoneBusy] = useState(false);
+  const [zoneLabel, setZoneLabel] = useState<string | null>(null);
+  const [pickOnMap, setPickOnMap] = useState(false);
+  const [placeQuery, setPlaceQuery] = useState("");
+  const [placeHits, setPlaceHits] = useState<PlaceHit[]>([]);
+  const [placeBusy, setPlaceBusy] = useState(false);
+  const [placeError, setPlaceError] = useState<string | null>(null);
+
   // History state
   const [employees, setEmployees] = useState<EmployeeOpt[]>([]);
   const [employeeId, setEmployeeId] = useState("");
@@ -79,6 +148,15 @@ export default function MapPage() {
   const [scrubIndex, setScrubIndex] = useState(0);
   const [historyMeta, setHistoryMeta] = useState<string | null>(null);
   const [historyBusy, setHistoryBusy] = useState(false);
+
+  useEffect(() => {
+    void api<{ map: MapAppearance }>("/v1/admin/map-settings")
+      .then((data) => {
+        setAppearance(data.map);
+        setDraftAppearance(data.map);
+      })
+      .catch(() => undefined);
+  }, []);
 
   const poll = useCallback(async () => {
     const params = new URLSearchParams();
@@ -146,9 +224,11 @@ export default function MapPage() {
               lng: msg.payload!.lng ?? 0,
               secondsSinceUpdate: 0,
               isClockedIn: clockedIn,
+              geofenceLat: prev[idx]?.geofenceLat ?? null,
+              geofenceLng: prev[idx]?.geofenceLng ?? null,
+              geofenceRadiusMeters: prev[idx]?.geofenceRadiusMeters ?? null,
             };
 
-            // Apply presence filter client-side for WS updates
             const passes =
               presence === "all" ||
               (presence === "on_shift" && clockedIn) ||
@@ -286,6 +366,43 @@ export default function MapPage() {
     }
   }, [locations, selectedLiveId]);
 
+  useEffect(() => {
+    if (!selectedLiveId) {
+      setZoneLat(null);
+      setZoneLng(null);
+      setZoneRadius(DEFAULT_GEOFENCE_RADIUS_METERS);
+      setZoneLabel(null);
+      setPickOnMap(false);
+      setPlaceQuery("");
+      setPlaceHits([]);
+      setPlaceError(null);
+      return;
+    }
+    const loc = locations.find((l) => l.employeeId === selectedLiveId);
+    if (!loc) return;
+    const hasRealZone =
+      loc.geofenceLat != null &&
+      loc.geofenceLng != null &&
+      !(loc.geofenceLat === 0 && loc.geofenceLng === 0);
+    if (hasRealZone) {
+      setZoneLat(loc.geofenceLat!);
+      setZoneLng(loc.geofenceLng!);
+      setZoneRadius(
+        loc.geofenceRadiusMeters ?? DEFAULT_GEOFENCE_RADIUS_METERS,
+      );
+      setZoneLabel("Saved work zone");
+    } else {
+      setZoneLat(loc.lat);
+      setZoneLng(loc.lng);
+      setZoneRadius(
+        loc.geofenceRadiusMeters && !(loc.geofenceLat === 0 && loc.geofenceLng === 0)
+          ? loc.geofenceRadiusMeters
+          : DEFAULT_GEOFENCE_RADIUS_METERS,
+      );
+      setZoneLabel("Employee live position");
+    }
+  }, [selectedLiveId]);
+
   const visibleLocations = useMemo(() => {
     if (tab !== "live") return [];
     if (!selectedLiveId) return locations;
@@ -318,6 +435,8 @@ export default function MapPage() {
     return `hist:${historyPoints.length}:${focusPoint?.recordedAt ?? ""}`;
   }, [tab, selectedLiveId, visibleLocations, locations, historyPoints.length, focusPoint]);
 
+  const liveAppearance = customizeOpen ? draftAppearance : appearance;
+
   function applySession(s: Session) {
     const inAt = new Date(s.clockInAt);
     const outAt = s.clockOutAt ? new Date(s.clockOutAt) : new Date();
@@ -332,13 +451,204 @@ export default function MapPage() {
 
   function onScrubChange(value: number) {
     if (!historyPoints.length) return;
-    // value is ms along the range; snap to nearest real ping
     const nearest = nearestPoint(historyPoints, value);
     if (!nearest) return;
     const idx = historyPoints.findIndex(
       (p) => p.recordedAt === nearest.recordedAt,
     );
     setScrubIndex(idx >= 0 ? idx : 0);
+  }
+
+  function applyTheme(themeId: Exclude<MapThemeId, "custom">) {
+    const theme = MAP_THEMES.find((t) => t.id === themeId);
+    if (!theme) return;
+    setDraftAppearance({ ...theme.appearance });
+  }
+
+  function patchAppearance(patch: Partial<MapAppearance>) {
+    setDraftAppearance((a) => ({
+      ...a,
+      ...patch,
+      themeId: "custom" as MapThemeId,
+    }));
+  }
+
+  async function saveAppearance() {
+    setSettingsBusy(true);
+    setSettingsSaved(false);
+    setError(null);
+    try {
+      const data = await api<{ map: MapAppearance }>("/v1/admin/map-settings", {
+        method: "PATCH",
+        body: JSON.stringify(draftAppearance),
+      });
+      setAppearance(data.map);
+      setDraftAppearance(data.map);
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 2000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save map style");
+    } finally {
+      setSettingsBusy(false);
+    }
+  }
+
+  function resetAppearanceDraft() {
+    setDraftAppearance(DEFAULT_MAP_APPEARANCE);
+  }
+
+  const selectedLive = useMemo(
+    () => locations.find((l) => l.employeeId === selectedLiveId) ?? null,
+    [locations, selectedLiveId],
+  );
+
+  const draftGeofence =
+    selectedLiveId && zoneLat != null && zoneLng != null
+      ? {
+          employeeId: selectedLiveId,
+          lat: zoneLat,
+          lng: zoneLng,
+          radiusMeters: zoneRadius,
+        }
+      : null;
+
+  async function saveZone() {
+    if (!selectedLiveId || zoneLat == null || zoneLng == null) return;
+    if (zoneLat === 0 && zoneLng === 0) {
+      setError("Set a real center (use live position) — 0, 0 is not valid");
+      return;
+    }
+    const radius = Math.min(
+      MAX_GEOFENCE_RADIUS_METERS,
+      Math.max(MIN_GEOFENCE_RADIUS_METERS, Math.round(zoneRadius)),
+    );
+    setZoneBusy(true);
+    setError(null);
+    try {
+      await api(`/v1/employees/${selectedLiveId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          geofenceLat: zoneLat,
+          geofenceLng: zoneLng,
+          geofenceRadiusMeters: radius,
+        }),
+      });
+      setLocations((prev) =>
+        prev.map((l) =>
+          l.employeeId === selectedLiveId
+            ? {
+                ...l,
+                geofenceLat: zoneLat,
+                geofenceLng: zoneLng,
+                geofenceRadiusMeters: radius,
+              }
+            : l,
+        ),
+      );
+      setZoneRadius(radius);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save zone");
+    } finally {
+      setZoneBusy(false);
+    }
+  }
+
+  async function clearZone() {
+    if (!selectedLiveId) return;
+    setZoneBusy(true);
+    setError(null);
+    try {
+      await api(`/v1/employees/${selectedLiveId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          geofenceLat: null,
+          geofenceLng: null,
+          geofenceRadiusMeters: null,
+        }),
+      });
+      setLocations((prev) =>
+        prev.map((l) =>
+          l.employeeId === selectedLiveId
+            ? {
+                ...l,
+                geofenceLat: null,
+                geofenceLng: null,
+                geofenceRadiusMeters: null,
+              }
+            : l,
+        ),
+      );
+      if (selectedLive) {
+        setZoneLat(selectedLive.lat);
+        setZoneLng(selectedLive.lng);
+      }
+      setZoneRadius(DEFAULT_GEOFENCE_RADIUS_METERS);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to clear zone");
+    } finally {
+      setZoneBusy(false);
+    }
+  }
+
+  function useCurrentAsCenter() {
+    if (!selectedLive) return;
+    setZoneLat(selectedLive.lat);
+    setZoneLng(selectedLive.lng);
+    setZoneLabel("Employee live position");
+    setPickOnMap(false);
+  }
+
+  function onPickCenter(lat: number, lng: number) {
+    setZoneLat(lat);
+    setZoneLng(lng);
+    setZoneLabel("Picked on map");
+    setPickOnMap(false);
+    setPlaceHits([]);
+  }
+
+  async function searchPlaces(rawQuery?: string) {
+    const q = (rawQuery ?? placeQuery).trim();
+    if (q.length < 2) {
+      setPlaceError("Type at least 2 characters");
+      return;
+    }
+    setPlaceBusy(true);
+    setPlaceError(null);
+    try {
+      const params = new URLSearchParams({
+        q,
+        limit: "8",
+      });
+      const near = selectedLive ?? (zoneLat != null && zoneLng != null
+        ? { lat: zoneLat, lng: zoneLng }
+        : null);
+      if (near) {
+        params.set("nearLat", String(near.lat));
+        params.set("nearLng", String(near.lng));
+      }
+      const data = await api<{ places: PlaceHit[] }>(
+        `/v1/admin/places/search?${params.toString()}`,
+      );
+      setPlaceHits(data.places);
+      if (!data.places.length) {
+        setPlaceError("No places found — try a more specific name or city");
+      }
+    } catch (e) {
+      setPlaceHits([]);
+      setPlaceError(e instanceof Error ? e.message : "Place search failed");
+    } finally {
+      setPlaceBusy(false);
+    }
+  }
+
+  function applyPlace(place: PlaceHit) {
+    setZoneLat(place.lat);
+    setZoneLng(place.lng);
+    setZoneLabel(place.name);
+    setPlaceQuery(place.name);
+    setPlaceHits([]);
+    setPickOnMap(false);
+    setPlaceError(null);
   }
 
   const scrubMin = historyPoints[0]
@@ -362,35 +672,262 @@ export default function MapPage() {
               : "Review saved locations by employee and time"}
           </p>
         </div>
-        <div className="inline-flex rounded-md border bg-white/70 p-1">
-          <button
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
             type="button"
-            className={cn(
-              "rounded px-3 py-1.5 text-sm",
-              tab === "live" ? "bg-primary text-primary-foreground" : "",
-            )}
+            variant={customizeOpen ? "default" : "outline"}
+            size="sm"
             onClick={() => {
-              setSelectedLiveId(null);
-              setTab("live");
+              setDraftAppearance(appearance);
+              setCustomizeOpen((o) => !o);
             }}
           >
-            Live
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "rounded px-3 py-1.5 text-sm",
-              tab === "history" ? "bg-primary text-primary-foreground" : "",
-            )}
-            onClick={() => {
-              setSelectedLiveId(null);
-              setTab("history");
-            }}
-          >
-            History
-          </button>
+            <Palette className="h-4 w-4" />
+            Customize
+          </Button>
+          <div className="inline-flex rounded-md border bg-white/70 p-1">
+            <button
+              type="button"
+              className={cn(
+                "rounded px-3 py-1.5 text-sm",
+                tab === "live" ? "bg-primary text-primary-foreground" : "",
+              )}
+              onClick={() => {
+                setSelectedLiveId(null);
+                setTab("live");
+              }}
+            >
+              Live
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "rounded px-3 py-1.5 text-sm",
+                tab === "history" ? "bg-primary text-primary-foreground" : "",
+              )}
+              onClick={() => {
+                setSelectedLiveId(null);
+                setTab("history");
+              }}
+            >
+              History
+            </button>
+          </div>
         </div>
       </div>
+
+      {customizeOpen ? (
+        <div className="space-y-4 rounded-xl border bg-white/80 p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <Settings2 className="h-4 w-4 text-primary" />
+            Map themes
+            <span className="font-normal text-muted-foreground">
+              · pick a theme to preview · save to keep for your organization
+            </span>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {MAP_THEMES.map((theme) => {
+              const selected = draftAppearance.themeId === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => applyTheme(theme.id)}
+                  className={cn(
+                    "rounded-xl border p-3 text-left transition-all",
+                    selected
+                      ? "border-primary bg-primary/5 ring-2 ring-primary/30"
+                      : "border-border bg-white/70 hover:border-primary/40 hover:bg-secondary/40",
+                  )}
+                >
+                  <div
+                    className="mb-2 h-14 overflow-hidden rounded-lg border border-black/5"
+                    style={{ background: TILE_SWATCH[theme.appearance.tileStyle] }}
+                  >
+                    <div className="flex h-full items-end justify-center gap-2 pb-2">
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border-2 border-white shadow"
+                        style={{ background: theme.appearance.onShiftColor }}
+                      />
+                      <span
+                        className="h-3.5 w-3.5 rounded-full border-2 border-white shadow"
+                        style={{ background: theme.appearance.lastSeenColor }}
+                      />
+                      <span
+                        className="mb-0.5 h-1 w-8 rounded-full opacity-80"
+                        style={{ background: theme.appearance.trailColor }}
+                      />
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold">{theme.name}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {theme.description}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {draftAppearance.themeId === "custom" ? (
+            <p className="text-xs text-muted-foreground">
+              Custom theme — advanced options below override the presets.
+            </p>
+          ) : null}
+
+          <details className="rounded-lg border bg-white/60 p-3">
+            <summary className="cursor-pointer text-sm font-medium">
+              Advanced options
+            </summary>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Map style</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={draftAppearance.tileStyle}
+                  onChange={(e) =>
+                    patchAppearance({
+                      tileStyle: e.target
+                        .value as MapAppearance["tileStyle"],
+                    })
+                  }
+                >
+                  {MAP_TILE_STYLES.map((style) => (
+                    <option key={style} value={style}>
+                      {TILE_LABELS[style]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Marker style</Label>
+                <select
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={draftAppearance.markerStyle}
+                  onChange={(e) =>
+                    patchAppearance({
+                      markerStyle: e.target
+                        .value as MapAppearance["markerStyle"],
+                    })
+                  }
+                >
+                  {MAP_MARKER_STYLES.map((style) => (
+                    <option key={style} value={style}>
+                      {MARKER_LABELS[style]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-end gap-2 pb-1">
+                <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-input"
+                    checked={draftAppearance.showInitials}
+                    onChange={(e) =>
+                      patchAppearance({ showInitials: e.target.checked })
+                    }
+                  />
+                  Show initials on markers
+                </label>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">On-shift color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                    value={draftAppearance.onShiftColor}
+                    onChange={(e) =>
+                      patchAppearance({ onShiftColor: e.target.value })
+                    }
+                  />
+                  <Input
+                    value={draftAppearance.onShiftColor}
+                    onChange={(e) =>
+                      patchAppearance({ onShiftColor: e.target.value })
+                    }
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Last-seen color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                    value={draftAppearance.lastSeenColor}
+                    onChange={(e) =>
+                      patchAppearance({ lastSeenColor: e.target.value })
+                    }
+                  />
+                  <Input
+                    value={draftAppearance.lastSeenColor}
+                    onChange={(e) =>
+                      patchAppearance({ lastSeenColor: e.target.value })
+                    }
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">History trail color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                    value={draftAppearance.trailColor}
+                    onChange={(e) =>
+                      patchAppearance({ trailColor: e.target.value })
+                    }
+                  />
+                  <Input
+                    value={draftAppearance.trailColor}
+                    onChange={(e) =>
+                      patchAppearance({ trailColor: e.target.value })
+                    }
+                    className="font-mono text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+          </details>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={settingsBusy}
+              onClick={() => void saveAppearance()}
+            >
+              {settingsBusy ? "Saving…" : "Save for organization"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={resetAppearanceDraft}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset defaults
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setDraftAppearance(appearance);
+                setCustomizeOpen(false);
+              }}
+            >
+              Close
+            </Button>
+            {settingsSaved ? (
+              <span className="self-center text-sm text-teal-700">
+                Saved
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {tab === "live" ? (
         <div className="flex flex-wrap items-end gap-2">
@@ -535,7 +1072,7 @@ export default function MapPage() {
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="h-[60vh] overflow-hidden rounded-lg border">
+      <div className="h-[60vh] overflow-hidden rounded-2xl border shadow-sm ring-1 ring-black/5">
         <LiveMap
           center={center}
           locations={tab === "live" ? visibleLocations : []}
@@ -543,8 +1080,194 @@ export default function MapPage() {
           focusPoint={tab === "history" ? focusPoint : null}
           mode={tab}
           focusKey={mapFocusKey}
+          appearance={liveAppearance}
+          selectedId={selectedLiveId}
+          draftGeofence={tab === "live" ? draftGeofence : null}
+          pickCenterEnabled={tab === "live" && !!selectedLiveId && pickOnMap}
+          onPickCenter={onPickCenter}
         />
       </div>
+
+      {tab === "live" && selectedLive ? (
+        <div className="space-y-3 rounded-xl border bg-white/80 p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MapPin className="h-4 w-4 text-primary" />
+              Work zone · {selectedLive.name}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Search a place, click the map, or use live position
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label className="text-xs">Find a place</Label>
+            <div className="flex flex-wrap gap-2">
+              <div className="relative min-w-[14rem] flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  className="pl-9"
+                  placeholder="Hospital, school, building name…"
+                  value={placeQuery}
+                  onChange={(e) => setPlaceQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void searchPlaces();
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={placeBusy}
+                onClick={() => void searchPlaces()}
+              >
+                {placeBusy ? "Searching…" : "Search"}
+              </Button>
+              <Button
+                type="button"
+                variant={pickOnMap ? "default" : "outline"}
+                onClick={() => setPickOnMap((v) => !v)}
+              >
+                <Building2 className="h-4 w-4" />
+                {pickOnMap ? "Click map…" : "Pick on map"}
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {PLACE_QUICK_SEARCHES.map((term) => (
+                <button
+                  key={term}
+                  type="button"
+                  className="rounded-full border bg-white px-2.5 py-1 text-xs capitalize text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  onClick={() => {
+                    setPlaceQuery(term);
+                    void searchPlaces(term);
+                  }}
+                >
+                  {term}
+                </button>
+              ))}
+            </div>
+            {placeError ? (
+              <p className="text-xs text-destructive">{placeError}</p>
+            ) : null}
+            {placeHits.length > 0 ? (
+              <ul className="max-h-44 overflow-auto rounded-lg border bg-white">
+                {placeHits.map((place) => (
+                  <li key={place.id}>
+                    <button
+                      type="button"
+                      className="w-full border-b px-3 py-2 text-left last:border-b-0 hover:bg-secondary/50"
+                      onClick={() => applyPlace(place)}
+                    >
+                      <p className="text-sm font-medium">{place.name}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2">
+                        {place.label}
+                      </p>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {zoneLabel ? (
+              <p className="text-xs text-muted-foreground">
+                Center · <span className="font-medium text-foreground">{zoneLabel}</span>
+                {zoneLat != null && zoneLng != null
+                  ? ` · ${zoneLat.toFixed(5)}, ${zoneLng.toFixed(5)}`
+                  : null}
+              </p>
+            ) : null}
+            {pickOnMap ? (
+              <p className="text-xs text-amber-700">
+                Click anywhere on the map to set the zone center.
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="space-y-1 sm:col-span-2">
+              <Label className="text-xs">
+                Radius · {zoneRadius}m (
+                {(zoneRadius / 1000).toFixed(zoneRadius >= 1000 ? 2 : 3)} km)
+              </Label>
+              <input
+                type="range"
+                className="w-full"
+                min={MIN_GEOFENCE_RADIUS_METERS}
+                max={Math.min(MAX_GEOFENCE_RADIUS_METERS, 5000)}
+                step={10}
+                value={Math.min(zoneRadius, 5000)}
+                onChange={(e) => setZoneRadius(Number(e.target.value))}
+              />
+              <Input
+                type="number"
+                min={MIN_GEOFENCE_RADIUS_METERS}
+                max={MAX_GEOFENCE_RADIUS_METERS}
+                value={zoneRadius}
+                onChange={(e) => setZoneRadius(Number(e.target.value) || 0)}
+                className="mt-1"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Center lat</Label>
+              <Input
+                type="number"
+                step="0.0001"
+                value={zoneLat ?? ""}
+                onChange={(e) => {
+                  setZoneLat(
+                    e.target.value === "" ? null : Number(e.target.value),
+                  );
+                  setZoneLabel("Custom coordinates");
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Center lng</Label>
+              <Input
+                type="number"
+                step="0.0001"
+                value={zoneLng ?? ""}
+                onChange={(e) => {
+                  setZoneLng(
+                    e.target.value === "" ? null : Number(e.target.value),
+                  );
+                  setZoneLabel("Custom coordinates");
+                }}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              disabled={zoneBusy || zoneLat == null || zoneLng == null}
+              onClick={() => void saveZone()}
+            >
+              {zoneBusy ? "Saving…" : "Save zone"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!selectedLive}
+              onClick={useCurrentAsCenter}
+            >
+              Use live position as center
+            </Button>
+            {selectedLive.geofenceRadiusMeters != null ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={zoneBusy}
+                onClick={() => void clearZone()}
+              >
+                Clear zone
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {tab === "live" ? (
         <ul className="space-y-2 text-sm">
@@ -560,20 +1283,37 @@ export default function MapPage() {
                     )
                   }
                   className={cn(
-                    "w-full rounded-md border px-3 py-2 text-left transition-colors",
+                    "w-full rounded-xl border px-3 py-2.5 text-left transition-all",
                     selected
-                      ? "border-primary bg-primary/10"
+                      ? "border-primary bg-primary/10 shadow-sm"
                       : "bg-white/70 hover:bg-secondary/60",
                   )}
                 >
-                  <span className="font-medium">{l.name}</span> ·{" "}
-                  {l.jobTitle ?? l.role} ·{" "}
+                  <span className="inline-flex items-center gap-2">
+                    <UserAvatar name={l.name} avatarUrl={l.avatarUrl} size="sm" />
+                    <span
+                      className="inline-block h-2.5 w-2.5 rounded-full"
+                      style={{
+                        background:
+                          l.isClockedIn === false
+                            ? liveAppearance.lastSeenColor
+                            : liveAppearance.onShiftColor,
+                      }}
+                    />
+                    <span className="font-medium">{l.name}</span>
+                  </span>{" "}
+                  · {l.jobTitle ?? l.role} ·{" "}
                   {l.isClockedIn === false ? (
                     <span className="text-muted-foreground">Last seen</span>
                   ) : (
                     <span className="text-teal-800">On shift</span>
                   )}{" "}
                   · updated {l.secondsSinceUpdate ?? 0}s ago
+                  {l.geofenceRadiusMeters != null ? (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      · zone {l.geofenceRadiusMeters}m
+                    </span>
+                  ) : null}
                   {selected ? (
                     <span className="ml-2 text-xs text-primary">· focused</span>
                   ) : null}

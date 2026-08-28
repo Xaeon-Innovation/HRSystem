@@ -9,6 +9,7 @@ import {
   assignKpiSchema,
   createKpiSchema,
   recordKpiScoreSchema,
+  updateKpiSchema,
 } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
 import {
@@ -68,6 +69,71 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
         })
         .returning();
       return reply.code(201).send({ kpi });
+    },
+  );
+
+  app.patch(
+    "/:id",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const { id } = request.params as { id: string };
+      const parsed = updateKpiSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: parsed.error.flatten() });
+      }
+      const existing = await app.db.query.kpiDefinitions.findFirst({
+        where: and(eq(kpiDefinitions.id, id), eq(kpiDefinitions.tenantId, tenantId)),
+      });
+      if (!existing) return reply.code(404).send({ error: "Not found" });
+      const [kpi] = await app.db
+        .update(kpiDefinitions)
+        .set({ ...parsed.data, updatedAt: new Date() })
+        .where(and(eq(kpiDefinitions.id, id), eq(kpiDefinitions.tenantId, tenantId)))
+        .returning();
+      return { kpi };
+    },
+  );
+
+  app.delete(
+    "/:id",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const { id } = request.params as { id: string };
+      const existing = await app.db.query.kpiDefinitions.findFirst({
+        where: and(eq(kpiDefinitions.id, id), eq(kpiDefinitions.tenantId, tenantId)),
+      });
+      if (!existing) return reply.code(404).send({ error: "Not found" });
+      await app.db
+        .delete(kpiDefinitions)
+        .where(and(eq(kpiDefinitions.id, id), eq(kpiDefinitions.tenantId, tenantId)));
+      return { ok: true };
+    },
+  );
+
+  app.delete(
+    "/assignments/:assignmentId",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const { assignmentId } = request.params as { assignmentId: string };
+      const existing = await app.db.query.kpiAssignments.findFirst({
+        where: and(
+          eq(kpiAssignments.id, assignmentId),
+          eq(kpiAssignments.tenantId, tenantId),
+        ),
+      });
+      if (!existing) return reply.code(404).send({ error: "Not found" });
+      await app.db
+        .delete(kpiAssignments)
+        .where(
+          and(
+            eq(kpiAssignments.id, assignmentId),
+            eq(kpiAssignments.tenantId, tenantId),
+          ),
+        );
+      return { ok: true };
     },
   );
 
