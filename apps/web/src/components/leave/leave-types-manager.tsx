@@ -98,7 +98,7 @@ function Toggle({
       onClick={onClick}
       className={cn(
         "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1",
-        on ? "bg-accent text-accent-foreground ring-primary/20" : "bg-white text-muted-foreground ring-border",
+        on ? "bg-accent text-accent-foreground ring-primary/20" : "bg-card text-muted-foreground ring-border",
       )}
     >
       {label}

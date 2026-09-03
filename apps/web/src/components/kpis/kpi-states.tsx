@@ -6,12 +6,12 @@ import { Card, CardContent } from "@/components/ui/card";
 export function KpiLoadingSkeleton() {
   return (
     <div className="space-y-4" aria-busy="true" aria-label="Loading performance">
-      <div className="h-20 animate-pulse rounded-xl bg-white/70 ring-1 ring-border" />
-      <div className="h-36 animate-pulse rounded-xl bg-white/70 ring-1 ring-border" />
+      <div className="h-20 animate-pulse rounded-xl bg-card ring-1 ring-border" />
+      <div className="h-36 animate-pulse rounded-xl bg-card ring-1 ring-border" />
       {Array.from({ length: 4 }).map((_, i) => (
         <div
           key={i}
-          className="h-24 animate-pulse rounded-xl bg-white/70 ring-1 ring-border"
+          className="h-24 animate-pulse rounded-xl bg-card ring-1 ring-border"
         />
       ))}
     </div>
@@ -26,7 +26,7 @@ export function KpiErrorState({
   onRetry: () => void;
 }) {
   return (
-    <Card className="border-destructive/30 bg-rose-50/60">
+    <Card className="border-destructive/30 bg-rose-50/60 dark:bg-rose-950/40">
       <CardContent className="flex flex-col items-start gap-3 py-8 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
@@ -82,7 +82,7 @@ export function KpiEmptyState({
 export function IncompleteBanner({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <p>
         {count} metric{count === 1 ? "" : "s"} still need a result. The overall score only

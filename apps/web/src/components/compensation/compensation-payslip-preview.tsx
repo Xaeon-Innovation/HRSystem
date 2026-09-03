@@ -21,7 +21,7 @@ export function CompensationPayslipPreview({
   ];
 
   return (
-    <Card className={cn(!compact && "border-primary/15 bg-gradient-to-br from-white to-accent/20")}>
+    <Card className={cn(!compact && "border-primary/15 bg-gradient-to-br from-card to-accent/20")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">Payslip-ready breakdown</CardTitle>
         <p className="text-xs text-muted-foreground">
@@ -37,7 +37,7 @@ export function CompensationPayslipPreview({
               key={r.label}
               className={cn(
                 "rounded-lg px-3 py-2",
-                r.emphasize ? "bg-white/80 ring-1 ring-primary/15" : "bg-secondary/60",
+                r.emphasize ? "bg-card ring-1 ring-primary/15" : "bg-secondary/60",
               )}
             >
               <dt className="text-[11px] text-muted-foreground">{r.label}</dt>
@@ -54,7 +54,7 @@ export function CompensationPayslipPreview({
           ))}
         </dl>
         {!compact ? (
-          <ul className="divide-y rounded-lg border bg-white/70 text-sm">
+          <ul className="divide-y rounded-lg border bg-card text-sm">
             {breakdown.lines.map((line, i) => (
               <li key={`${line.kind}-${i}`} className="flex items-center justify-between px-3 py-2">
                 <span className="text-muted-foreground">{line.label}</span>

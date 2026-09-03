@@ -118,12 +118,12 @@ export function LeaveCalendarView({
                     onClick={() => setSelected(iso)}
                     className={cn(
                       "min-h-[72px] rounded-lg border p-1.5 text-left transition",
-                      inMonth ? "bg-white" : "bg-secondary/40 text-muted-foreground",
+                      inMonth ? "bg-card" : "bg-secondary/40 text-muted-foreground",
                       selected === iso && "ring-2 ring-ring",
                       iso === todayIso() && "border-primary/40",
-                      weekend && "bg-slate-50",
-                      holiday && "bg-amber-50",
-                      blackout && "bg-rose-50",
+                      weekend && "bg-slate-50 dark:bg-slate-900/40",
+                      holiday && "bg-amber-50 dark:bg-amber-950/40",
+                      blackout && "bg-rose-50 dark:bg-rose-950/40",
                     )}
                   >
                     <span className="text-xs font-medium">{parseIsoDate(iso).getDate()}</span>
@@ -169,17 +169,17 @@ export function LeaveCalendarView({
             </CardHeader>
             <CardContent className="space-y-2">
               {holidayOn(selected, holidays) ? (
-                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900">
+                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
                   Public holiday: {holidayOn(selected, holidays)}
                 </p>
               ) : null}
               {blackoutOn(selected, blackouts) ? (
-                <p className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-900">
+                <p className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-900 dark:bg-rose-950/60 dark:text-rose-200">
                   Restricted: {blackoutOn(selected, blackouts)}
                 </p>
               ) : null}
               {staffing ? (
-                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-950">{staffing}</p>
+                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-950 dark:bg-amber-950/60 dark:text-amber-200">{staffing}</p>
               ) : null}
               {selectedOff.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No approved leave on this day.</p>

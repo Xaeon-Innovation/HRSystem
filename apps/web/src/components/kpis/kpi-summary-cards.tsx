@@ -108,7 +108,7 @@ export function KpiSummaryCards({
         </div>
       </CardContent>
       {teamAverage != null && hasActuals && summary.overallPerformanceScore != null ? (
-        <p className="border-t bg-white/50 px-5 py-2 text-xs text-muted-foreground">
+        <p className="border-t bg-muted/50 px-5 py-2 text-xs text-muted-foreground">
           Team average {formatNumber(teamAverage, 0)}
           {summary.rank != null ? ` · Rank #${summary.rank} of ${summary.cohortSize}` : ""}
         </p>
@@ -127,7 +127,7 @@ function Stat({
   hint?: "up" | "down";
 }) {
   return (
-    <div className="rounded-lg bg-white/70 px-2 py-2 text-center">
+    <div className="rounded-lg bg-card px-2 py-2 text-center">
       <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className="mt-0.5 inline-flex items-center justify-center gap-1 text-lg font-semibold tabular-nums">
         {hint === "up" ? <TrendingUp className="h-3.5 w-3.5 text-emerald-700" /> : null}

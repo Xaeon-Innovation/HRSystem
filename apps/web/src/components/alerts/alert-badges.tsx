@@ -25,19 +25,28 @@ export const CATEGORY_ICON: Record<
 };
 
 export const CATEGORY_TONE: Record<AlertCategory, string> = {
-  employee: "bg-sky-50 text-sky-800 ring-sky-200",
-  leave: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  kpi: "bg-violet-50 text-violet-800 ring-violet-200",
-  attendance: "bg-teal-50 text-teal-800 ring-teal-200",
-  payroll: "bg-amber-50 text-amber-900 ring-amber-200",
-  system: "bg-slate-100 text-slate-700 ring-slate-200",
-  custom: "bg-fuchsia-50 text-fuchsia-800 ring-fuchsia-200",
+  employee:
+    "bg-sky-50 text-sky-800 ring-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-800",
+  leave:
+    "bg-emerald-50 text-emerald-800 ring-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800",
+  kpi:
+    "bg-violet-50 text-violet-800 ring-violet-200 dark:bg-violet-950/60 dark:text-violet-300 dark:ring-violet-800",
+  attendance:
+    "bg-teal-50 text-teal-800 ring-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:ring-teal-800",
+  payroll:
+    "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
+  system:
+    "bg-slate-100 text-slate-700 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-300 dark:ring-slate-700",
+  custom:
+    "bg-fuchsia-50 text-fuchsia-800 ring-fuchsia-200 dark:bg-fuchsia-950/60 dark:text-fuchsia-300 dark:ring-fuchsia-800",
 };
 
 export const URGENCY_TONE: Record<AlertUrgency, string> = {
-  info: "bg-sky-50 text-sky-800 ring-sky-200",
-  warning: "bg-amber-50 text-amber-900 ring-amber-200",
-  critical: "bg-rose-50 text-rose-800 ring-rose-200",
+  info: "bg-sky-50 text-sky-800 ring-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-800",
+  warning:
+    "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
+  critical:
+    "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800",
 };
 
 export const URGENCY_BAR: Record<AlertUrgency, string> = {

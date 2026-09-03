@@ -483,8 +483,10 @@ export function templateById(id: RoleTemplateId): RoleTemplate {
 
 export function inferRoleTemplate(
   jobTitle: string | null | undefined,
+  extra?: string | string[] | null,
 ): RoleTemplateId {
-  const t = (jobTitle ?? "").toLowerCase();
+  const extraText = Array.isArray(extra) ? extra.join(" ") : extra ?? "";
+  const t = `${jobTitle ?? ""} ${extraText}`.toLowerCase();
   if (/sales|account exec|business development|\bbd\b|quota/.test(t)) {
     return "sales";
   }

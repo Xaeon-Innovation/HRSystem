@@ -134,6 +134,7 @@ const employeeBaseFields = {
     .max(50_000)
     .optional()
     .nullable(),
+  jobRoleIds: z.array(z.string().uuid()).max(50).optional(),
 };
 
 export const createEmployeeSchema = z
@@ -402,6 +403,12 @@ export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
 export type UpdateAlertRuleInput = z.infer<typeof updateAlertRuleSchema>;
 export type CreateCustomAlertRuleInput = z.infer<typeof createCustomAlertRuleSchema>;
+
+export const createJobRoleSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
+
+export const updateJobRoleSchema = createJobRoleSchema.partial();
 
 export const createBranchSchema = z.object({
   name: z.string().min(1).max(120),

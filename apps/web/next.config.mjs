@@ -8,7 +8,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: root,
-  transpilePackages: ["@hr/shared"],
+  transpilePackages: ["@hr/shared", "pdfjs-dist"],
 };
 
 export default nextConfig;

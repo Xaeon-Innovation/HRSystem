@@ -460,6 +460,52 @@ export const employees = pgTable(
   ],
 );
 
+/** Tenant-defined job functions (sales, driver, …). Distinct from access `users.role`. */
+export const jobRoles = pgTable(
+  "job_roles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("job_roles_tenant_name_uidx").on(t.tenantId, t.name),
+    index("job_roles_tenant_idx").on(t.tenantId),
+  ],
+);
+
+export const employeeJobRoles = pgTable(
+  "employee_job_roles",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    jobRoleId: uuid("job_role_id")
+      .notNull()
+      .references(() => jobRoles.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("employee_job_roles_uidx").on(t.employeeId, t.jobRoleId),
+    index("employee_job_roles_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("employee_job_roles_tenant_role_idx").on(t.tenantId, t.jobRoleId),
+  ],
+);
+
 export const attendanceRecords = pgTable(
   "attendance_records",
   {

@@ -3,9 +3,10 @@ import { cn } from "@/lib/utils";
 import type { CategoryScore, KpiAlert, KpiCategoryId } from "@/lib/kpis/types";
 
 const SEVERITY: Record<KpiAlert["severity"], string> = {
-  high: "bg-rose-50 text-rose-800 ring-rose-200",
-  medium: "bg-amber-50 text-amber-900 ring-amber-200",
-  low: "bg-sky-50 text-sky-800 ring-sky-200",
+  high: "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800",
+  medium:
+    "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
+  low: "bg-sky-50 text-sky-800 ring-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:ring-sky-800",
 };
 
 export function KpiCategoryPanel({
@@ -77,7 +78,7 @@ export function KpiAlertsPanel({
       </CardHeader>
       <CardContent className="space-y-2">
         {alerts.length === 0 ? (
-          <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-900">
+          <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300">
             No active exceptions in this period.
           </p>
         ) : (

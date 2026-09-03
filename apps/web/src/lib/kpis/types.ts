@@ -235,6 +235,7 @@ export type EmployeeOption = {
   email: string;
   role: string;
   jobTitle: string | null;
+  jobRoles?: { id: string; name: string }[];
   branchId: string | null;
   status: string;
   avatarUrl?: string | null;

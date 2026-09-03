@@ -29,7 +29,16 @@ export function KpiFiltersBar({
 }) {
   const [more, setMore] = useState(false);
   const departments = [
-    ...new Set(employees.map((e) => departmentForRole(inferRoleTemplate(e.jobTitle)))),
+    ...new Set(
+      employees.map((e) =>
+        departmentForRole(
+          inferRoleTemplate(
+            e.jobTitle,
+            e.jobRoles?.map((r) => r.name),
+          ),
+        ),
+      ),
+    ),
   ].sort();
 
   return (
@@ -56,7 +65,7 @@ export function KpiFiltersBar({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-white/80 p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
         <FilterField label={isAdmin ? "Whose performance" : "Viewing"}>
           <select
             className={cn(SELECT_CLASS, "min-w-[180px]")}
@@ -105,7 +114,7 @@ export function KpiFiltersBar({
       </div>
 
       {more ? (
-        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-white/60 p-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-card p-3 md:grid-cols-4">
           <FilterField label="Job type">
             <select
               className={SELECT_CLASS}

@@ -52,7 +52,7 @@ export default function HealthPage() {
       </div>
       <ul className="space-y-2 text-sm">
         {data.recent.map((r) => (
-          <li key={r.id} className="rounded-md border bg-white/70 px-3 py-2">
+          <li key={r.id} className="rounded-md border bg-card px-3 py-2">
             {r.metric} · {r.value} · {new Date(r.createdAt).toLocaleString()}
           </li>
         ))}

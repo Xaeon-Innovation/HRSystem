@@ -18,6 +18,7 @@ import { authRoutes } from "./routes/auth.js";
 import { uploadRoutes } from "./routes/uploads.js";
 import { tenantRoutes } from "./routes/tenants.js";
 import { employeeRoutes } from "./routes/employees.js";
+import { jobRoleRoutes } from "./routes/job-roles.js";
 import { branchRoutes, siteRoutes } from "./routes/branches.js";
 import { attendanceRoutes } from "./routes/attendance.js";
 import { liveMapRoutes } from "./routes/live-map.js";
@@ -79,6 +80,7 @@ async function main() {
   await app.register(integrationRoutes, { prefix: "/v1/integrations" });
   await app.register(analyticsRoutes, { prefix: "/v1/analytics" });
   await app.register(employeeRoutes, { prefix: "/v1/employees" });
+  await app.register(jobRoleRoutes, { prefix: "/v1/job-roles" });
   await app.register(branchRoutes, { prefix: "/v1/branches" });
   await app.register(siteRoutes, { prefix: "/v1/sites" });
   await app.register(attendanceRoutes, { prefix: "/v1/attendance" });

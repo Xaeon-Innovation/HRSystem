@@ -115,7 +115,7 @@ export default function IntegrationsPage() {
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <Card className="border-emerald-200/70 bg-emerald-50/30">
+      <Card className="border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/30">
         <CardHeader>
           <CardTitle className="text-base">
             Connect Creative Intelligent CMS (Goals)

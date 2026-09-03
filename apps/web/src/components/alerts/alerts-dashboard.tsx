@@ -120,13 +120,13 @@ export function AlertsDashboard() {
   if (loading) {
     return (
       <div className="space-y-4" aria-busy="true" aria-label="Loading alerts">
-        <div className="h-16 animate-pulse rounded-xl bg-white/70 ring-1 ring-border" />
+        <div className="h-16 animate-pulse rounded-xl bg-card ring-1 ring-border" />
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-white/70 ring-1 ring-border" />
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-card ring-1 ring-border" />
           ))}
         </div>
-        <div className="h-72 animate-pulse rounded-xl bg-white/70 ring-1 ring-border" />
+        <div className="h-72 animate-pulse rounded-xl bg-card ring-1 ring-border" />
       </div>
     );
   }
@@ -153,7 +153,7 @@ export function AlertsDashboard() {
               <CardContent className="py-4">
                 <div className="flex items-start justify-between gap-2">
                   <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
-                  <span className="rounded-md bg-white/80 p-1.5 text-primary">
+                  <span className="rounded-md bg-card p-1.5 text-primary">
                     <Icon className="h-3.5 w-3.5" />
                   </span>
                 </div>

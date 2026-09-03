@@ -46,6 +46,7 @@ type Employee = {
   email: string;
   role: string;
   jobTitle: string | null;
+  jobRoles: JobRoleSummary[];
   status: string;
   phone: string | null;
   avatarUrl?: string | null;
@@ -62,6 +63,15 @@ type Employee = {
   geofenceRadiusMeters: number | null;
 };
 
+type JobRoleSummary = {
+  id: string;
+  name: string;
+};
+
+type JobRole = JobRoleSummary & {
+  employeeCount?: number;
+};
+
 type CreatedImport = {
   id: string;
   email: string;
@@ -73,9 +83,58 @@ const selectClass =
   "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 const ROLE_LABEL: Record<string, string> = {
-  employee: "Employee",
-  tenant_admin: "Admin",
+  employee: "Employee access",
+  tenant_admin: "Admin access",
 };
+
+function JobRolePicker({
+  roles,
+  selectedIds,
+  onChange,
+}: {
+  roles: JobRole[];
+  selectedIds: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  if (roles.length === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Create job roles in the Job roles section, then assign them here.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap gap-2">
+      {roles.map((role) => {
+        const on = selectedIds.includes(role.id);
+        return (
+          <label
+            key={role.id}
+            className={`inline-flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-xs ${
+              on
+                ? "border-primary bg-primary/10 text-foreground"
+                : "border-input bg-background text-muted-foreground"
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={on}
+              onChange={() =>
+                onChange(
+                  on
+                    ? selectedIds.filter((id) => id !== role.id)
+                    : [...selectedIds, role.id],
+                )
+              }
+            />
+            {role.name}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
 
 function profileComplete(emp: Employee) {
   return Boolean(
@@ -130,7 +189,7 @@ function ProfileFieldGrid({
         }
       >
         <Label>
-          {field.label}
+          {field.key === "role" ? "Access" : field.label}
           {field.required ? " *" : ""}
         </Label>
         {field.key === "role" ? (
@@ -175,6 +234,12 @@ export default function EmployeesPage() {
   const [tab, setTab] = useState("roster");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [org, setOrg] = useState<Branch[]>([]);
+  const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
+  const [createJobRoleIds, setCreateJobRoleIds] = useState<string[]>([]);
+  const [editJobRoleIds, setEditJobRoleIds] = useState<string[]>([]);
+  const [jobRoleName, setJobRoleName] = useState("");
+  const [pendingJobRole, setPendingJobRole] = useState<JobRole | null>(null);
+  const [jobRoleBusy, setJobRoleBusy] = useState(false);
   const [q, setQ] = useState("");
   const [form, setForm] = useState<EmployeeDraft>(emptyEmployeeDraft);
   const [branchId, setBranchId] = useState("");
@@ -210,14 +275,18 @@ export default function EmployeesPage() {
   const [branchBusy, setBranchBusy] = useState(false);
 
   async function load(search = q) {
-    const [empData, branchData] = await Promise.all([
+    const [empData, branchData, roleData] = await Promise.all([
       api<{ employees: Employee[] }>(
         `/v1/employees${search ? `?q=${encodeURIComponent(search)}` : ""}`,
       ),
       api<{ branches: Branch[] }>("/v1/branches"),
+      api<{ jobRoles: JobRole[] }>("/v1/job-roles"),
     ]);
-    setEmployees(empData.employees);
+    setEmployees(
+      empData.employees.map((e) => ({ ...e, jobRoles: e.jobRoles ?? [] })),
+    );
     setOrg(branchData.branches);
+    setJobRoles(roleData.jobRoles);
     if (!siteBranchId && branchData.branches[0]) {
       setSiteBranchId(branchData.branches[0].id);
     }
@@ -241,6 +310,7 @@ export default function EmployeesPage() {
     setEditDraft(employeeToDraft(emp));
     setEditBranchId(emp.branchId ?? "");
     setEditStatus(emp.status === "inactive" ? "inactive" : "active");
+    setEditJobRoleIds((emp.jobRoles ?? []).map((r) => r.id));
     setDetailsId(null);
     setZoneEditId(null);
     setError(null);
@@ -290,6 +360,7 @@ export default function EmployeesPage() {
           emergencyContactPhone: payload.emergencyContactPhone,
           branchId: editBranchId || null,
           status: editStatus,
+          jobRoleIds: editJobRoleIds,
         }),
       });
       setEditId(null);
@@ -412,10 +483,12 @@ export default function EmployeesPage() {
           ...payload,
           branchCode: undefined,
           branchId: branchId || null,
+          jobRoleIds: createJobRoleIds,
         }),
       });
       setForm(emptyEmployeeDraft());
       setBranchId("");
+      setCreateJobRoleIds([]);
       setSuccess(`${res.employee.name} was added to the roster.`);
       if (res.temporaryPassword) {
         setCreatedCreds([
@@ -596,6 +669,41 @@ export default function EmployeesPage() {
     }
   }
 
+  async function createJobRole(e: FormEvent) {
+    e.preventDefault();
+    const name = jobRoleName.trim();
+    if (!name) return;
+    setError(null);
+    try {
+      await api("/v1/job-roles", {
+        method: "POST",
+        body: JSON.stringify({ name }),
+      });
+      setJobRoleName("");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create job role");
+    }
+  }
+
+  async function removeJobRole() {
+    const role = pendingJobRole;
+    if (!role) return;
+    setError(null);
+    setJobRoleBusy(true);
+    try {
+      await api(`/v1/job-roles/${role.id}`, { method: "DELETE" });
+      setCreateJobRoleIds((ids) => ids.filter((id) => id !== role.id));
+      setEditJobRoleIds((ids) => ids.filter((id) => id !== role.id));
+      setPendingJobRole(null);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to remove job role");
+    } finally {
+      setJobRoleBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -679,6 +787,22 @@ export default function EmployeesPage() {
                           </button>
                         ) : null}
                       </p>
+                      {(emp.jobRoles ?? []).length > 0 ? (
+                        <p className="mt-1 flex flex-wrap gap-1">
+                          {(emp.jobRoles ?? []).map((role) => (
+                            <span
+                              key={role.id}
+                              className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium"
+                            >
+                              {role.name}
+                            </span>
+                          ))}
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          No job roles
+                        </p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         {emp.jobTitle ?? "—"} · {emp.phone ?? "No phone"} ·{" "}
                         {emp.email} · {branchNameOf(emp.branchId)}
@@ -753,15 +877,15 @@ export default function EmployeesPage() {
                   {editId === emp.id ? (
                     <div className="space-y-3 rounded-lg border bg-secondary/30 p-3">
                       {!isEmployeeDraftComplete(editDraft) ? (
-                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                           Fill the highlighted fields to complete this profile.
                           Required information must be saved before the profile
                           is marked complete.
                         </p>
                       ) : (
                         <p className="text-sm text-muted-foreground">
-                          Update personal details, role, branch, or status, then
-                          save.
+                          Update personal details, access, job roles, branch, or
+                          status, then save.
                         </p>
                       )}
                       <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -800,6 +924,18 @@ export default function EmployeesPage() {
                             <option value="active">Active</option>
                             <option value="inactive">Inactive</option>
                           </select>
+                        </div>
+                        <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                          <Label>Job roles</Label>
+                          <p className="text-xs text-muted-foreground">
+                            Functions this person performs — separate from Admin
+                            or Employee access. Select one or more.
+                          </p>
+                          <JobRolePicker
+                            roles={jobRoles}
+                            selectedIds={editJobRoleIds}
+                            onChange={setEditJobRoleIds}
+                          />
                         </div>
                         <div className="flex items-end gap-2 md:col-span-2 lg:col-span-3">
                           <Button
@@ -850,6 +986,22 @@ export default function EmployeesPage() {
                           Address
                         </dt>
                         <dd>{emp.address ?? "—"}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">
+                          Job roles
+                        </dt>
+                        <dd>
+                          {(emp.jobRoles ?? []).length
+                            ? (emp.jobRoles ?? []).map((r) => r.name).join(", ")
+                            : "—"}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-muted-foreground">
+                          Access
+                        </dt>
+                        <dd>{ROLE_LABEL[emp.role] ?? emp.role}</dd>
                       </div>
                       <div>
                         <dt className="text-xs text-muted-foreground">
@@ -925,6 +1077,59 @@ export default function EmployeesPage() {
               </Card>
             ))}
           </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Job roles</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                These are the functions people perform (sales, driver,
+                coordinator, and so on). They are not the same as Admin or
+                Employee access. One person can have several.
+              </p>
+              <ul className="space-y-2 text-sm">
+                {jobRoles.map((role) => (
+                  <li
+                    key={role.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                  >
+                    <div>
+                      <span className="font-medium">{role.name}</span>
+                      <span className="text-muted-foreground">
+                        {" "}
+                        · {role.employeeCount ?? 0} assigned
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setPendingJobRole(role)}
+                    >
+                      Remove
+                    </Button>
+                  </li>
+                ))}
+                {jobRoles.length === 0 ? (
+                  <li className="text-muted-foreground">
+                    No job roles yet. Add sales, driver, coordinator, or any
+                    other function your team uses.
+                  </li>
+                ) : null}
+              </ul>
+              <form className="grid gap-3 md:grid-cols-3" onSubmit={createJobRole}>
+                <Input
+                  placeholder="Role name (Sales, Driver…)"
+                  value={jobRoleName}
+                  onChange={(e) => setJobRoleName(e.target.value)}
+                  required
+                />
+                <Button type="submit" className="md:col-span-2 md:justify-self-start">
+                  Add job role
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Branches & sites</CardTitle>
@@ -1032,6 +1237,18 @@ export default function EmployeesPage() {
                     ))}
                   </select>
                 </div>
+                <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                  <Label>Job roles</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Optional. Separate from Admin or Employee access — pick every
+                    function this person covers.
+                  </p>
+                  <JobRolePicker
+                    roles={jobRoles}
+                    selectedIds={createJobRoleIds}
+                    onChange={setCreateJobRoleIds}
+                  />
+                </div>
                 <div className="flex items-end md:col-span-2 lg:col-span-3">
                   <Button type="submit" disabled={saving}>
                     {saving ? "Creating…" : "Create employee"}
@@ -1047,10 +1264,11 @@ export default function EmployeesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Required columns: name, email, phone, role, jobTitle, nationalId,
-                dateOfBirth, address, hireDate. Optional: emergencyContactName,
-                emergencyContactPhone, branchCode. Incomplete rows must be filled
-                in before anyone is added.
+                Required columns: name, email, phone, role (access: employee or
+                tenant_admin), jobTitle, nationalId, dateOfBirth, address,
+                hireDate. Optional: emergencyContactName, emergencyContactPhone,
+                branchCode. Assign job roles after import. Incomplete rows must
+                be filled in before anyone is added.
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button type="button" variant="outline" onClick={downloadTemplate}>
@@ -1097,7 +1315,7 @@ export default function EmployeesPage() {
               {reviewRows ? (
                 <div className="space-y-3">
                   {incompleteCount > 0 ? (
-                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                       {incompleteCount} of {reviewRows.length} row
                       {reviewRows.length === 1 ? "" : "s"}{" "}
                       {incompleteCount === 1 ? "is" : "are"} missing required
@@ -1105,7 +1323,7 @@ export default function EmployeesPage() {
                       these people to the system.
                     </p>
                   ) : (
-                    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+                    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
                       All {reviewRows.length} row
                       {reviewRows.length === 1 ? "" : "s"} look complete. Review
                       then add them to the system.
@@ -1119,7 +1337,7 @@ export default function EmployeesPage() {
                           key={`${row.line}-${index}`}
                           className={`rounded-lg border p-3 ${
                             incomplete
-                              ? "border-amber-300 bg-amber-50/40"
+                              ? "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40"
                               : "border-border"
                           }`}
                         >
@@ -1171,7 +1389,7 @@ export default function EmployeesPage() {
                               return (
                                 <div key={field.key} className="space-y-1">
                                   <Label className="text-xs">
-                                    {field.label}
+                                    {field.key === "role" ? "Access" : field.label}
                                     {field.required ? " *" : ""}
                                   </Label>
                                   {field.key === "role" ? (
@@ -1251,6 +1469,22 @@ export default function EmployeesPage() {
         onConfirm={removeBranch}
         onOpenChange={(next) => {
           if (!next && !branchBusy) setPendingBranch(null);
+        }}
+      />
+      <ConfirmDialog
+        open={Boolean(pendingJobRole)}
+        title={
+          pendingJobRole
+            ? `Remove job role “${pendingJobRole.name}”?`
+            : "Remove job role?"
+        }
+        description="People who had this role will keep their other roles. Access (Admin or Employee) is not affected."
+        confirmLabel="Remove"
+        variant="destructive"
+        busy={jobRoleBusy}
+        onConfirm={removeJobRole}
+        onOpenChange={(next) => {
+          if (!next && !jobRoleBusy) setPendingJobRole(null);
         }}
       />
     </div>

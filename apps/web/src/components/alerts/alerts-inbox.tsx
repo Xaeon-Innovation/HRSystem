@@ -121,7 +121,7 @@ export function AlertsInbox({
                 key={item.id}
                 className={cn(
                   "overflow-hidden transition-opacity",
-                  item.read ? "opacity-75" : "border-primary/15 bg-white",
+                  item.read ? "opacity-75" : "border-primary/15 bg-card",
                 )}
               >
                 <CardContent className="flex gap-0 p-0">
@@ -188,7 +188,7 @@ function FilterChip({
         "rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors",
         active
           ? "bg-primary text-primary-foreground ring-primary"
-          : "bg-white text-muted-foreground ring-border hover:bg-secondary",
+          : "bg-card text-muted-foreground ring-border hover:bg-secondary",
       )}
     >
       {children}

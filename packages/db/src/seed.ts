@@ -4,6 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import {
   createDb,
   employees,
+  jobRoles,
   plans,
   tenantSubscriptions,
   tenants,
@@ -254,6 +255,35 @@ async function main() {
   }
 
   await ensureBranch(cms.id, "Cairo HQ", "cairo");
+
+  async function ensureJobRoles(tenantId: string, names: string[]) {
+    for (const name of names) {
+      const existing = await db.query.jobRoles.findFirst({
+        where: and(eq(jobRoles.tenantId, tenantId), eq(jobRoles.name, name)),
+      });
+      if (!existing) {
+        await db.insert(jobRoles).values({ tenantId, name });
+      }
+    }
+  }
+
+  await ensureJobRoles(cms.id, [
+    "Sales",
+    "Driver",
+    "Coordinator",
+    "Operations",
+  ]);
+  const acme = await db.query.tenants.findFirst({
+    where: eq(tenants.slug, "acme"),
+  });
+  if (acme) {
+    await ensureJobRoles(acme.id, [
+      "Sales",
+      "Driver",
+      "Coordinator",
+      "Operations",
+    ]);
+  }
 
   const defaultMetrics = [
     {

@@ -3,42 +3,67 @@
 @tailwind utilities;
 
 :root {
-  --background: 210 25% 98%;
-  --foreground: 215 28% 12%;
+  --background: 30 18% 97%;
+  --foreground: 24 16% 12%;
   --card: 0 0% 100%;
-  --card-foreground: 215 28% 12%;
-  --primary: 199 89% 32%;
+  --card-foreground: 24 16% 12%;
+  --primary: 199 85% 32%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 20% 94%;
-  --secondary-foreground: 215 28% 18%;
-  --muted: 210 18% 94%;
-  --muted-foreground: 215 12% 42%;
-  --accent: 173 45% 90%;
-  --accent-foreground: 175 60% 22%;
+  --secondary: 30 12% 93%;
+  --secondary-foreground: 24 14% 18%;
+  --muted: 30 10% 93%;
+  --muted-foreground: 24 8% 42%;
+  --accent: 173 35% 92%;
+  --accent-foreground: 175 50% 22%;
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 20% 88%;
-  --input: 214 20% 88%;
-  --ring: 199 89% 32%;
+  --border: 30 12% 88%;
+  --input: 30 12% 88%;
+  --ring: 199 85% 32%;
   --radius: 0.65rem;
+}
+
+.dark {
+  --background: 24 12% 7%;
+  --foreground: 30 12% 95%;
+  --card: 24 10% 11%;
+  --card-foreground: 30 12% 95%;
+  --primary: 192 70% 46%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 24 10% 14%;
+  --secondary-foreground: 30 10% 90%;
+  --muted: 24 8% 14%;
+  --muted-foreground: 30 8% 62%;
+  --accent: 36 28% 18%;
+  --accent-foreground: 38 55% 72%;
+  --destructive: 0 62% 45%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 24 8% 18%;
+  --input: 24 8% 18%;
+  --ring: 192 70% 46%;
 }
 
 * {
   @apply border-border;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 body {
   @apply bg-background text-foreground antialiased;
-  background-image:
-    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(199 89% 32% / 0.12), transparent),
-    linear-gradient(180deg, hsl(210 25% 98%), hsl(200 30% 96%));
   min-height: 100dvh;
 }
 
 /* —— Live map markers & chrome —— */
 .lm-map.leaflet-container {
   font-family: inherit;
-  background: hsl(210 25% 96%);
+  background: hsl(var(--muted));
 }
 
 .lm-map .leaflet-control-zoom {
@@ -52,15 +77,15 @@ body {
   width: 34px !important;
   height: 34px !important;
   line-height: 34px !important;
-  color: hsl(215 28% 18%) !important;
-  background: rgba(255, 255, 255, 0.92) !important;
+  color: hsl(var(--secondary-foreground)) !important;
+  background: hsl(var(--card)) !important;
   border: none !important;
   font-size: 16px !important;
 }
 
 .lm-map .leaflet-control-zoom a:hover {
-  background: hsl(199 89% 32% / 0.12) !important;
-  color: hsl(199 89% 28%) !important;
+  background: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
 }
 
 .lm-icon {
@@ -247,8 +272,10 @@ body {
 .lm-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   padding: 0;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
-  border: 1px solid hsl(214 20% 88% / 0.9);
+  background: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.16);
+  border: 1px solid hsl(var(--border));
 }
 
 .lm-popup .leaflet-popup-content {

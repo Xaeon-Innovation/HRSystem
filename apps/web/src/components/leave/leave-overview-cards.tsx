@@ -80,7 +80,7 @@ export function LeaveOverviewCards({
             <CardContent className="py-4">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs font-medium text-muted-foreground">{c.label}</p>
-                <span className="rounded-md bg-white/80 p-1.5 text-primary">
+                <span className="rounded-md bg-card p-1.5 text-primary">
                   <Icon className="h-3.5 w-3.5" />
                 </span>
               </div>

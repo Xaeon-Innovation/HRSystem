@@ -15,6 +15,11 @@ import {
 import { writeAudit } from "../lib/audit.js";
 import { avatarUrlFor } from "../lib/avatar.js";
 import { assertSeatAvailable } from "../lib/billing.js";
+import {
+  assertJobRolesExist,
+  loadJobRolesByEmployeeIds,
+  replaceEmployeeJobRoles,
+} from "../lib/job-roles.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
 function asDateOnly(value: unknown): string | null {
@@ -70,6 +75,7 @@ function serializeEmployee<T extends Record<string, unknown>>(row: T) {
       typeof avatarMime === "string" ? avatarMime : null,
       userUpdatedAt as Date | string | null | undefined,
     ),
+    jobRoles: Array.isArray(row.jobRoles) ? row.jobRoles : [],
   };
 }
 
@@ -113,6 +119,9 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         where: and(eq(sites.id, data.siteId), eq(sites.tenantId, tenantId)),
       });
       if (!site) throw new Error("Site not found");
+    }
+    if (data.jobRoleIds?.length) {
+      await assertJobRolesExist(app.db, tenantId, data.jobRoleIds);
     }
 
     const existing = await app.db.query.users.findFirst({
@@ -161,12 +170,23 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
 
+    const assigned =
+      data.jobRoleIds && data.jobRoleIds.length > 0
+        ? await replaceEmployeeJobRoles(
+            app.db,
+            tenantId,
+            employee.id,
+            data.jobRoleIds,
+          )
+        : [];
+
     return {
       employee: serializeEmployee({
         ...employee,
         name: user.name,
         email: user.email,
         role: user.role,
+        jobRoles: assigned,
       }),
       temporaryPassword: data.password ? undefined : password,
     };
@@ -200,7 +220,20 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       )
       .orderBy(users.name);
 
-    return { employees: rows.map((row) => serializeEmployee(row)) };
+    const rolesByEmployee = await loadJobRolesByEmployeeIds(
+      app.db,
+      tenantId,
+      rows.map((row) => row.id),
+    );
+
+    return {
+      employees: rows.map((row) =>
+        serializeEmployee({
+          ...row,
+          jobRoles: rolesByEmployee.get(row.id) ?? [],
+        }),
+      ),
+    };
   });
 
   app.post(
@@ -504,6 +537,20 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
         .returning();
 
+      if (parsed.data.jobRoleIds) {
+        try {
+          await replaceEmployeeJobRoles(
+            app.db,
+            tenantId,
+            id,
+            parsed.data.jobRoleIds,
+          );
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Failed";
+          return reply.code(400).send({ error: message });
+        }
+      }
+
       if (
         parsed.data.name ||
         parsed.data.role ||
@@ -549,8 +596,16 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         .innerJoin(users, eq(users.id, employees.userId))
         .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
         .limit(1);
+      const rolesByEmployee = await loadJobRolesByEmployeeIds(app.db, tenantId, [
+        id,
+      ]);
 
-      return { employee: serializeEmployee(rows[0] ?? updated) };
+      return {
+        employee: serializeEmployee({
+          ...(rows[0] ?? updated),
+          jobRoles: rolesByEmployee.get(id) ?? [],
+        }),
+      };
     },
   );
 
@@ -564,6 +619,14 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       .where(and(eq(employees.id, id), eq(employees.tenantId, tenantId)))
       .limit(1);
     if (!rows[0]) return reply.code(404).send({ error: "Not found" });
-    return { employee: serializeEmployee(rows[0]) };
+    const rolesByEmployee = await loadJobRolesByEmployeeIds(app.db, tenantId, [
+      id,
+    ]);
+    return {
+      employee: serializeEmployee({
+        ...rows[0],
+        jobRoles: rolesByEmployee.get(id) ?? [],
+      }),
+    };
   });
 };

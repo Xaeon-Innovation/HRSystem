@@ -233,7 +233,7 @@ export function LeaveRequestForm({
                     "rounded-full px-3 py-1 text-xs font-medium ring-1",
                     form.urgency === u
                       ? "bg-primary text-primary-foreground ring-primary"
-                      : "bg-white text-muted-foreground ring-border hover:bg-secondary",
+                      : "bg-card text-muted-foreground ring-border hover:bg-secondary",
                   )}
                 >
                   {u === "planned" ? "Planned" : "Emergency"}

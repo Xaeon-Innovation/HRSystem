@@ -65,7 +65,7 @@ export function CompensationOverviewPanel({
               <button
                 key={r.id}
                 type="button"
-                className="flex w-full flex-col rounded-lg border bg-white/70 px-3 py-2 text-left hover:bg-accent/40"
+                className="flex w-full flex-col rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent/40"
                 onClick={() => onOpenRequest(r.id)}
               >
                 <span className="flex items-center justify-between gap-2">

@@ -585,7 +585,7 @@ export default function IntegrationDetailPage() {
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {isCmsGoalsPreset ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900">
+        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
           Connected to CMS Goals — tokens refresh automatically. Use{" "}
           <strong>Sync now</strong> to pull the latest goals. Open Authentication
           only if the CMS password changes.
@@ -646,8 +646,8 @@ export default function IntegrationDetailPage() {
                     className={cn(
                       "flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-colors sm:flex-row sm:items-center sm:justify-between",
                       step.done
-                        ? "border-emerald-200/60 bg-emerald-50/50"
-                        : "border-amber-200/60 bg-amber-50/40",
+                        ? "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/40"
+                        : "border-amber-200/60 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40",
                     )}
                   >
                     <div className="flex min-w-0 items-start gap-2.5">
@@ -1201,7 +1201,7 @@ export default function IntegrationDetailPage() {
                     key={m.id}
                     className={cn(
                       "flex flex-col gap-2 rounded-md border border-border px-3 py-2 sm:flex-row sm:items-center sm:justify-between",
-                      editingMappingId === m.id && "border-amber-300 bg-amber-50/40",
+                      editingMappingId === m.id && "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40",
                     )}
                   >
                     <div>

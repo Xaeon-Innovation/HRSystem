@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -45,10 +46,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-md items-center px-4">
-      <Card className="w-full border-border/70 bg-white/80 backdrop-blur">
+    <div className="relative mx-auto flex min-h-dvh max-w-md items-center px-4">
+      <div className="absolute right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <Card className="w-full">
         <CardHeader>
-          <p className="text-xs uppercase tracking-[0.18em] text-primary">
+          <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
             HR Track
           </p>
           <CardTitle>Sign in</CardTitle>

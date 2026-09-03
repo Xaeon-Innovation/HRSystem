@@ -374,8 +374,8 @@ export function KpiDashboard() {
                   className={cn(
                     "rounded-full px-3 py-1 text-xs font-medium ring-1",
                     alert.severity === "high"
-                      ? "bg-rose-50 text-rose-800 ring-rose-200"
-                      : "bg-amber-50 text-amber-900 ring-amber-200",
+                      ? "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800"
+                      : "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
                   )}
                 >
                   {alert.title}

@@ -193,7 +193,7 @@ export function AlertsCustomBuilder({
             key={example.name}
             type="button"
             onClick={() => openNew(example)}
-            className="rounded-full bg-white px-3 py-1 text-xs font-medium ring-1 ring-border hover:bg-secondary"
+            className="rounded-full bg-card px-3 py-1 text-xs font-medium ring-1 ring-border hover:bg-secondary"
           >
             {example.name}
           </button>

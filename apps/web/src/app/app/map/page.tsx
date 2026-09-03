@@ -685,7 +685,7 @@ export default function MapPage() {
             <Palette className="h-4 w-4" />
             Customize
           </Button>
-          <div className="inline-flex rounded-md border bg-white/70 p-1">
+          <div className="inline-flex rounded-md border bg-card p-1">
             <button
               type="button"
               className={cn(
@@ -717,7 +717,7 @@ export default function MapPage() {
       </div>
 
       {customizeOpen ? (
-        <div className="space-y-4 rounded-xl border bg-white/80 p-4 shadow-sm">
+        <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Settings2 className="h-4 w-4 text-primary" />
             Map themes
@@ -738,7 +738,7 @@ export default function MapPage() {
                     "rounded-xl border p-3 text-left transition-all",
                     selected
                       ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                      : "border-border bg-white/70 hover:border-primary/40 hover:bg-secondary/40",
+                      : "border-border bg-card hover:border-primary/40 hover:bg-secondary/40",
                   )}
                 >
                   <div
@@ -775,7 +775,7 @@ export default function MapPage() {
             </p>
           ) : null}
 
-          <details className="rounded-lg border bg-white/60 p-3">
+          <details className="rounded-lg border bg-card p-3">
             <summary className="cursor-pointer text-sm font-medium">
               Advanced options
             </summary>
@@ -965,7 +965,7 @@ export default function MapPage() {
           ) : null}
         </div>
       ) : (
-        <div className="space-y-3 rounded-lg border bg-white/70 p-3">
+        <div className="space-y-3 rounded-lg border bg-card p-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[12rem] flex-1">
               <Label className="text-xs">Employee</Label>
@@ -1089,7 +1089,7 @@ export default function MapPage() {
       </div>
 
       {tab === "live" && selectedLive ? (
-        <div className="space-y-3 rounded-xl border bg-white/80 p-4 shadow-sm">
+        <div className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <MapPin className="h-4 w-4 text-primary" />
@@ -1140,7 +1140,7 @@ export default function MapPage() {
                 <button
                   key={term}
                   type="button"
-                  className="rounded-full border bg-white px-2.5 py-1 text-xs capitalize text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  className="rounded-full border bg-card px-2.5 py-1 text-xs capitalize text-muted-foreground hover:border-primary/40 hover:text-foreground"
                   onClick={() => {
                     setPlaceQuery(term);
                     void searchPlaces(term);
@@ -1154,7 +1154,7 @@ export default function MapPage() {
               <p className="text-xs text-destructive">{placeError}</p>
             ) : null}
             {placeHits.length > 0 ? (
-              <ul className="max-h-44 overflow-auto rounded-lg border bg-white">
+              <ul className="max-h-44 overflow-auto rounded-lg border bg-card">
                 {placeHits.map((place) => (
                   <li key={place.id}>
                     <button
@@ -1286,7 +1286,7 @@ export default function MapPage() {
                     "w-full rounded-xl border px-3 py-2.5 text-left transition-all",
                     selected
                       ? "border-primary bg-primary/10 shadow-sm"
-                      : "bg-white/70 hover:bg-secondary/60",
+                      : "bg-card hover:bg-secondary/60",
                   )}
                 >
                   <span className="inline-flex items-center gap-2">

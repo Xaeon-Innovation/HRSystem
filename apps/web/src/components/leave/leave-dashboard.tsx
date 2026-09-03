@@ -159,13 +159,13 @@ export function LeaveDashboard() {
       />
 
       {error ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950">
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
           {error}
         </p>
       ) : null}
 
       {reminderCount > 0 && isAdmin ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
           {reminderCount} pending request{reminderCount === 1 ? "" : "s"} past the reminder or
           escalation window.
         </p>
@@ -208,7 +208,7 @@ export function LeaveDashboard() {
 
         <TabsContent value="requests" className="mt-4 space-y-3">
           {isAdmin && selectedIds.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-white/80 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
               <p className="text-sm">{selectedIds.length} selected</p>
               <Button
                 size="sm"

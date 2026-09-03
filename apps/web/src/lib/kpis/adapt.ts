@@ -61,7 +61,10 @@ export function adaptSummaryItem(
   const kpi = item.kpi;
   if (!kpi) return null;
   const employee = employees.find((e) => e.id === item.assignment.employeeId);
-  const inferredRole = inferRoleTemplate(employee?.jobTitle);
+  const inferredRole = inferRoleTemplate(
+    employee?.jobTitle,
+    employee?.jobRoles?.map((r) => r.name),
+  );
   const matched = matchTemplateKpi(kpi.name, inferredRole) ?? matchTemplateKpi(kpi.name);
   const template = matched?.kpi;
   const roleScope = matched?.template.id ?? inferredRole;
@@ -157,7 +160,9 @@ export function filterKpis(
       const emp = item.employeeId ? employeeById.get(item.employeeId) : undefined;
       if (filters.branchId && emp?.branchId !== filters.branchId) return false;
       if (filters.department) {
-        const dept = departmentForRole(inferRoleTemplate(emp?.jobTitle));
+        const dept = departmentForRole(
+          inferRoleTemplate(emp?.jobTitle, emp?.jobRoles?.map((r) => r.name)),
+        );
         if (dept !== filters.department) return false;
       }
       if (filters.manager) {
@@ -215,13 +220,21 @@ export function computeBenchmarks(
     (selectedEmployeeId
       ? inferRoleTemplate(
           employees.find((e) => e.id === selectedEmployeeId)?.jobTitle,
+          employees
+            .find((e) => e.id === selectedEmployeeId)
+            ?.jobRoles?.map((r) => r.name),
         )
       : selected[0]?.roleScope ?? "");
   const roleValues = inferredRole
     ? [...byEmployee.entries()]
         .filter(([id]) => {
           const emp = employees.find((e) => e.id === id);
-          return inferRoleTemplate(emp?.jobTitle) === inferredRole;
+          return (
+            inferRoleTemplate(
+              emp?.jobTitle,
+              emp?.jobRoles?.map((r) => r.name),
+            ) === inferredRole
+          );
         })
         .map(([, v]) => v)
     : [];
@@ -232,7 +245,14 @@ export function computeBenchmarks(
     ? [...byEmployee.entries()]
         .filter(([id]) => {
           const emp = employees.find((e) => e.id === id);
-          return departmentForRole(inferRoleTemplate(emp?.jobTitle)) === department;
+          return (
+            departmentForRole(
+              inferRoleTemplate(
+                emp?.jobTitle,
+                emp?.jobRoles?.map((r) => r.name),
+              ),
+            ) === department
+          );
         })
         .map(([, v]) => v)
     : [];

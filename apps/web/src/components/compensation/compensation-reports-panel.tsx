@@ -108,7 +108,7 @@ export function CompensationReportsPanel({
               <button
                 key={row.employeeId}
                 type="button"
-                className="flex w-full items-center justify-between rounded-lg border bg-white/70 px-3 py-2 text-left text-sm hover:bg-accent/40"
+                className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2 text-left text-sm hover:bg-accent/40"
                 onClick={() => onOpenEmployee(row.employeeId)}
               >
                 <span>

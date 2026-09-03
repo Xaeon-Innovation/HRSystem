@@ -143,7 +143,7 @@ function RequestCard({
   const delta = changeDelta(request.previousAmount, request.newAmount);
 
   return (
-    <div className="rounded-xl border bg-white/80 p-4 shadow-sm">
+    <div className="rounded-xl border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <button

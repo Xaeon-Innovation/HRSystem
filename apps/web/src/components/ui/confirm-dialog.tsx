@@ -12,6 +12,7 @@ export function ConfirmDialog({
   cancelLabel = "Cancel",
   variant = "default",
   busy = false,
+  children,
   onConfirm,
   onOpenChange,
 }: {
@@ -22,13 +23,14 @@ export function ConfirmDialog({
   cancelLabel?: string;
   variant?: "default" | "destructive";
   busy?: boolean;
+  children?: React.ReactNode;
   onConfirm: () => void | Promise<void>;
   onOpenChange: (open: boolean) => void;
 }) {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/20 backdrop-blur-[2px]" />
         <DialogPrimitive.Content
           className={cn(
             "fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-2xl",
@@ -40,6 +42,7 @@ export function ConfirmDialog({
           <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
             {description}
           </DialogPrimitive.Description>
+          {children}
           <div className="mt-5 flex justify-end gap-2">
             <Button
               type="button"

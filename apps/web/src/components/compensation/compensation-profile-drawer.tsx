@@ -228,7 +228,7 @@ export function CompensationProfileDrawer({
             ) : (
               <ol className="space-y-2">
                 {profile.history.map((h) => (
-                  <li key={h.id} className="rounded-lg border bg-white/70 px-3 py-2 text-sm">
+                  <li key={h.id} className="rounded-lg border bg-card px-3 py-2 text-sm">
                     <div className="flex justify-between gap-2">
                       <span className="font-medium">{changeTypeLabel(h.changeType)}</span>
                       <span className="tabular-nums">{formatDate(h.effectiveDate)}</span>
