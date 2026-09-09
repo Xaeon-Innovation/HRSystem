@@ -5,6 +5,7 @@ import { branches, employees, sites, users } from "@hr/db";
 import {
   createEmployeeSchema,
   importEmployeesBodySchema,
+  normalizeSystemModuleRoles,
   updateEmployeeSchema,
   draftToCreatePayload,
   isEmployeeDraftComplete,
@@ -59,17 +60,27 @@ const employeeSelect = {
   name: users.name,
   email: users.email,
   role: users.role,
+  systemModuleRoles: users.systemModuleRoles,
   avatarMime: users.avatarMime,
   userUpdatedAt: users.updatedAt,
   createdAt: employees.createdAt,
 };
 
 function serializeEmployee<T extends Record<string, unknown>>(row: T) {
-  const { avatarMime, userUpdatedAt, ...rest } = row;
+  const { avatarMime, userUpdatedAt, systemModuleRoles, ...rest } = row;
+  const role = String(row.role ?? "employee");
   return {
     ...rest,
     dateOfBirth: asDateOnly(row.dateOfBirth),
     hireDate: asDateOnly(row.hireDate),
+    systemModuleRoles:
+      role === "tenant_admin" || role === "super_admin"
+        ? []
+        : normalizeSystemModuleRoles(
+            Array.isArray(systemModuleRoles)
+              ? (systemModuleRoles as string[])
+              : [],
+          ),
     avatarUrl: avatarUrlFor(
       String(row.userId ?? ""),
       typeof avatarMime === "string" ? avatarMime : null,
@@ -144,6 +155,10 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         email: data.email,
         name: data.name,
         role: data.role,
+        systemModuleRoles:
+          data.role === "tenant_admin"
+            ? []
+            : normalizeSystemModuleRoles(data.systemModuleRoles ?? []),
         passwordHash: await bcrypt.hash(password, 10),
       })
       .returning();
@@ -186,6 +201,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        systemModuleRoles: user.systemModuleRoles,
         jobRoles: assigned,
       }),
       temporaryPassword: data.password ? undefined : password,
@@ -554,13 +570,29 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       if (
         parsed.data.name ||
         parsed.data.role ||
+        parsed.data.systemModuleRoles ||
         (nextEmail && nextEmail !== user.email)
       ) {
+        const nextRole = parsed.data.role ?? user.role;
+        const nextModules =
+          nextRole === "tenant_admin"
+            ? []
+            : parsed.data.systemModuleRoles !== undefined
+              ? normalizeSystemModuleRoles(parsed.data.systemModuleRoles)
+              : normalizeSystemModuleRoles(
+                  Array.isArray(user.systemModuleRoles)
+                    ? user.systemModuleRoles
+                    : [],
+                );
         await app.db
           .update(users)
           .set({
             ...(parsed.data.name ? { name: parsed.data.name } : {}),
             ...(parsed.data.role ? { role: parsed.data.role } : {}),
+            ...(parsed.data.systemModuleRoles !== undefined ||
+            parsed.data.role === "tenant_admin"
+              ? { systemModuleRoles: nextModules }
+              : {}),
             ...(nextEmail && nextEmail !== user.email ? { email: nextEmail } : {}),
             updatedAt: new Date(),
           })

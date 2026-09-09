@@ -29,7 +29,8 @@ export function LeaveRequestForm({
   actor,
   isAdmin,
   editing,
-  onSubmitted,
+  busy,
+  onSave,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -37,7 +38,8 @@ export function LeaveRequestForm({
   actor: LeaveActor;
   isAdmin: boolean;
   editing?: LeaveRequest | null;
-  onSubmitted: () => void;
+  busy?: boolean;
+  onSave: (draft: LeaveRequestDraft, editingId: string | null) => Promise<void>;
 }) {
   const employees = store.employees();
   const types = store.types().filter((t) => t.enabled);
@@ -48,7 +50,7 @@ export function LeaveRequestForm({
 
   const [form, setForm] = useState<FormState>(() => initialForm(defaultEmployeeId, types, editing));
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const employee = store.employee(form.employeeId);
   const leaveType = store.typeById(form.leaveTypeId);
@@ -80,28 +82,34 @@ export function LeaveRequestForm({
 
   function submit(asDraft: boolean) {
     if (!employee || !leaveType) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const payload: LeaveRequestDraft = {
-        ...form,
-        employeeId: isAdmin ? form.employeeId : actor.employeeId ?? form.employeeId,
-        requestedDays: effectiveDays,
-        asDraft,
-      };
-      if (editing && (editing.status === "draft" || editing.status === "returned")) {
-        store.resubmit(editing.id, payload, actor);
-      } else {
-        store.submit(payload, actor);
-      }
-      onSubmitted();
-      onOpenChange(false);
-      setForm(initialForm(defaultEmployeeId, types, null));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save this request.");
-    } finally {
-      setBusy(false);
+    if (actor.role === "employee" && !actor.employeeId) {
+      setError("Your account is missing an employee profile, so leave cannot be filed yet.");
+      return;
     }
+    setSaving(true);
+    setError(null);
+    const payload: LeaveRequestDraft = {
+      ...form,
+      employeeId: isAdmin ? form.employeeId : actor.employeeId ?? form.employeeId,
+      requestedDays: effectiveDays,
+      asDraft,
+    };
+    void (async () => {
+      try {
+        await onSave(
+          payload,
+          editing && (editing.status === "draft" || editing.status === "returned")
+            ? editing.id
+            : null,
+        );
+        onOpenChange(false);
+        setForm(initialForm(defaultEmployeeId, types, null));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not save this request.");
+      } finally {
+        setSaving(false);
+      }
+    })();
   }
 
   const blocked = preview ? hasBlockingConflicts(preview.conflicts) : true;
@@ -301,10 +309,10 @@ export function LeaveRequestForm({
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <Button type="button" variant="outline" disabled={busy} onClick={() => submit(true)}>
+            <Button type="button" variant="outline" disabled={saving || busy} onClick={() => submit(true)}>
               Save draft
             </Button>
-            <Button type="button" disabled={busy || blocked} onClick={() => submit(false)}>
+            <Button type="button" disabled={saving || busy || blocked} onClick={() => submit(false)}>
               {leaveType && !leaveType.approvalRequired ? "Submit" : "Submit for approval"}
             </Button>
           </div>

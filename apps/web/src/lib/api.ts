@@ -7,6 +7,7 @@ export type AuthUser = {
   role: "super_admin" | "tenant_admin" | "employee";
   tenantId: string | null;
   employeeId?: string | null;
+  systemModuleRoles?: Array<"kpis" | "leaves" | "hiring" | "compensation">;
   avatarUrl?: string | null;
 };
 

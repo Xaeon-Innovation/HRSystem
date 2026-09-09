@@ -1,7 +1,8 @@
+import { hasSystemModuleRole } from "@hr/shared";
 import { CANDIDATE_STAGES, type Candidate, type CandidateStage, type HiringActor, type JobOpening, type OfferStatus } from "./types";
 
 export function isAdminActor(actor: HiringActor): boolean {
-  return actor.role === "tenant_admin" || actor.role === "super_admin";
+  return hasSystemModuleRole(actor, "hiring");
 }
 
 export function actorEmployeeId(actor: HiringActor): string {

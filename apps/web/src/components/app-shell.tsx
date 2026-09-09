@@ -22,7 +22,7 @@ import {
   Wallet,
   Briefcase,
 } from "lucide-react";
-import { api, clearSession, getUser, updateSessionUser, type AuthUser } from "@/lib/api";
+import { api, clearSession, getTokens, getUser, setSession, updateSessionUser, type AuthUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -59,16 +59,32 @@ const linksFor = (user: AuthUser) => {
       { href: "/app/profile", label: "Profile", icon: UserCircle },
     ];
   }
-  return [
+
+  const modules = new Set(user.systemModuleRoles ?? []);
+  const links = [
     { href: "/app/clock", label: "Clock", icon: Timer },
     { href: "/app/attendance", label: "History", icon: ClipboardList },
-    { href: "/app/kpis", label: "My KPIs", icon: ClipboardList },
+    {
+      href: "/app/kpis",
+      label: modules.has("kpis") ? "KPIs" : "My KPIs",
+      icon: ClipboardList,
+    },
     { href: "/app/leave", label: "Leave", icon: Palmtree },
     { href: "/app/hiring", label: "Hiring", icon: Briefcase },
+  ];
+  if (modules.has("compensation")) {
+    links.push({
+      href: "/app/compensation",
+      label: "Compensation",
+      icon: Wallet,
+    });
+  }
+  links.push(
     { href: "/app/analytics/me", label: "My analytics", icon: BarChart3 },
     { href: "/app/notifications", label: "Alerts", icon: Bell },
     { href: "/app/profile", label: "Profile", icon: UserCircle },
-  ];
+  );
+  return links;
 };
 
 function linkActive(pathname: string, href: string) {
@@ -93,9 +109,29 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     void api<AuthUser>("/v1/auth/me")
-      .then((me) => {
+      .then(async (me) => {
         updateSessionUser(me);
         setUser(me);
+        const { refresh } = getTokens();
+        if (!refresh) return;
+        try {
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000"}/v1/auth/refresh`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refreshToken: refresh }),
+            },
+          );
+          if (!res.ok) return;
+          const tokens = (await res.json()) as {
+            accessToken: string;
+            refreshToken: string;
+          };
+          setSession(tokens.accessToken, tokens.refreshToken, me);
+        } catch {
+          /* keep existing tokens */
+        }
       })
       .catch(() => {
         /* keep the cached session user */

@@ -349,6 +349,11 @@ export const users = pgTable(
     passwordHash: text("password_hash").notNull(),
     name: text("name").notNull(),
     role: roleEnum("role").notNull(),
+    /** Module control grants (kpis, leaves, hiring, compensation). Empty for regular employees. */
+    systemModuleRoles: jsonb("system_module_roles")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
     avatarMime: text("avatar_mime"),
     avatarBytes: text("avatar_bytes"),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -1600,3 +1605,23 @@ export const alertRules = pgTable(
     index("alert_rules_tenant_category_idx").on(t.tenantId, t.category),
   ],
 );
+
+export const leaveStates = pgTable("leave_states", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  snapshot: jsonb("snapshot")
+    .$type<{
+      types?: unknown;
+      policies?: unknown;
+      balances?: unknown;
+      transactions?: unknown;
+      requests?: unknown;
+      notifications?: unknown;
+    }>()
+    .notNull()
+    .default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

@@ -1,3 +1,4 @@
+import { hasSystemModuleRole } from "@hr/shared";
 import type { ChangeRequestStatus, CompActor, CompStatus } from "./types";
 
 const ALLOWED: Record<ChangeRequestStatus, ChangeRequestStatus[]> = {
@@ -16,7 +17,7 @@ export function canTransition(
 }
 
 export function isAdminActor(actor: CompActor): boolean {
-  return actor.role === "tenant_admin" || actor.role === "super_admin";
+  return hasSystemModuleRole(actor, "compensation");
 }
 
 export function canAccessCompensationPage(actor: CompActor, isManager: boolean): boolean {

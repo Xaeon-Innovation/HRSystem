@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, getUser } from "@/lib/api";
+import { userHasModule } from "@/lib/permissions";
 import { KpiFiltersBar } from "@/components/kpis/kpi-filters";
 import { KpiSummaryCards } from "@/components/kpis/kpi-summary-cards";
 import { KpiCharts } from "@/components/kpis/kpi-charts";
@@ -36,11 +37,11 @@ import type {
 
 export function KpiDashboard() {
   const user = typeof window !== "undefined" ? getUser() : null;
-  const isAdmin = user?.role === "tenant_admin";
+  const isAdmin = userHasModule(user, "kpis");
   const initial = defaultPeriod("monthly");
 
   const [filters, setFilters] = useState<KpiFilters>({
-    employeeId: user?.role === "employee" ? user.employeeId ?? "" : "",
+    employeeId: !isAdmin ? user?.employeeId ?? "" : "",
     department: "",
     role: "",
     branchId: "",
@@ -64,7 +65,7 @@ export function KpiDashboard() {
   async function load() {
     setError(null);
     const current = getUser();
-    const admin = current?.role === "tenant_admin";
+    const admin = userHasModule(current, "kpis");
     const summaryRes = await api<{ summary: ApiSummaryItem[] }>("/v1/kpis/summary");
     setSummary(summaryRes.summary ?? []);
 

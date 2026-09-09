@@ -25,6 +25,7 @@ import { liveMapRoutes } from "./routes/live-map.js";
 import { placesRoutes } from "./routes/places.js";
 import { kpiRoutes } from "./routes/kpis.js";
 import { notificationRoutes } from "./routes/notifications.js";
+import { leaveRoutes } from "./routes/leave.js";
 import { healthRoutes } from "./routes/health.js";
 import { planRoutes } from "./routes/plans.js";
 import { subscriptionRoutes } from "./routes/subscriptions.js";
@@ -88,6 +89,7 @@ async function main() {
   await app.register(placesRoutes, { prefix: "/v1/admin" });
   await app.register(kpiRoutes, { prefix: "/v1/kpis" });
   await app.register(notificationRoutes, { prefix: "/v1/notifications" });
+  await app.register(leaveRoutes, { prefix: "/v1/leave" });
   await registerWs(app);
 
   startJobs(app);

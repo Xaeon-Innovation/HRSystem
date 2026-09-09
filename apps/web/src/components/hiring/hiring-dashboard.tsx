@@ -78,6 +78,7 @@ function actorFrom(user: AuthUser | null): HiringActor {
     name: user?.name ?? "You",
     role: user?.role ?? "employee",
     employeeId: user?.employeeId,
+    systemModuleRoles: user?.systemModuleRoles ?? [],
   };
 }
 
@@ -124,7 +125,7 @@ export function HiringDashboard() {
     setLoading(true);
     setError(null);
     const current = getUser();
-    const admin = current?.role === "tenant_admin" || current?.role === "super_admin";
+    const admin = canManageJobs(actorFrom(current));
     Promise.all([
       admin
         ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({ employees: [] }))

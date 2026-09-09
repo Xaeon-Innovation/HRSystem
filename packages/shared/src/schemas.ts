@@ -12,6 +12,8 @@ import {
   PAYMOB_INTERVAL_DAYS,
   REVIEW_PERIODS,
   ROLES,
+  SYSTEM_MODULE_ROLES,
+  normalizeSystemModuleRoles,
   SUBSCRIPTION_STATUSES,
   TENANT_STATUSES,
   CANONICAL_TARGET_ENTITIES,
@@ -108,6 +110,14 @@ const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
+const systemModuleRolesSchema = z
+  .array(z.enum(SYSTEM_MODULE_ROLES))
+  .max(SYSTEM_MODULE_ROLES.length)
+  .optional()
+  .transform((roles) =>
+    roles === undefined ? undefined : normalizeSystemModuleRoles(roles),
+  );
+
 const employeeBaseFields = {
   name: z.string().min(2).max(120),
   email: z.string().email(),
@@ -135,6 +145,7 @@ const employeeBaseFields = {
     .optional()
     .nullable(),
   jobRoleIds: z.array(z.string().uuid()).max(50).optional(),
+  systemModuleRoles: systemModuleRolesSchema,
 };
 
 export const createEmployeeSchema = z
@@ -335,6 +346,11 @@ export const jwtPayloadSchema = z.object({
   role: z.enum(ROLES),
   tenantId: z.string().uuid().nullable(),
   employeeId: z.string().uuid().nullable().optional(),
+  systemModuleRoles: z
+    .array(z.enum(SYSTEM_MODULE_ROLES))
+    .max(SYSTEM_MODULE_ROLES.length)
+    .optional()
+    .transform((roles) => normalizeSystemModuleRoles(roles)),
 });
 
 export const createPlanSchema = z.object({
@@ -570,3 +586,56 @@ export type CreateSiteInput = z.infer<typeof createSiteSchema>;
 export type CreateIntegrationConnectionInput = z.infer<
   typeof createIntegrationConnectionSchema
 >;
+
+export const leaveRequestDraftSchema = z.object({
+  employeeId: z.string().uuid().optional(),
+  leaveTypeId: z.string().min(1).max(80),
+  startDate: z.string().date(),
+  endDate: z.string().date(),
+  requestedDays: z.number().min(0.5).max(365).nullable().optional(),
+  partialDayType: z
+    .enum(["full", "first_half", "second_half", "custom_hours"])
+    .optional()
+    .default("full"),
+  customHours: z.number().min(0).max(24).nullable().optional(),
+  urgency: z.enum(["planned", "emergency"]).optional().default("planned"),
+  reason: z.string().trim().max(2000).optional().default(""),
+  handoverNotes: z.string().trim().max(2000).optional().default(""),
+  coverageEmployeeId: z.string().uuid().nullable().optional(),
+  attachmentName: z.string().trim().max(240).nullable().optional(),
+  asDraft: z.boolean().optional().default(false),
+});
+
+export const leaveDecideSchema = z.object({
+  decision: z.enum(["approved", "rejected", "returned"]),
+  comment: z.string().trim().max(2000).optional().default(""),
+});
+
+export const leaveBulkDecideSchema = z.object({
+  ids: z.array(z.string().min(1).max(80)).min(1).max(50),
+  decision: z.enum(["approved", "rejected"]),
+  comment: z.string().trim().max(2000).optional().default(""),
+});
+
+export const leaveCancelSchema = z.object({
+  note: z.string().trim().max(2000).optional().default(""),
+});
+
+export const leaveCommentSchema = z.object({
+  body: z.string().trim().min(1).max(2000),
+  kind: z.enum(["employee", "approver", "hr_internal", "handover"]).optional(),
+});
+
+export const leaveHrNoteSchema = z.object({
+  note: z.string().trim().max(4000),
+});
+
+export const leaveAdjustBalanceSchema = z.object({
+  employeeId: z.string().uuid(),
+  leaveTypeId: z.string().min(1).max(80),
+  amount: z.number().min(-365).max(365),
+  note: z.string().trim().min(1).max(500),
+});
+
+export type LeaveRequestDraftInput = z.infer<typeof leaveRequestDraftSchema>;
+export type LeaveDecideInput = z.infer<typeof leaveDecideSchema>;

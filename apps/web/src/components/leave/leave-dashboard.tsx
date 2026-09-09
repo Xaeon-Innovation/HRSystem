@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, getUser, type AuthUser } from "@/lib/api";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { userHasModule } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TEXTAREA_CLASS } from "@/lib/leave/format";
 import { LeaveBalancesTable } from "@/components/leave/leave-balances-table";
@@ -16,20 +17,7 @@ import { LeaveRequestDetailDrawer } from "@/components/leave/leave-request-detai
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
 import { LeaveRequestsTable } from "@/components/leave/leave-requests-table";
 import { LeaveErrorState, LeaveLoadingSkeleton } from "@/components/leave/leave-states";
-import { getLeaveStore, type LeaveActor, type LeaveRequestFilters } from "@/lib/leave";
-
-type EmployeeOption = {
-  id: string;
-  name: string;
-  email?: string | null;
-  jobTitle?: string | null;
-  role?: string;
-  status?: string;
-  hireDate?: string | null;
-  branchId?: string | null;
-};
-
-type BranchOption = { id: string; name: string };
+import { LeaveStore, type LeaveActor, type LeaveRequestFilters, type LeaveSnapshot } from "@/lib/leave";
 
 const EMPTY_FILTERS: LeaveRequestFilters = {
   search: "",
@@ -49,11 +37,13 @@ function actorFrom(user: AuthUser | null): LeaveActor {
     name: user?.name ?? "You",
     role: user?.role ?? "employee",
     employeeId: user?.employeeId,
+    systemModuleRoles: user?.systemModuleRoles ?? [],
   };
 }
 
 export function LeaveDashboard() {
-  const store = getLeaveStore();
+  const storeRef = useRef(new LeaveStore());
+  const store = storeRef.current;
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,32 +57,24 @@ export function LeaveDashboard() {
   const [rejectReason, setRejectReason] = useState("");
   const [accrualMsg, setAccrualMsg] = useState<string | null>(null);
   const [tab, setTab] = useState("requests");
+  const [busy, setBusy] = useState(false);
 
   const refresh = () => setTick((n) => n + 1);
   const actor = actorFrom(user);
-  const isAdmin = user?.role === "tenant_admin";
+  const isAdmin = userHasModule(user, "leaves");
+
+  function applyLeave(leave: LeaveSnapshot) {
+    store.applySnapshot(leave);
+    refresh();
+  }
 
   useEffect(() => {
     setUser(getUser());
     setLoading(true);
     setError(null);
-    const current = getUser();
-    const admin = current?.role === "tenant_admin";
-    Promise.all([
-      admin
-        ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({ employees: [] }))
-        : Promise.resolve({ employees: [] as EmployeeOption[] }),
-      admin
-        ? api<{ branches: BranchOption[] }>("/v1/branches").catch(() => ({ branches: [] }))
-        : Promise.resolve({ branches: [] as BranchOption[] }),
-    ])
-      .then(([empRes, branchRes]) => {
-        store.hydrateDirectory({
-          employees: empRes.employees,
-          branches: branchRes.branches,
-          current: actorFrom(current),
-        });
-        refresh();
+    api<{ leave: LeaveSnapshot }>("/v1/leave")
+      .then((res) => {
+        applyLeave(res.leave);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load leave"))
       .finally(() => setLoading(false));
@@ -125,12 +107,15 @@ export function LeaveDashboard() {
     setFilters((prev) => ({ ...prev, ...patch }));
   }
 
-  function run(action: () => void) {
+  async function run(action: () => Promise<void>) {
+    setBusy(true);
+    setError(null);
     try {
-      action();
-      refresh();
+      await action();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -212,9 +197,18 @@ export function LeaveDashboard() {
               <p className="text-sm">{selectedIds.length} selected</p>
               <Button
                 size="sm"
+                disabled={busy}
                 onClick={() =>
-                  run(() => {
-                    store.bulkDecide(selectedIds, "approved", actor, "Bulk approved");
+                  void run(async () => {
+                    const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        ids: selectedIds,
+                        decision: "approved",
+                        comment: "Bulk approved",
+                      }),
+                    });
+                    applyLeave(res.leave);
                     setSelectedIds([]);
                   })
                 }
@@ -244,7 +238,15 @@ export function LeaveDashboard() {
             types={types}
             isAdmin={isAdmin}
             onOpen={setSelectedId}
-            onQuickApprove={(id) => run(() => store.decide(id, "approved", actor, "Approved"))}
+            onQuickApprove={(id) =>
+              void run(async () => {
+                const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+                  method: "POST",
+                  body: JSON.stringify({ decision: "approved", comment: "Approved" }),
+                });
+                applyLeave(res.leave);
+              })
+            }
             onQuickReject={(id) => setRejectId(id)}
             selectedIds={selectedIds}
             onToggleSelect={(id, selectedNow) =>
@@ -263,8 +265,12 @@ export function LeaveDashboard() {
             transactions={store.transactions()}
             isAdmin={isAdmin}
             onAdjust={(employeeId, leaveTypeId, amount, note) =>
-              run(() => {
-                store.adjustBalance({ employeeId, leaveTypeId, amount, note, actor });
+              void run(async () => {
+                const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/balances/adjust", {
+                  method: "POST",
+                  body: JSON.stringify({ employeeId, leaveTypeId, amount, note }),
+                });
+                applyLeave(res.leave);
               })
             }
           />
@@ -287,27 +293,39 @@ export function LeaveDashboard() {
               policies={policies}
               notifications={store.notifications()}
               onTypeChange={(id, patch) =>
-                run(() => {
-                  store.updateType(id, patch);
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/types/${id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(patch),
+                  });
+                  applyLeave(res.leave);
                 })
               }
               onPolicyChange={(id, patch) =>
-                run(() => {
-                  store.updatePolicy(id, patch);
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/policies/${id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(patch),
+                  });
+                  applyLeave(res.leave);
                 })
               }
               onNotificationChange={(event, patch) =>
-                run(() => {
+                void run(async () => {
                   store.updateNotification(event, patch);
+                  refresh();
                 })
               }
               onRunAccrual={() =>
-                run(() => {
-                  const n = store.runMonthlyAccrual(actor);
+                void run(async () => {
+                  const res = await api<{ posted: number; leave: LeaveSnapshot }>("/v1/leave/accrual", {
+                    method: "POST",
+                  });
+                  applyLeave(res.leave);
                   setAccrualMsg(
-                    n === 0
+                    res.posted === 0
                       ? "No accruals due — already posted for this period."
-                      : `Posted ${n} accrual transaction${n === 1 ? "" : "s"}.`,
+                      : `Posted ${res.posted} accrual transaction${res.posted === 1 ? "" : "s"}.`,
                   );
                 })
               }
@@ -329,7 +347,17 @@ export function LeaveDashboard() {
         actor={actor}
         isAdmin={isAdmin}
         editing={editing}
-        onSubmitted={refresh}
+        busy={busy}
+        onSave={async (draft, editingRequestId) => {
+          const path = editingRequestId
+            ? `/v1/leave/requests/${editingRequestId}/resubmit`
+            : "/v1/leave/requests";
+          const res = await api<{ leave: LeaveSnapshot }>(path, {
+            method: "POST",
+            body: JSON.stringify(draft),
+          });
+          applyLeave(res.leave);
+        }}
       />
 
       <LeaveRequestDetailDrawer
@@ -341,33 +369,60 @@ export function LeaveDashboard() {
         isAdmin={isAdmin}
         actor={actor}
         onApprove={(id, comment) =>
-          run(() => {
-            store.decide(id, "approved", actor, comment);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+              method: "POST",
+              body: JSON.stringify({ decision: "approved", comment }),
+            });
+            applyLeave(res.leave);
           })
         }
         onReject={(id, reason) =>
-          run(() => {
-            store.decide(id, "rejected", actor, reason);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+              method: "POST",
+              body: JSON.stringify({ decision: "rejected", comment: reason }),
+            });
+            applyLeave(res.leave);
           })
         }
         onReturn={(id, comment) =>
-          run(() => {
-            store.decide(id, "returned", actor, comment);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+              method: "POST",
+              body: JSON.stringify({ decision: "returned", comment }),
+            });
+            applyLeave(res.leave);
           })
         }
         onCancel={(id, note) =>
-          run(() => {
-            store.cancel(id, actor, note);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/cancel`, {
+              method: "POST",
+              body: JSON.stringify({ note }),
+            });
+            applyLeave(res.leave);
           })
         }
         onComment={(id, body) =>
-          run(() => {
-            store.addComment(id, actor, isAdmin ? "approver" : "employee", body);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/comments`, {
+              method: "POST",
+              body: JSON.stringify({
+                body,
+                kind: isAdmin ? "approver" : "employee",
+              }),
+            });
+            applyLeave(res.leave);
           })
         }
         onHrNote={(id, note) =>
-          run(() => {
-            store.updateHrNote(id, note, actor);
+          void run(async () => {
+            const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/hr-note`, {
+              method: "PATCH",
+              body: JSON.stringify({ note }),
+            });
+            applyLeave(res.leave);
           })
         }
         onEdit={(id) => {
@@ -377,66 +432,57 @@ export function LeaveDashboard() {
         }}
       />
 
-      <DialogPrimitive.Root
+      <ConfirmDialog
         open={Boolean(rejectId)}
+        title="Reject leave request"
+        description="A written reason is required. The employee balance will not change."
+        confirmLabel="Reject"
+        variant="destructive"
+        busy={busy}
+        onConfirm={async () => {
+          if (!rejectId || !rejectReason.trim()) return;
+          const reason = rejectReason.trim();
+          const bulk = selectedIds.length > 1 && selectedIds.includes(rejectId);
+          await run(async () => {
+            if (bulk) {
+              const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
+                method: "POST",
+                body: JSON.stringify({
+                  ids: selectedIds,
+                  decision: "rejected",
+                  comment: reason,
+                }),
+              });
+              applyLeave(res.leave);
+              setSelectedIds([]);
+            } else {
+              const res = await api<{ leave: LeaveSnapshot }>(
+                `/v1/leave/requests/${rejectId}/decide`,
+                {
+                  method: "POST",
+                  body: JSON.stringify({ decision: "rejected", comment: reason }),
+                },
+              );
+              applyLeave(res.leave);
+            }
+          });
+          setRejectId(null);
+          setRejectReason("");
+        }}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !busy) {
             setRejectId(null);
             setRejectReason("");
           }
         }}
       >
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
-          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-2xl">
-            <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-              Reject leave request
-            </DialogPrimitive.Title>
-            <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
-              A written reason is required. The employee balance will not change.
-            </DialogPrimitive.Description>
-            <textarea
-              className={`${TEXTAREA_CLASS} mt-3`}
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Why this request is being declined"
-            />
-            <div className="mt-5 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setRejectId(null);
-                  setRejectReason("");
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={!rejectReason.trim()}
-                onClick={() => {
-                  if (!rejectId || !rejectReason.trim()) return;
-                  const reason = rejectReason.trim();
-                  if (selectedIds.length > 1 && selectedIds.includes(rejectId)) {
-                    run(() => {
-                      store.bulkDecide(selectedIds, "rejected", actor, reason);
-                      setSelectedIds([]);
-                    });
-                  } else {
-                    run(() => store.decide(rejectId, "rejected", actor, reason));
-                  }
-                  setRejectId(null);
-                  setRejectReason("");
-                }}
-              >
-                Reject
-              </Button>
-            </div>
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
+        <textarea
+          className={`${TEXTAREA_CLASS} mt-3`}
+          value={rejectReason}
+          onChange={(e) => setRejectReason(e.target.value)}
+          placeholder="Why this request is being declined"
+        />
+      </ConfirmDialog>
     </div>
   );
 }

@@ -4,9 +4,11 @@ import { and, eq, isNull } from "drizzle-orm";
 import { employees, tenants, users } from "@hr/db";
 import {
   loginSchema,
+  normalizeSystemModuleRoles,
   refreshSchema,
   uploadAvatarSchema,
   type JwtPayload,
+  type SystemModuleRole,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import { avatarUrlFor, decodeBase64Image, detectImageMime } from "../lib/avatar.js";
@@ -14,10 +16,26 @@ import { authenticate } from "../types.js";
 
 type UserRow = typeof users.$inferSelect;
 
+function moduleRolesOf(
+  user: Pick<UserRow, "role" | "systemModuleRoles">,
+): SystemModuleRole[] {
+  if (user.role === "tenant_admin" || user.role === "super_admin") return [];
+  return normalizeSystemModuleRoles(
+    Array.isArray(user.systemModuleRoles) ? user.systemModuleRoles : [],
+  );
+}
+
 function toAuthUser(
   user: Pick<
     UserRow,
-    "id" | "email" | "name" | "role" | "tenantId" | "avatarMime" | "updatedAt"
+    | "id"
+    | "email"
+    | "name"
+    | "role"
+    | "tenantId"
+    | "avatarMime"
+    | "updatedAt"
+    | "systemModuleRoles"
   >,
   employeeId: string | null,
 ) {
@@ -28,7 +46,21 @@ function toAuthUser(
     role: user.role,
     tenantId: user.tenantId,
     employeeId,
+    systemModuleRoles: moduleRolesOf(user),
     avatarUrl: avatarUrlFor(user.id, user.avatarMime, user.updatedAt),
+  };
+}
+
+function toJwtPayload(
+  user: Pick<UserRow, "id" | "role" | "tenantId" | "systemModuleRoles">,
+  employeeId: string | null,
+): JwtPayload {
+  return {
+    sub: user.id,
+    role: user.role,
+    tenantId: user.tenantId,
+    employeeId,
+    systemModuleRoles: moduleRolesOf(user),
   };
 }
 
@@ -108,12 +140,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       employeeId = emp?.id ?? null;
     }
 
-    const payload: JwtPayload = {
-      sub: resolved.id,
-      role: resolved.role,
-      tenantId: resolved.tenantId,
-      employeeId,
-    };
+    const payload = toJwtPayload(resolved, employeeId);
     const tokens = signTokens(app, payload);
 
     if (resolved.role === "super_admin" || resolved.role === "tenant_admin") {
@@ -143,13 +170,23 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       const payload = app.jwt.verify<JwtPayload & { typ?: string }>(
         parsed.data.refreshToken,
       );
-      const next: JwtPayload = {
-        sub: payload.sub,
-        role: payload.role,
-        tenantId: payload.tenantId,
-        employeeId: payload.employeeId ?? null,
-      };
-      return signTokens(app, next);
+      const user = await app.db.query.users.findFirst({
+        where: eq(users.id, payload.sub),
+      });
+      if (!user) return reply.code(401).send({ error: "Invalid refresh token" });
+
+      let employeeId: string | null = payload.employeeId ?? null;
+      if (user.tenantId) {
+        const emp = await app.db.query.employees.findFirst({
+          where: and(
+            eq(employees.userId, user.id),
+            eq(employees.tenantId, user.tenantId),
+          ),
+        });
+        employeeId = emp?.id ?? null;
+      }
+
+      return signTokens(app, toJwtPayload(user, employeeId));
     } catch {
       return reply.code(401).send({ error: "Invalid refresh token" });
     }
@@ -167,10 +204,23 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         tenantId: true,
         avatarMime: true,
         updatedAt: true,
+        systemModuleRoles: true,
       },
     });
     if (!user) return reply.code(404).send({ error: "Not found" });
-    return toAuthUser(user, payload.employeeId ?? null);
+
+    let employeeId: string | null = payload.employeeId ?? null;
+    if (user.tenantId) {
+      const emp = await app.db.query.employees.findFirst({
+        where: and(
+          eq(employees.userId, user.id),
+          eq(employees.tenantId, user.tenantId),
+        ),
+      });
+      employeeId = emp?.id ?? null;
+    }
+
+    return toAuthUser(user, employeeId);
   });
 
   app.post("/me/avatar", { preHandler: authenticate }, async (request, reply) => {
@@ -211,6 +261,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         tenantId: users.tenantId,
         avatarMime: users.avatarMime,
         updatedAt: users.updatedAt,
+        systemModuleRoles: users.systemModuleRoles,
       });
     if (!updated) return reply.code(404).send({ error: "Not found" });
 
@@ -244,6 +295,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         tenantId: users.tenantId,
         avatarMime: users.avatarMime,
         updatedAt: users.updatedAt,
+        systemModuleRoles: users.systemModuleRoles,
       });
     if (!updated) return reply.code(404).send({ error: "Not found" });
 

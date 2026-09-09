@@ -13,6 +13,7 @@ import { writeAudit } from "../lib/audit.js";
 import { isInsideGeofence } from "../lib/geo.js";
 import type { App } from "../types.js";
 import {
+  requireModuleRole,
   requireRoles,
   requireTenantScope,
   tenantIdOf,
@@ -284,7 +285,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     "/period",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("compensation") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const q = request.query as {

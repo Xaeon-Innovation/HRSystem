@@ -1244,3 +1244,16 @@ export function defaultBalanceFor(
   row.remaining = computeRemaining(row);
   return row;
 }
+
+export function demoSnapshot() {
+  const balances = seedBalances();
+  return {
+    employees: structuredClone(MOCK_EMPLOYEES),
+    types: structuredClone(MOCK_LEAVE_TYPES),
+    policies: structuredClone(MOCK_POLICIES),
+    balances,
+    transactions: seedTransactions(balances),
+    requests: seedRequests(),
+    notifications: structuredClone(MOCK_NOTIFICATION_SETTINGS),
+  };
+}

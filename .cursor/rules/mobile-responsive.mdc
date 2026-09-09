@@ -1,0 +1,43 @@
+---
+description: Web UI must be usable on mobile; no desktop-only layouts or features
+alwaysApply: true
+---
+
+# Mobile-responsive web UI
+
+All `apps/web` UI must work on a phone (~375px). Mobile-first: stack by default, then add `sm:` / `md:` / `lg:`. Backend/API-only work is unaffected.
+
+Reuse shell conventions in `apps/web/src/components/app-shell.tsx`: `min-h-dvh`, `min-w-0` on flex children, horizontal nav on small screens, sidebar from `md:` up.
+
+## Required
+
+- Every feature is usable on mobile. Do not put essential actions only in hover menus, `hidden md:flex` toolbars, or wide tables with no mobile path.
+- No page overflow. Use `min-w-0` on flex children. Wide tables may use `overflow-x-auto` inside a container; the page must not scroll sideways.
+- Toolbars and forms wrap: `flex-wrap`, `w-full sm:w-auto` buttons, grids that start at 1 column.
+- Sheets/dialogs stay `w-full` on small screens (`apps/web/src/components/ui/sheet.tsx` is `w-full max-w-lg h-dvh`). Footers wrap; body scrolls with `overflow-y-auto`.
+- Tap targets stay usable (~40px+). Do not rely on hover-only interaction.
+- When UI changes, verify a mobile viewport (~375px), not only desktop.
+
+## Do not
+
+```tsx
+<div className="flex items-center justify-between">
+  <h1>Employees</h1>
+  <div className="flex gap-2"> {/* overflows on a phone */}
+    <Button>Import CSV</Button>
+    <Button>Add employee</Button>
+  </div>
+</div>
+```
+
+## Do
+
+```tsx
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <h1>Employees</h1>
+  <div className="flex flex-col gap-2 sm:flex-row">
+    <Button className="w-full sm:w-auto">Import CSV</Button>
+    <Button className="w-full sm:w-auto">Add employee</Button>
+  </div>
+</div>
+```

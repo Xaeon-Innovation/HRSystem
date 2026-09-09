@@ -12,8 +12,9 @@ import {
   updateKpiSchema,
 } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
+import { hasSystemModuleRole } from "@hr/shared";
 import {
-  requireRoles,
+  requireModuleRole,
   requireTenantScope,
   tenantIdOf,
 } from "../types.js";
@@ -32,7 +33,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const parsed = createKpiSchema.safeParse(request.body);
@@ -49,7 +50,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/:id/clone",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const { id } = request.params as { id: string };
@@ -74,7 +75,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch(
     "/:id",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const { id } = request.params as { id: string };
@@ -97,7 +98,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     "/:id",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const { id } = request.params as { id: string };
@@ -114,7 +115,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete(
     "/assignments/:assignmentId",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const { assignmentId } = request.params as { assignmentId: string };
@@ -139,7 +140,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/assign",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const parsed = assignKpiSchema.safeParse(request.body);
@@ -170,7 +171,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     "/scores",
-    { preHandler: requireRoles("tenant_admin") },
+    { preHandler: requireModuleRole("kpis") },
     async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const user = request.user as JwtPayload;
@@ -212,7 +213,7 @@ export const kpiRoutes: FastifyPluginAsync = async (app) => {
     const assignments = await app.db.query.kpiAssignments.findMany({
       where: and(
         eq(kpiAssignments.tenantId, tenantId),
-        user.role === "employee" && user.employeeId
+        !hasSystemModuleRole(user, "kpis") && user.employeeId
           ? eq(kpiAssignments.employeeId, user.employeeId)
           : q.employeeId
             ? eq(kpiAssignments.employeeId, q.employeeId)

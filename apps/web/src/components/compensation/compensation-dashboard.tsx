@@ -26,6 +26,7 @@ import {
   type CompActor,
   type EmployeeFilters,
 } from "@/lib/compensation";
+import { isAdminActor } from "@/lib/compensation/workflow";
 import {
   Sheet,
   SheetBody,
@@ -70,6 +71,7 @@ function actorFrom(user: AuthUser | null): CompActor {
     name: user?.name ?? "You",
     role: user?.role ?? "employee",
     employeeId: user?.employeeId,
+    systemModuleRoles: user?.systemModuleRoles ?? [],
   };
 }
 
@@ -90,7 +92,7 @@ export function CompensationDashboard() {
 
   const refresh = () => setTick((n) => n + 1);
   const actor = actorFrom(user);
-  const isAdmin = user?.role === "tenant_admin" || user?.role === "super_admin";
+  const isAdmin = isAdminActor(actor);
   const isManager = store.isManager(actor);
   const allowed = store.canAccess(actor);
 
@@ -99,7 +101,7 @@ export function CompensationDashboard() {
     setLoading(true);
     setError(null);
     const current = getUser();
-    const admin = current?.role === "tenant_admin" || current?.role === "super_admin";
+    const admin = isAdminActor(actorFrom(current));
     Promise.all([
       admin
         ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({ employees: [] }))

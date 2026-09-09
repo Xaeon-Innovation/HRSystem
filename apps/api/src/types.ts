@@ -1,5 +1,6 @@
 import type { Db } from "@hr/db";
-import type { JwtPayload, Role } from "@hr/shared";
+import type { JwtPayload, Role, SystemModuleRole } from "@hr/shared";
+import { hasSystemModuleRole } from "@hr/shared";
 import type {
   FastifyInstance,
   FastifyReply,
@@ -47,6 +48,18 @@ export function requireRoles(...roles: Role[]) {
     if (!roles.includes(user.role)) {
       return reply.code(403).send({ error: "Forbidden" });
     }
+  };
+}
+
+/** Tenant admin, or an employee granted the given module control role. */
+export function requireModuleRole(...modules: SystemModuleRole[]) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    await authenticate(request, reply);
+    if (reply.sent) return;
+    const user = request.user as JwtPayload;
+    if (user.role === "tenant_admin") return;
+    if (modules.some((module) => hasSystemModuleRole(user, module))) return;
+    return reply.code(403).send({ error: "Forbidden" });
   };
 }
 

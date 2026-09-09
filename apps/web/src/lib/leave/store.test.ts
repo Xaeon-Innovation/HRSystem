@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { demoSnapshot } from "./mock";
 import { LeaveStore } from "./store";
 
 const admin = { id: "emp-karim", name: "Karim Said", role: "tenant_admin" as const };
 
 describe("LeaveStore workflow", () => {
   it("deducts balance on approval and not on rejection", () => {
-    const store = new LeaveStore();
+    const store = new LeaveStore(demoSnapshot());
     const before = store.balance("emp-omar", "lt-annual")!;
     store.decide("lr-omar-pending", "approved", admin, "Coverage is fine");
     const after = store.balance("emp-omar", "lt-annual")!;
@@ -39,7 +40,7 @@ describe("LeaveStore workflow", () => {
   });
 
   it("restores deducted days when an approved request is cancelled before it starts", () => {
-    const store = new LeaveStore();
+    const store = new LeaveStore(demoSnapshot());
     const before = store.balance("emp-maya", "lt-annual")!;
     store.cancel("lr-maya-half", admin, "School appointment moved");
     const after = store.balance("emp-maya", "lt-annual")!;

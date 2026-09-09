@@ -1,20 +1,24 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Plus, Search, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAvatar } from "@/components/user-avatar";
+import { cn } from "@/lib/utils";
 import {
   DEFAULT_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
   MIN_GEOFENCE_RADIUS_METERS,
   EMPLOYEE_CSV_TEMPLATE,
   EMPLOYEE_FIELD_DEFS,
+  SYSTEM_MODULE_ROLES,
+  SYSTEM_MODULE_ROLE_LABELS,
   draftToCreatePayload,
   emptyEmployeeDraft,
   evaluateEmployeeDraft,
@@ -23,6 +27,7 @@ import {
   type EmployeeCsvFieldKey,
   type EmployeeDraft,
   type ParsedEmployeeRow,
+  type SystemModuleRole,
 } from "@hr/shared";
 
 type Site = {
@@ -47,6 +52,7 @@ type Employee = {
   role: string;
   jobTitle: string | null;
   jobRoles: JobRoleSummary[];
+  systemModuleRoles: SystemModuleRole[];
   status: string;
   phone: string | null;
   avatarUrl?: string | null;
@@ -83,9 +89,12 @@ const selectClass =
   "h-10 w-full rounded-md border border-input bg-background px-3 text-sm";
 
 const ROLE_LABEL: Record<string, string> = {
-  employee: "Employee access",
-  tenant_admin: "Admin access",
+  employee: "Employee",
+  tenant_admin: "Admin",
 };
+
+const PILL =
+  "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
 
 function JobRolePicker({
   roles,
@@ -129,6 +138,53 @@ function JobRolePicker({
               }
             />
             {role.name}
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+function SystemModuleRolePicker({
+  selected,
+  onChange,
+  disabled,
+}: {
+  selected: SystemModuleRole[];
+  onChange: (roles: SystemModuleRole[]) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {SYSTEM_MODULE_ROLES.map((role) => {
+        const on = selected.includes(role);
+        return (
+          <label
+            key={role}
+            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs ${
+              disabled
+                ? "cursor-not-allowed opacity-60"
+                : "cursor-pointer"
+            } ${
+              on
+                ? "border-primary bg-primary/10 text-foreground"
+                : "border-input bg-background text-muted-foreground"
+            }`}
+          >
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={on}
+              disabled={disabled}
+              onChange={() =>
+                onChange(
+                  on
+                    ? selected.filter((id) => id !== role)
+                    : [...selected, role],
+                )
+              }
+            />
+            {SYSTEM_MODULE_ROLE_LABELS[role]}
           </label>
         );
       })}
@@ -230,13 +286,87 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
+function StatusPill({ status }: { status: string }) {
+  const active = status === "active";
+  return (
+    <span
+      className={cn(
+        PILL,
+        "uppercase tracking-wide",
+        active
+          ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800"
+          : "bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-400 dark:ring-slate-700",
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+function Modal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  wide,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  description?: string;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  return (
+    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
+        <DialogPrimitive.Content
+          className={cn(
+            "fixed left-1/2 top-1/2 z-[61] flex max-h-[min(90dvh,46rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border bg-card shadow-2xl",
+            wide
+              ? "w-[min(52rem,calc(100vw-2rem))]"
+              : "w-[min(42rem,calc(100vw-2rem))]",
+          )}
+        >
+          <div className="flex items-start justify-between gap-3 border-b px-5 py-4 pr-12">
+            <div>
+              <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
+                {title}
+              </DialogPrimitive.Title>
+              {description ? (
+                <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
+                  {description}
+                </DialogPrimitive.Description>
+              ) : (
+                <DialogPrimitive.Description className="sr-only">
+                  {title}
+                </DialogPrimitive.Description>
+              )}
+            </div>
+            <DialogPrimitive.Close className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </DialogPrimitive.Close>
+          </div>
+          <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        </DialogPrimitive.Content>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
 export default function EmployeesPage() {
-  const [tab, setTab] = useState("roster");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [org, setOrg] = useState<Branch[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [createJobRoleIds, setCreateJobRoleIds] = useState<string[]>([]);
   const [editJobRoleIds, setEditJobRoleIds] = useState<string[]>([]);
+  const [createSystemRoles, setCreateSystemRoles] = useState<SystemModuleRole[]>(
+    [],
+  );
+  const [editSystemRoles, setEditSystemRoles] = useState<SystemModuleRole[]>([]);
   const [jobRoleName, setJobRoleName] = useState("");
   const [pendingJobRole, setPendingJobRole] = useState<JobRole | null>(null);
   const [jobRoleBusy, setJobRoleBusy] = useState(false);
@@ -256,8 +386,8 @@ export default function EmployeesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [createdCreds, setCreatedCreds] = useState<CreatedImport[]>([]);
-  const [zoneEditId, setZoneEditId] = useState<string | null>(null);
-  const [detailsId, setDetailsId] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addMode, setAddMode] = useState<"one" | "csv">("one");
   const [zoneLat, setZoneLat] = useState("");
   const [zoneLng, setZoneLng] = useState("");
   const [zoneRadius, setZoneRadius] = useState(
@@ -274,6 +404,10 @@ export default function EmployeesPage() {
   const [pendingBranch, setPendingBranch] = useState<Branch | null>(null);
   const [branchBusy, setBranchBusy] = useState(false);
 
+  const editing = employees.find((e) => e.id === editId) ?? null;
+  const dialogError = addOpen || editId ? error : null;
+  const pageError = addOpen || editId ? null : error;
+
   async function load(search = q) {
     const [empData, branchData, roleData] = await Promise.all([
       api<{ employees: Employee[] }>(
@@ -283,7 +417,11 @@ export default function EmployeesPage() {
       api<{ jobRoles: JobRole[] }>("/v1/job-roles"),
     ]);
     setEmployees(
-      empData.employees.map((e) => ({ ...e, jobRoles: e.jobRoles ?? [] })),
+      empData.employees.map((e) => ({
+        ...e,
+        jobRoles: e.jobRoles ?? [],
+        systemModuleRoles: e.systemModuleRoles ?? [],
+      })),
     );
     setOrg(branchData.branches);
     setJobRoles(roleData.jobRoles);
@@ -305,23 +443,82 @@ export default function EmployeesPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function openAdd(mode: "one" | "csv" = "one") {
+    setEditId(null);
+    setAddMode(mode);
+    setAddOpen(true);
+    setError(null);
+  }
+
   function openEditor(emp: Employee) {
+    setAddOpen(false);
     setEditId(emp.id);
     setEditDraft(employeeToDraft(emp));
     setEditBranchId(emp.branchId ?? "");
     setEditStatus(emp.status === "inactive" ? "inactive" : "active");
     setEditJobRoleIds((emp.jobRoles ?? []).map((r) => r.id));
-    setDetailsId(null);
-    setZoneEditId(null);
+    setEditSystemRoles(emp.systemModuleRoles ?? []);
+    setZoneLat(emp.geofenceLat != null ? String(emp.geofenceLat) : "");
+    setZoneLng(emp.geofenceLng != null ? String(emp.geofenceLng) : "");
+    setZoneRadius(
+      String(emp.geofenceRadiusMeters ?? DEFAULT_GEOFENCE_RADIUS_METERS),
+    );
     setError(null);
   }
 
   function closeEditor() {
+    if (editSaving || zoneBusy) return;
     setEditId(null);
   }
 
   function setEditField(key: EmployeeCsvFieldKey, value: string) {
     setEditDraft((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function parseZoneFields():
+    | { ok: true; lat: number | null; lng: number | null; radius: number | null }
+    | { ok: false; message: string } {
+    const latS = zoneLat.trim();
+    const lngS = zoneLng.trim();
+    const radS = zoneRadius.trim();
+    if (!latS && !lngS) {
+      return { ok: true, lat: null, lng: null, radius: null };
+    }
+    if (!latS || !lngS || !radS) {
+      return { ok: false, message: "Enter latitude, longitude, and radius" };
+    }
+    const lat = Number(latS);
+    const lng = Number(lngS);
+    const radius = Math.round(Number(radS));
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      !Number.isFinite(radius)
+    ) {
+      return { ok: false, message: "Enter valid lat, lng, and radius" };
+    }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return {
+        ok: false,
+        message: "Latitude must be -90…90 and longitude -180…180",
+      };
+    }
+    if (lat === 0 && lng === 0) {
+      return {
+        ok: false,
+        message: "Set a real center (0, 0 is not a valid work zone)",
+      };
+    }
+    if (
+      radius < MIN_GEOFENCE_RADIUS_METERS ||
+      radius > MAX_GEOFENCE_RADIUS_METERS
+    ) {
+      return {
+        ok: false,
+        message: `Radius must be between ${MIN_GEOFENCE_RADIUS_METERS} and ${MAX_GEOFENCE_RADIUS_METERS} meters`,
+      };
+    }
+    return { ok: true, lat, lng, radius };
   }
 
   async function saveEditor(employeeId: string) {
@@ -337,6 +534,11 @@ export default function EmployeesPage() {
               .join(", ")}`
           : evaluation.errors[0].message,
       );
+      return;
+    }
+    const zone = parseZoneFields();
+    if (!zone.ok) {
+      setError(zone.message);
       return;
     }
     setEditSaving(true);
@@ -361,6 +563,11 @@ export default function EmployeesPage() {
           branchId: editBranchId || null,
           status: editStatus,
           jobRoleIds: editJobRoleIds,
+          systemModuleRoles:
+            payload.role === "tenant_admin" ? [] : editSystemRoles,
+          geofenceLat: zone.lat,
+          geofenceLng: zone.lng,
+          geofenceRadiusMeters: zone.radius,
         }),
       });
       setEditId(null);
@@ -373,66 +580,10 @@ export default function EmployeesPage() {
     }
   }
 
-  function openZoneEditor(emp: Employee) {
-    setZoneEditId(emp.id);
-    setZoneLat(emp.geofenceLat != null ? String(emp.geofenceLat) : "");
-    setZoneLng(emp.geofenceLng != null ? String(emp.geofenceLng) : "");
-    setZoneRadius(
-      String(emp.geofenceRadiusMeters ?? DEFAULT_GEOFENCE_RADIUS_METERS),
-    );
-  }
-
-  async function saveZone(employeeId: string) {
-    if (!zoneLat.trim() || !zoneLng.trim() || !zoneRadius.trim()) {
-      setError("Enter latitude, longitude, and radius");
-      return;
-    }
-    const lat = Number(zoneLat);
-    const lng = Number(zoneLng);
-    const radius = Math.round(Number(zoneRadius));
-    if (
-      !Number.isFinite(lat) ||
-      !Number.isFinite(lng) ||
-      !Number.isFinite(radius)
-    ) {
-      setError("Enter valid lat, lng, and radius");
-      return;
-    }
-    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-      setError("Latitude must be -90…90 and longitude -180…180");
-      return;
-    }
-    if (lat === 0 && lng === 0) {
-      setError("Set a real center (0, 0 is not a valid work zone)");
-      return;
-    }
-    if (
-      radius < MIN_GEOFENCE_RADIUS_METERS ||
-      radius > MAX_GEOFENCE_RADIUS_METERS
-    ) {
-      setError(
-        `Radius must be between ${MIN_GEOFENCE_RADIUS_METERS} and ${MAX_GEOFENCE_RADIUS_METERS} meters`,
-      );
-      return;
-    }
-    setZoneBusy(true);
-    setError(null);
-    try {
-      await api(`/v1/employees/${employeeId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          geofenceLat: lat,
-          geofenceLng: lng,
-          geofenceRadiusMeters: radius,
-        }),
-      });
-      setZoneEditId(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save zone");
-    } finally {
-      setZoneBusy(false);
-    }
+  async function clearZoneFields() {
+    setZoneLat("");
+    setZoneLng("");
+    setZoneRadius(String(DEFAULT_GEOFENCE_RADIUS_METERS));
   }
 
   async function clearZone(employeeId: string) {
@@ -447,7 +598,7 @@ export default function EmployeesPage() {
           geofenceRadiusMeters: null,
         }),
       });
-      setZoneEditId(null);
+      await clearZoneFields();
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to clear zone");
@@ -484,11 +635,15 @@ export default function EmployeesPage() {
           branchCode: undefined,
           branchId: branchId || null,
           jobRoleIds: createJobRoleIds,
+          systemModuleRoles:
+            payload.role === "tenant_admin" ? [] : createSystemRoles,
         }),
       });
       setForm(emptyEmployeeDraft());
       setBranchId("");
       setCreateJobRoleIds([]);
+      setCreateSystemRoles([]);
+      setAddOpen(false);
       setSuccess(`${res.employee.name} was added to the roster.`);
       if (res.temporaryPassword) {
         setCreatedCreds([
@@ -503,26 +658,10 @@ export default function EmployeesPage() {
         setCreatedCreds([]);
       }
       await load();
-      setTab("roster");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed");
     } finally {
       setSaving(false);
-    }
-  }
-
-  async function assignBranch(employeeId: string, nextBranchId: string) {
-    try {
-      await api(`/v1/employees/${employeeId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          branchId: nextBranchId || null,
-          siteId: null,
-        }),
-      });
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
     }
   }
 
@@ -599,8 +738,8 @@ export default function EmployeesPage() {
         setReviewRows(null);
         setCsvText("");
         setCsvFileName(null);
+        setAddOpen(false);
         await load();
-        setTab("roster");
       } else {
         setError(
           res.errors.map((e) => `Row ${e.index + 1}: ${e.error}`).join(" · ") ||
@@ -705,19 +844,25 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Employees</h1>
-        <p className="text-sm text-muted-foreground">
-          View the roster or add people with full personal details — one at a
-          time or from a CSV.
-        </p>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Roster, access, and work zones — one table, less clutter.
+          </p>
+        </div>
+        <Button onClick={() => openAdd("one")}>
+          <Plus className="h-4 w-4" />
+          Add employee
+        </Button>
       </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+      {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
       {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
       {createdCreds.length > 0 ? (
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-2">
             <CardTitle className="text-base">Temporary passwords</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
@@ -736,729 +881,760 @@ export default function EmployeesPage() {
         </Card>
       ) : null}
 
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
-          <TabsTrigger value="roster">Employees</TabsTrigger>
-          <TabsTrigger value="add">Add employees</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="roster" className="space-y-6">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Search name, email, phone, national ID…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") void load(q);
-              }}
-            />
-            <Button onClick={() => load(q)}>Search</Button>
-          </div>
-          <div className="space-y-2">
-            {employees.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No employees yet. Use the Add employees tab to create or import
-                a roster.
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <CardTitle className="text-base">Roster</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                {employees.length}{" "}
+                {employees.length === 1 ? "person" : "people"}
               </p>
-            ) : null}
-            {employees.map((emp) => (
-              <Card key={emp.id}>
-                <CardContent className="space-y-3 py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <UserAvatar
-                        name={emp.name}
-                        avatarUrl={emp.avatarUrl}
-                        size="md"
-                      />
-                      <div className="min-w-0">
-                      <p className="font-medium">
-                        {emp.name}{" "}
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {ROLE_LABEL[emp.role] ?? emp.role}
-                        </span>
-                        {!profileComplete(emp) ? (
-                          <button
-                            type="button"
-                            className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800 hover:bg-amber-200"
-                            onClick={() => openEditor(emp)}
-                          >
-                            Incomplete profile
-                          </button>
-                        ) : null}
-                      </p>
-                      {(emp.jobRoles ?? []).length > 0 ? (
-                        <p className="mt-1 flex flex-wrap gap-1">
-                          {(emp.jobRoles ?? []).map((role) => (
-                            <span
-                              key={role.id}
-                              className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium"
-                            >
-                              {role.name}
-                            </span>
-                          ))}
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          No job roles
-                        </p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        {emp.jobTitle ?? "—"} · {emp.phone ?? "No phone"} ·{" "}
-                        {emp.email} · {branchNameOf(emp.branchId)}
-                        {emp.geofenceRadiusMeters != null
-                          ? ` · zone ${emp.geofenceRadiusMeters}m`
-                          : " · no zone"}
-                      </p>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={
-                          !profileComplete(emp) ? "default" : "outline"
-                        }
-                        onClick={() =>
-                          editId === emp.id ? closeEditor() : openEditor(emp)
-                        }
-                      >
-                        {editId === emp.id
-                          ? "Cancel"
-                          : profileComplete(emp)
-                            ? "Edit"
-                            : "Complete profile"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          setDetailsId(detailsId === emp.id ? null : emp.id)
-                        }
-                      >
-                        {detailsId === emp.id ? "Hide details" : "Details"}
-                      </Button>
-                      <a
-                        href={`/app/analytics/employees/${emp.id}`}
-                        className="text-xs text-muted-foreground hover:underline"
-                      >
-                        Analytics
-                      </a>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          zoneEditId === emp.id
-                            ? setZoneEditId(null)
-                            : openZoneEditor(emp)
-                        }
-                      >
-                        {zoneEditId === emp.id ? "Close zone" : "Work zone"}
-                      </Button>
-                      <select
-                        className="h-9 rounded-md border border-input bg-background px-2 text-sm"
-                        value={emp.branchId ?? ""}
-                        onChange={(e) => assignBranch(emp.id, e.target.value)}
-                      >
-                        <option value="">Unassigned</option>
-                        {org.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.name}
-                          </option>
-                        ))}
-                      </select>
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {emp.status}
-                      </span>
-                    </div>
-                  </div>
-                  {editId === emp.id ? (
-                    <div className="space-y-3 rounded-lg border bg-secondary/30 p-3">
-                      {!isEmployeeDraftComplete(editDraft) ? (
-                        <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                          Fill the highlighted fields to complete this profile.
-                          Required information must be saved before the profile
-                          is marked complete.
-                        </p>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          Update personal details, access, job roles, branch, or
-                          status, then save.
-                        </p>
-                      )}
-                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                        <ProfileFieldGrid
-                          draft={editDraft}
-                          onChange={setEditField}
-                        />
-                        <div className="space-y-1">
-                          <Label>Branch</Label>
-                          <select
-                            className={selectClass}
-                            value={editBranchId}
-                            onChange={(e) => setEditBranchId(e.target.value)}
-                          >
-                            <option value="">Unassigned</option>
-                            {org.map((b) => (
-                              <option key={b.id} value={b.id}>
-                                {b.name}
-                              </option>
+            </div>
+            <div className="flex gap-2">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  className="h-9 w-64 pl-8"
+                  placeholder="Search name, email, phone…"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void load(q);
+                  }}
+                />
+              </div>
+              <Button size="sm" variant="outline" onClick={() => load(q)}>
+                Search
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="overflow-x-auto px-0 pb-0">
+          {employees.length === 0 ? (
+            <div className="px-4 pb-6 pt-2 text-center">
+              <p className="text-sm font-medium">No employees yet</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Add one person or import a CSV to build the roster.
+              </p>
+              <div className="mt-4 flex justify-center gap-2">
+                <Button size="sm" onClick={() => openAdd("one")}>
+                  Add employee
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => openAdd("csv")}
+                >
+                  Import CSV
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2.5 font-medium">Employee</th>
+                  <th className="px-3 py-2.5 font-medium">Title</th>
+                  <th className="px-3 py-2.5 font-medium">Roles</th>
+                  <th className="px-3 py-2.5 font-medium">Branch</th>
+                  <th className="px-3 py-2.5 font-medium">Access</th>
+                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {employees.map((emp) => {
+                  const roles = emp.jobRoles ?? [];
+                  const shown = roles.slice(0, 2);
+                  const extra = roles.length - shown.length;
+                  return (
+                    <tr
+                      key={emp.id}
+                      className="cursor-pointer border-b last:border-0 hover:bg-accent/30"
+                      onClick={() => openEditor(emp)}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <UserAvatar
+                            name={emp.name}
+                            avatarUrl={emp.avatarUrl}
+                            size="sm"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{emp.name}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {emp.email}
+                              {emp.phone ? ` · ${emp.phone}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {emp.jobTitle ?? "—"}
+                      </td>
+                      <td className="px-3 py-3">
+                        {roles.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {shown.map((role) => (
+                              <span
+                                key={role.id}
+                                className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium"
+                              >
+                                {role.name}
+                              </span>
                             ))}
-                          </select>
+                            {extra > 0 ? (
+                              <span className="text-[11px] text-muted-foreground">
+                                +{extra}
+                              </span>
+                            ) : null}
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {branchNameOf(emp.branchId)}
+                      </td>
+                      <td className="px-3 py-3">
+                        {ROLE_LABEL[emp.role] ?? emp.role}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <StatusPill status={emp.status} />
+                          {!profileComplete(emp) ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
+                              Incomplete
+                            </span>
+                          ) : null}
                         </div>
-                        <div className="space-y-1">
-                          <Label>Status</Label>
-                          <select
-                            className={selectClass}
-                            value={editStatus}
-                            onChange={(e) =>
-                              setEditStatus(
-                                e.target.value === "inactive"
-                                  ? "inactive"
-                                  : "active",
-                              )
-                            }
-                          >
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                          </select>
-                        </div>
-                        <div className="space-y-1 md:col-span-2 lg:col-span-3">
-                          <Label>Job roles</Label>
-                          <p className="text-xs text-muted-foreground">
-                            Functions this person performs — separate from Admin
-                            or Employee access. Select one or more.
-                          </p>
-                          <JobRolePicker
-                            roles={jobRoles}
-                            selectedIds={editJobRoleIds}
-                            onChange={setEditJobRoleIds}
-                          />
-                        </div>
-                        <div className="flex items-end gap-2 md:col-span-2 lg:col-span-3">
-                          <Button
-                            type="button"
-                            disabled={editSaving}
-                            onClick={() => void saveEditor(emp.id)}
-                          >
-                            {editSaving
-                              ? "Saving…"
-                              : profileComplete(emp)
-                                ? "Save changes"
-                                : "Save and complete"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            disabled={editSaving}
-                            onClick={closeEditor}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                  {detailsId === emp.id && editId !== emp.id ? (
-                    <dl className="grid gap-2 rounded-lg border bg-secondary/30 p-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          National ID
-                        </dt>
-                        <dd>{emp.nationalId ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          Date of birth
-                        </dt>
-                        <dd>{emp.dateOfBirth ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          Hire date
-                        </dt>
-                        <dd>{emp.hireDate ?? "—"}</dd>
-                      </div>
-                      <div className="sm:col-span-2">
-                        <dt className="text-xs text-muted-foreground">
-                          Address
-                        </dt>
-                        <dd>{emp.address ?? "—"}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          Job roles
-                        </dt>
-                        <dd>
-                          {(emp.jobRoles ?? []).length
-                            ? (emp.jobRoles ?? []).map((r) => r.name).join(", ")
-                            : "—"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          Access
-                        </dt>
-                        <dd>{ROLE_LABEL[emp.role] ?? emp.role}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-muted-foreground">
-                          Emergency contact
-                        </dt>
-                        <dd>
-                          {emp.emergencyContactName ||
-                          emp.emergencyContactPhone
-                            ? `${emp.emergencyContactName ?? "—"} · ${emp.emergencyContactPhone ?? "—"}`
-                            : "—"}
-                        </dd>
-                      </div>
-                    </dl>
-                  ) : null}
-                  {zoneEditId === emp.id ? (
-                    <div className="rounded-lg border bg-secondary/30 p-3">
-                      <p className="mb-2 text-xs text-muted-foreground">
-                        Set a center and radius (meters). Clock-in/out must happen
-                        inside this zone.
-                      </p>
-                      <div className="grid gap-2 sm:grid-cols-4">
-                        <div className="space-y-1">
-                          <Label className="text-xs">Latitude</Label>
-                          <Input
-                            value={zoneLat}
-                            onChange={(e) => setZoneLat(e.target.value)}
-                            placeholder="30.0444"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Longitude</Label>
-                          <Input
-                            value={zoneLng}
-                            onChange={(e) => setZoneLng(e.target.value)}
-                            placeholder="31.2357"
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-xs">Radius (m)</Label>
-                          <Input
-                            type="number"
-                            min={MIN_GEOFENCE_RADIUS_METERS}
-                            max={MAX_GEOFENCE_RADIUS_METERS}
-                            value={zoneRadius}
-                            onChange={(e) => setZoneRadius(e.target.value)}
-                          />
-                        </div>
-                        <div className="flex flex-wrap items-end gap-2">
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div
+                          className="flex justify-end gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <Button
                             type="button"
                             size="sm"
-                            disabled={zoneBusy}
-                            onClick={() => void saveZone(emp.id)}
+                            variant="outline"
+                            onClick={() => openEditor(emp)}
                           >
-                            {zoneBusy ? "Saving…" : "Save"}
+                            {profileComplete(emp) ? "Edit" : "Complete"}
                           </Button>
-                          {emp.geofenceRadiusMeters != null ? (
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              disabled={zoneBusy}
-                              onClick={() => void clearZone(emp.id)}
-                            >
-                              Clear
-                            </Button>
-                          ) : null}
+                          <a
+                            href={`/app/analytics/employees/${emp.id}`}
+                            className="inline-flex h-8 items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+                          >
+                            Analytics
+                          </a>
                         </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Job roles</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                These are the functions people perform (sales, driver,
-                coordinator, and so on). They are not the same as Admin or
-                Employee access. One person can have several.
-              </p>
-              <ul className="space-y-2 text-sm">
-                {jobRoles.map((role) => (
-                  <li
-                    key={role.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                  >
-                    <div>
-                      <span className="font-medium">{role.name}</span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · {role.employeeCount ?? 0} assigned
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPendingJobRole(role)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-                {jobRoles.length === 0 ? (
-                  <li className="text-muted-foreground">
-                    No job roles yet. Add sales, driver, coordinator, or any
-                    other function your team uses.
-                  </li>
-                ) : null}
-              </ul>
-              <form className="grid gap-3 md:grid-cols-3" onSubmit={createJobRole}>
-                <Input
-                  placeholder="Role name (Sales, Driver…)"
-                  value={jobRoleName}
-                  onChange={(e) => setJobRoleName(e.target.value)}
-                  required
-                />
-                <Button type="submit" className="md:col-span-2 md:justify-self-start">
-                  Add job role
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Branches & sites</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <ul className="space-y-2 text-sm">
-                {org.map((b) => (
-                  <li
-                    key={b.id}
-                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                  >
-                    <div>
-                      <span className="font-medium">{b.name}</span>{" "}
-                      <span className="text-muted-foreground">({b.code})</span>
-                      {b.sites.length ? (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          — {b.sites.map((s) => s.name).join(", ")}
-                        </span>
-                      ) : null}
-                    </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => setPendingBranch(b)}
-                    >
-                      Remove
-                    </Button>
-                  </li>
-                ))}
-                {org.length === 0 ? (
-                  <li className="text-muted-foreground">No branches yet.</li>
-                ) : null}
-              </ul>
-              <form className="grid gap-3 md:grid-cols-3" onSubmit={createBranch}>
-                <Input
-                  placeholder="Branch name"
-                  value={branchName}
-                  onChange={(e) => setBranchName(e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="Code (cairo)"
-                  value={branchCode}
-                  onChange={(e) => setBranchCode(e.target.value)}
-                  required
-                />
-                <Button type="submit">Add branch</Button>
-              </form>
-              <form className="grid gap-3 md:grid-cols-4" onSubmit={createSite}>
-                <select
-                  className={selectClass}
-                  value={siteBranchId}
-                  onChange={(e) => setSiteBranchId(e.target.value)}
-                  required
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <details className="rounded-lg border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+            Job roles
+            <span className="ml-2 font-normal text-muted-foreground">
+              {jobRoles.length}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t px-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Functions people perform (sales, driver, coordinator). Separate
+              from Admin or Employee access.
+            </p>
+            <ul className="space-y-2 text-sm">
+              {jobRoles.map((role) => (
+                <li
+                  key={role.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
                 >
-                  <option value="">Branch</option>
-                  {org.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-                <Input
-                  placeholder="Site name"
-                  value={siteName}
-                  onChange={(e) => setSiteName(e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder="Code"
-                  value={siteCode}
-                  onChange={(e) => setSiteCode(e.target.value)}
-                  required
-                />
-                <Button type="submit" variant="secondary">
-                  Add site
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="add" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Add one employee</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form className="grid gap-3 md:grid-cols-2 lg:grid-cols-3" onSubmit={createEmployee}>
-                <ProfileFieldGrid draft={form} onChange={setFormField} />
-                <div className="space-y-1">
-                  <Label>Branch</Label>
-                  <select
-                    className={selectClass}
-                    value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
-                  >
-                    <option value="">Unassigned</option>
-                    {org.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1 md:col-span-2 lg:col-span-3">
-                  <Label>Job roles</Label>
-                  <p className="text-xs text-muted-foreground">
-                    Optional. Separate from Admin or Employee access — pick every
-                    function this person covers.
-                  </p>
-                  <JobRolePicker
-                    roles={jobRoles}
-                    selectedIds={createJobRoleIds}
-                    onChange={setCreateJobRoleIds}
-                  />
-                </div>
-                <div className="flex items-end md:col-span-2 lg:col-span-3">
-                  <Button type="submit" disabled={saving}>
-                    {saving ? "Creating…" : "Create employee"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Import from CSV</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Required columns: name, email, phone, role (access: employee or
-                tenant_admin), jobTitle, nationalId, dateOfBirth, address,
-                hireDate. Optional: emergencyContactName, emergencyContactPhone,
-                branchCode. Assign job roles after import. Incomplete rows must
-                be filled in before anyone is added.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button type="button" variant="outline" onClick={downloadTemplate}>
-                  Download template
-                </Button>
-                <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent">
-                  Upload CSV
-                  <input
-                    type="file"
-                    accept=".csv,text/csv"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      const reader = new FileReader();
-                      reader.onload = () => {
-                        applyCsv(String(reader.result ?? ""), file.name);
-                      };
-                      reader.readAsText(file);
-                      e.target.value = "";
-                    }}
-                  />
-                </label>
-              </div>
-              {csvFileName ? (
-                <p className="text-xs text-muted-foreground">File: {csvFileName}</p>
-              ) : null}
-              <textarea
-                className="min-h-28 w-full rounded-md border border-input bg-background p-3 text-sm"
-                value={csvText}
-                placeholder="Paste CSV here, or upload a file…"
-                onChange={(e) => {
-                  const text = e.target.value;
-                  setCsvText(text);
-                  if (!text.trim()) {
-                    setReviewRows(null);
-                    setCsvFileName(null);
-                    return;
-                  }
-                  const preview = parseEmployeeCsv(text);
-                  setReviewRows(preview.rows.length ? preview.rows : null);
-                }}
-              />
-              {reviewRows ? (
-                <div className="space-y-3">
-                  {incompleteCount > 0 ? (
-                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                      {incompleteCount} of {reviewRows.length} row
-                      {reviewRows.length === 1 ? "" : "s"}{" "}
-                      {incompleteCount === 1 ? "is" : "are"} missing required
-                      information. Fill the highlighted fields before adding
-                      these people to the system.
-                    </p>
-                  ) : (
-                    <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                      All {reviewRows.length} row
-                      {reviewRows.length === 1 ? "" : "s"} look complete. Review
-                      then add them to the system.
-                    </p>
-                  )}
-                  <div className="space-y-3">
-                    {reviewRows.map((row, index) => {
-                      const incomplete = !isEmployeeDraftComplete(row.data);
-                      return (
-                        <div
-                          key={`${row.line}-${index}`}
-                          className={`rounded-lg border p-3 ${
-                            incomplete
-                              ? "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40"
-                              : "border-border"
-                          }`}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-2">
-                            <p className="text-sm font-medium">
-                              Row {row.line}
-                              {row.data.name ? ` · ${row.data.name}` : ""}
-                              {incomplete ? (
-                                <span className="ml-2 text-xs font-normal text-amber-800">
-                                  Missing:{" "}
-                                  {row.missing
-                                    .map(
-                                      (k) =>
-                                        EMPLOYEE_FIELD_DEFS.find((f) => f.key === k)
-                                          ?.label ?? k,
-                                    )
-                                    .join(", ")}
-                                  {row.errors.length
-                                    ? ` · ${row.errors.map((e) => e.message).join(", ")}`
-                                    : ""}
-                                </span>
-                              ) : (
-                                <span className="ml-2 text-xs font-normal text-emerald-700">
-                                  Ready
-                                </span>
-                              )}
-                            </p>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              onClick={() =>
-                                setReviewRows((rows) =>
-                                  rows
-                                    ? rows.filter((_, i) => i !== index)
-                                    : rows,
-                                )
-                              }
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {EMPLOYEE_FIELD_DEFS.map((field) => {
-                              const isMissing = row.missing.includes(field.key);
-                              const fieldErr = row.errors.find(
-                                (e) => e.field === field.key,
-                              );
-                              return (
-                                <div key={field.key} className="space-y-1">
-                                  <Label className="text-xs">
-                                    {field.key === "role" ? "Access" : field.label}
-                                    {field.required ? " *" : ""}
-                                  </Label>
-                                  {field.key === "role" ? (
-                                    <select
-                                      className={`${selectClass} h-9 ${
-                                        isMissing || fieldErr
-                                          ? "border-destructive"
-                                          : ""
-                                      }`}
-                                      value={row.data.role || "employee"}
-                                      onChange={(e) =>
-                                        updateReviewRow(
-                                          index,
-                                          "role",
-                                          e.target.value,
-                                        )
-                                      }
-                                    >
-                                      <option value="employee">Employee</option>
-                                      <option value="tenant_admin">Admin</option>
-                                    </select>
-                                  ) : (
-                                    <Input
-                                      type={
-                                        field.type === "select"
-                                          ? "text"
-                                          : field.type
-                                      }
-                                      value={row.data[field.key]}
-                                      placeholder={field.placeholder}
-                                      className={
-                                        isMissing || fieldErr
-                                          ? "border-destructive"
-                                          : undefined
-                                      }
-                                      onChange={(e) =>
-                                        updateReviewRow(
-                                          index,
-                                          field.key,
-                                          e.target.value,
-                                        )
-                                      }
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
+                  <div>
+                    <span className="font-medium">{role.name}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {role.employeeCount ?? 0} assigned
+                    </span>
                   </div>
                   <Button
                     type="button"
-                    disabled={importing || incompleteCount > 0 || !reviewRows.length}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPendingJobRole(role)}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+              {jobRoles.length === 0 ? (
+                <li className="text-muted-foreground">No job roles yet.</li>
+              ) : null}
+            </ul>
+            <form className="flex gap-2" onSubmit={createJobRole}>
+              <Input
+                placeholder="Role name (Sales, Driver…)"
+                value={jobRoleName}
+                onChange={(e) => setJobRoleName(e.target.value)}
+                required
+              />
+              <Button type="submit">Add</Button>
+            </form>
+          </div>
+        </details>
+        <details className="rounded-lg border bg-card">
+          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
+            Branches & sites
+            <span className="ml-2 font-normal text-muted-foreground">
+              {org.length}
+            </span>
+          </summary>
+          <div className="space-y-4 border-t px-4 py-4">
+            <ul className="space-y-2 text-sm">
+              {org.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
+                >
+                  <div>
+                    <span className="font-medium">{b.name}</span>{" "}
+                    <span className="text-muted-foreground">({b.code})</span>
+                    {b.sites.length ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        — {b.sites.map((s) => s.name).join(", ")}
+                      </span>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setPendingBranch(b)}
+                  >
+                    Remove
+                  </Button>
+                </li>
+              ))}
+              {org.length === 0 ? (
+                <li className="text-muted-foreground">No branches yet.</li>
+              ) : null}
+            </ul>
+            <form className="grid gap-2 sm:grid-cols-3" onSubmit={createBranch}>
+              <Input
+                placeholder="Branch name"
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                required
+              />
+              <Input
+                placeholder="Code (cairo)"
+                value={branchCode}
+                onChange={(e) => setBranchCode(e.target.value)}
+                required
+              />
+              <Button type="submit">Add branch</Button>
+            </form>
+            <form className="grid gap-2 sm:grid-cols-4" onSubmit={createSite}>
+              <select
+                className={selectClass}
+                value={siteBranchId}
+                onChange={(e) => setSiteBranchId(e.target.value)}
+                required
+              >
+                <option value="">Branch</option>
+                {org.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+              <Input
+                placeholder="Site name"
+                value={siteName}
+                onChange={(e) => setSiteName(e.target.value)}
+                required
+              />
+              <Input
+                placeholder="Code"
+                value={siteCode}
+                onChange={(e) => setSiteCode(e.target.value)}
+                required
+              />
+              <Button type="submit" variant="secondary">
+                Add site
+              </Button>
+            </form>
+          </div>
+        </details>
+      </div>
+
+      <Modal
+        open={addOpen}
+        onOpenChange={(open) => {
+          if (!open && (saving || importing)) return;
+          setAddOpen(open);
+          if (open) setError(null);
+        }}
+        wide
+        title="Add employee"
+        description="Create one person, or import a roster from CSV."
+      >
+        <div className="mb-4 inline-flex rounded-lg bg-secondary p-1 text-sm">
+          <button
+            type="button"
+            className={cn(
+              "rounded-md px-3 py-1.5 font-medium",
+              addMode === "one"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground",
+            )}
+            onClick={() => setAddMode("one")}
+          >
+            One person
+          </button>
+          <button
+            type="button"
+            className={cn(
+              "rounded-md px-3 py-1.5 font-medium",
+              addMode === "csv"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground",
+            )}
+            onClick={() => setAddMode("csv")}
+          >
+            Import CSV
+          </button>
+        </div>
+        {dialogError && addOpen ? (
+          <p className="mb-3 text-sm text-destructive">{dialogError}</p>
+        ) : null}
+
+        {addMode === "one" ? (
+          <form
+            className="grid gap-3 md:grid-cols-2"
+            onSubmit={createEmployee}
+          >
+            <ProfileFieldGrid draft={form} onChange={setFormField} />
+            <div className="space-y-1">
+              <Label>Branch</Label>
+              <select
+                className={selectClass}
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+              >
+                <option value="">Unassigned</option>
+                {org.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label>Job roles</Label>
+              <p className="text-xs text-muted-foreground">
+                Optional. Pick every function this person covers.
+              </p>
+              <JobRolePicker
+                roles={jobRoles}
+                selectedIds={createJobRoleIds}
+                onChange={setCreateJobRoleIds}
+              />
+            </div>
+            <div className="space-y-1 md:col-span-2">
+              <Label>System control roles</Label>
+              <p className="text-xs text-muted-foreground">
+                Optional. Let this employee control specific modules without
+                making them a full admin.
+              </p>
+              <SystemModuleRolePicker
+                selected={
+                  form.role === "tenant_admin" ? [] : createSystemRoles
+                }
+                disabled={form.role === "tenant_admin"}
+                onChange={setCreateSystemRoles}
+              />
+            </div>
+            <div className="flex justify-end gap-2 md:col-span-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setAddOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Creating…" : "Create employee"}
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Required columns: name, email, phone, role (employee or
+              tenant_admin), jobTitle, nationalId, dateOfBirth, address,
+              hireDate. Optional: emergencyContactName, emergencyContactPhone,
+              branchCode.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={downloadTemplate}
+              >
+                Download template
+              </Button>
+              <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent">
+                Upload CSV
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                      applyCsv(String(reader.result ?? ""), file.name);
+                    };
+                    reader.readAsText(file);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </div>
+            {csvFileName ? (
+              <p className="text-xs text-muted-foreground">
+                File: {csvFileName}
+              </p>
+            ) : null}
+            <textarea
+              className="min-h-24 w-full rounded-md border border-input bg-background p-3 text-sm"
+              value={csvText}
+              placeholder="Paste CSV here, or upload a file…"
+              onChange={(e) => {
+                const text = e.target.value;
+                setCsvText(text);
+                if (!text.trim()) {
+                  setReviewRows(null);
+                  setCsvFileName(null);
+                  return;
+                }
+                const preview = parseEmployeeCsv(text);
+                setReviewRows(preview.rows.length ? preview.rows : null);
+              }}
+            />
+            {reviewRows ? (
+              <div className="space-y-3">
+                {incompleteCount > 0 ? (
+                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                    {incompleteCount} of {reviewRows.length} row
+                    {reviewRows.length === 1 ? "" : "s"}{" "}
+                    {incompleteCount === 1 ? "is" : "are"} missing required
+                    information.
+                  </p>
+                ) : (
+                  <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+                    All {reviewRows.length} row
+                    {reviewRows.length === 1 ? "" : "s"} look complete.
+                  </p>
+                )}
+                <div className="space-y-3">
+                  {reviewRows.map((row, index) => {
+                    const incomplete = !isEmployeeDraftComplete(row.data);
+                    return (
+                      <div
+                        key={`${row.line}-${index}`}
+                        className={`rounded-lg border p-3 ${
+                          incomplete
+                            ? "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40"
+                            : "border-border"
+                        }`}
+                      >
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">
+                            Row {row.line}
+                            {row.data.name ? ` · ${row.data.name}` : ""}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            onClick={() =>
+                              setReviewRows((rows) =>
+                                rows
+                                  ? rows.filter((_, i) => i !== index)
+                                  : rows,
+                              )
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {EMPLOYEE_FIELD_DEFS.map((field) => {
+                            const isMissing = row.missing.includes(field.key);
+                            const fieldErr = row.errors.find(
+                              (e) => e.field === field.key,
+                            );
+                            return (
+                              <div key={field.key} className="space-y-1">
+                                <Label className="text-xs">
+                                  {field.key === "role"
+                                    ? "Access"
+                                    : field.label}
+                                  {field.required ? " *" : ""}
+                                </Label>
+                                {field.key === "role" ? (
+                                  <select
+                                    className={`${selectClass} h-9 ${
+                                      isMissing || fieldErr
+                                        ? "border-destructive"
+                                        : ""
+                                    }`}
+                                    value={row.data.role || "employee"}
+                                    onChange={(e) =>
+                                      updateReviewRow(
+                                        index,
+                                        "role",
+                                        e.target.value,
+                                      )
+                                    }
+                                  >
+                                    <option value="employee">Employee</option>
+                                    <option value="tenant_admin">Admin</option>
+                                  </select>
+                                ) : (
+                                  <Input
+                                    type={
+                                      field.type === "select"
+                                        ? "text"
+                                        : field.type
+                                    }
+                                    value={row.data[field.key]}
+                                    placeholder={field.placeholder}
+                                    className={
+                                      isMissing || fieldErr
+                                        ? "border-destructive"
+                                        : undefined
+                                    }
+                                    onChange={(e) =>
+                                      updateReviewRow(
+                                        index,
+                                        field.key,
+                                        e.target.value,
+                                      )
+                                    }
+                                  />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={importing}
+                    onClick={() => setAddOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    disabled={
+                      importing || incompleteCount > 0 || !reviewRows.length
+                    }
                     onClick={() => void importReviewed()}
                   >
                     {importing
                       ? "Adding…"
                       : incompleteCount > 0
                         ? "Fill missing info to continue"
-                        : `Add ${reviewRows.length} employee${reviewRows.length === 1 ? "" : "s"} to the system`}
+                        : `Add ${reviewRows.length} employee${reviewRows.length === 1 ? "" : "s"}`}
                   </Button>
                 </div>
+              </div>
+            ) : (
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAddOpen(false)}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(editId && editing)}
+        onOpenChange={(open) => {
+          if (!open) closeEditor();
+        }}
+        wide
+        title={
+          editing
+            ? profileComplete(editing)
+              ? `Edit ${editing.name}`
+              : `Complete ${editing.name}`
+            : "Edit employee"
+        }
+        description="Update personal details, access, roles, branch, and work zone."
+      >
+        {editing ? (
+          <div className="space-y-4">
+            {dialogError && editId ? (
+              <p className="text-sm text-destructive">{dialogError}</p>
+            ) : null}
+            {!isEmployeeDraftComplete(editDraft) ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                Fill the highlighted fields to complete this profile.
+              </p>
+            ) : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <ProfileFieldGrid draft={editDraft} onChange={setEditField} />
+              <div className="space-y-1">
+                <Label>Branch</Label>
+                <select
+                  className={selectClass}
+                  value={editBranchId}
+                  onChange={(e) => setEditBranchId(e.target.value)}
+                >
+                  <option value="">Unassigned</option>
+                  {org.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Status</Label>
+                <select
+                  className={selectClass}
+                  value={editStatus}
+                  onChange={(e) =>
+                    setEditStatus(
+                      e.target.value === "inactive" ? "inactive" : "active",
+                    )
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>Job roles</Label>
+                <JobRolePicker
+                  roles={jobRoles}
+                  selectedIds={editJobRoleIds}
+                  onChange={setEditJobRoleIds}
+                />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>System control roles</Label>
+                <SystemModuleRolePicker
+                  selected={
+                    editDraft.role === "tenant_admin" ? [] : editSystemRoles
+                  }
+                  disabled={editDraft.role === "tenant_admin"}
+                  onChange={setEditSystemRoles}
+                />
+              </div>
+            </div>
+            <div className="rounded-lg border bg-secondary/30 p-3">
+              <p className="mb-2 text-sm font-medium">Work zone</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Clock-in/out must happen inside this radius. Leave blank for no
+                zone.
+              </p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Latitude</Label>
+                  <Input
+                    value={zoneLat}
+                    onChange={(e) => setZoneLat(e.target.value)}
+                    placeholder="30.0444"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Longitude</Label>
+                  <Input
+                    value={zoneLng}
+                    onChange={(e) => setZoneLng(e.target.value)}
+                    placeholder="31.2357"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Radius (m)</Label>
+                  <Input
+                    type="number"
+                    min={MIN_GEOFENCE_RADIUS_METERS}
+                    max={MAX_GEOFENCE_RADIUS_METERS}
+                    value={zoneRadius}
+                    onChange={(e) => setZoneRadius(e.target.value)}
+                  />
+                </div>
+              </div>
+              {editing.geofenceRadiusMeters != null ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="mt-2"
+                  disabled={zoneBusy || editSaving}
+                  onClick={() => void clearZone(editing.id)}
+                >
+                  {zoneBusy ? "Clearing…" : "Clear zone"}
+                </Button>
               ) : null}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={editSaving}
+                onClick={closeEditor}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={editSaving}
+                onClick={() => void saveEditor(editing.id)}
+              >
+                {editSaving
+                  ? "Saving…"
+                  : profileComplete(editing)
+                    ? "Save changes"
+                    : "Save and complete"}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
       <ConfirmDialog
         open={Boolean(pendingBranch)}
         title={pendingBranch ? `Remove branch “${pendingBranch.name}”?` : "Remove branch?"}

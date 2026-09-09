@@ -1,6 +1,46 @@
 export const ROLES = ["super_admin", "tenant_admin", "employee"] as const;
 export type Role = (typeof ROLES)[number];
 
+/** Module control roles an admin can grant to employees (distinct from access `Role` and job roles). */
+export const SYSTEM_MODULE_ROLES = [
+  "kpis",
+  "leaves",
+  "hiring",
+  "compensation",
+] as const;
+export type SystemModuleRole = (typeof SYSTEM_MODULE_ROLES)[number];
+
+export const SYSTEM_MODULE_ROLE_LABELS: Record<SystemModuleRole, string> = {
+  kpis: "KPIs",
+  leaves: "Leaves",
+  hiring: "Hiring",
+  compensation: "Compensation",
+};
+
+export function normalizeSystemModuleRoles(
+  roles: readonly string[] | null | undefined,
+): SystemModuleRole[] {
+  if (!roles?.length) return [];
+  const allowed = new Set<string>(SYSTEM_MODULE_ROLES);
+  const unique = new Set<SystemModuleRole>();
+  for (const role of roles) {
+    if (allowed.has(role)) unique.add(role as SystemModuleRole);
+  }
+  return SYSTEM_MODULE_ROLES.filter((role) => unique.has(role));
+}
+
+export function hasSystemModuleRole(
+  actor: {
+    role?: Role | string | null;
+    systemModuleRoles?: readonly string[] | null;
+  } | null | undefined,
+  module: SystemModuleRole,
+): boolean {
+  if (!actor) return false;
+  if (actor.role === "tenant_admin" || actor.role === "super_admin") return true;
+  return normalizeSystemModuleRoles(actor.systemModuleRoles).includes(module);
+}
+
 export const TENANT_STATUSES = ["active", "suspended", "deleted"] as const;
 export type TenantStatus = (typeof TENANT_STATUSES)[number];
 
