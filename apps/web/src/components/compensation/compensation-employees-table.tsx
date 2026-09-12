@@ -26,6 +26,7 @@ import type {
 } from "@/lib/compensation/types";
 import { COMP_STATUSES, PAY_STRUCTURES } from "@/lib/compensation/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function CompensationEmployeesTable({
   employees,
@@ -50,17 +51,16 @@ export function CompensationEmployeesTable({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Employee compensation</CardTitle>
+            <CardTitle className="text-base">{t("Employee compensation")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Date-effective records, pay structure, and band position
-            </p>
+              {t("Date-effective records, pay structure, and band position")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="h-9 w-44 pl-8"
-                placeholder="Name, ID, role"
+                placeholder={t("Name, ID, role")}
                 value={filters.search}
                 onChange={(e) => onChange({ search: e.target.value })}
               />
@@ -70,7 +70,7 @@ export function CompensationEmployeesTable({
               value={filters.department}
               onChange={(e) => onChange({ department: e.target.value })}
             >
-              <option value="">All departments</option>
+              <option value="">{t("All departments")}</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -82,7 +82,7 @@ export function CompensationEmployeesTable({
               value={filters.status}
               onChange={(e) => onChange({ status: e.target.value as CompStatus | "" })}
             >
-              <option value="">Any status</option>
+              <option value="">{t("Any status")}</option>
               {COMP_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {s.replace("_", " ")}
@@ -97,7 +97,7 @@ export function CompensationEmployeesTable({
             value={filters.branchId}
             onChange={(e) => onChange({ branchId: e.target.value })}
           >
-            <option value="">All branches</option>
+            <option value="">{t("All branches")}</option>
             {branches.map(([id, name]) => (
               <option key={id} value={id}>
                 {name}
@@ -109,7 +109,7 @@ export function CompensationEmployeesTable({
             value={filters.payStructure}
             onChange={(e) => onChange({ payStructure: e.target.value as PayStructure | "" })}
           >
-            <option value="">Any pay structure</option>
+            <option value="">{t("Any pay structure")}</option>
             {PAY_STRUCTURES.map((s) => (
               <option key={s} value={s}>
                 {payStructureLabel(s)}
@@ -123,10 +123,10 @@ export function CompensationEmployeesTable({
               onChange({ band: e.target.value as EmployeeFilters["band"] })
             }
           >
-            <option value="all">Any band position</option>
-            <option value="below">Below band</option>
-            <option value="in_band">In band</option>
-            <option value="above">Above band</option>
+            <option value="all">{t("Any band position")}</option>
+            <option value="below">{t("Below band")}</option>
+            <option value="in_band">{t("In band")}</option>
+            <option value="above">{t("Above band")}</option>
           </select>
         </div>
       </CardHeader>
@@ -134,20 +134,20 @@ export function CompensationEmployeesTable({
         {employees.length === 0 ? (
           <div className="px-4 pb-4">
             <CompEmptyState
-              title="No matching employees"
-              description="Try clearing filters or search for a different name, role, or department."
+              title={t("No matching employees")}
+              description={t("Try clearing filters or search for a different name, role, or department.")}
             />
           </div>
         ) : (
           <table className="w-full min-w-[760px] text-left text-sm">
             <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 font-medium">Employee</th>
-                <th className="px-3 py-2 font-medium">Structure</th>
-                <th className="px-3 py-2 font-medium">Base / rate</th>
-                <th className="px-3 py-2 font-medium">Monthly equiv.</th>
-                <th className="px-3 py-2 font-medium">Band</th>
-                <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-2 font-medium">{t("Employee")}</th>
+                <th className="px-3 py-2 font-medium">{t("Structure")}</th>
+                <th className="px-3 py-2 font-medium">{t("Base / rate")}</th>
+                <th className="px-3 py-2 font-medium">{t("Monthly equiv.")}</th>
+                <th className="px-3 py-2 font-medium">{t("Band")}</th>
+                <th className="px-4 py-2 font-medium">{t("Status")}</th>
               </tr>
             </thead>
             <tbody>
@@ -172,8 +172,7 @@ export function CompensationEmployeesTable({
                       {payStructureLabel(rec.payStructure)}
                       {rec.payStructure === "hourly" ? (
                         <p className="mt-0.5 text-[11px] text-muted-foreground">
-                          {formatHours(store.cycleHours(emp.id)?.workedHours ?? 0)} this cycle
-                        </p>
+                          {formatHours(store.cycleHours(emp.id)?.workedHours ?? 0)} {t("this cycle")}</p>
                       ) : null}
                     </td>
                     <td className="px-3 py-3 tabular-nums">

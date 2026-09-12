@@ -15,6 +15,7 @@ import type {
   LeaveType,
 } from "@/lib/leave/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function LeaveBalancesTable({
   balances,
@@ -64,23 +65,22 @@ export function LeaveBalancesTable({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Employee balances</CardTitle>
+            <CardTitle className="text-base">{t("Employee balances")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Opening, accrued, used, pending, and remaining days
-            </p>
+              {t("Opening, accrued, used, pending, and remaining days")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="h-9 w-44 pl-8"
-                placeholder="Search people"
+                placeholder={t("Search people")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
             <select className={cn(SELECT_CLASS, "w-44")} value={typeId} onChange={(e) => setTypeId(e.target.value)}>
-              <option value="">All leave types</option>
+              <option value="">{t("All leave types")}</option>
               {types
                 .filter((t) => t.tracksBalance)
                 .map((t) => (
@@ -96,16 +96,16 @@ export function LeaveBalancesTable({
         <table className="w-full min-w-[980px] text-sm">
           <thead>
             <tr className="border-y bg-secondary/50 text-left text-xs text-muted-foreground">
-              <th className="px-3 py-2">Employee</th>
-              <th className="px-3 py-2">Type</th>
-              <th className="px-3 py-2">Opening</th>
-              <th className="px-3 py-2">Accrued</th>
-              <th className="px-3 py-2">Carry-over</th>
-              <th className="px-3 py-2">Adj.</th>
-              <th className="px-3 py-2">Used</th>
-              <th className="px-3 py-2">Pending</th>
-              <th className="px-3 py-2">Remaining</th>
-              <th className="px-3 py-2">Last accrual</th>
+              <th className="px-3 py-2">{t("Employee")}</th>
+              <th className="px-3 py-2">{t("Type")}</th>
+              <th className="px-3 py-2">{t("Opening")}</th>
+              <th className="px-3 py-2">{t("Accrued")}</th>
+              <th className="px-3 py-2">{t("Carry-over")}</th>
+              <th className="px-3 py-2">{t("Adj.")}</th>
+              <th className="px-3 py-2">{t("Used")}</th>
+              <th className="px-3 py-2">{t("Pending")}</th>
+              <th className="px-3 py-2">{t("Remaining")}</th>
+              <th className="px-3 py-2">{t("Last accrual")}</th>
               <th className="px-3 py-2" />
             </tr>
           </thead>
@@ -134,7 +134,7 @@ export function LeaveBalancesTable({
                       {formatDays(b.remaining)}
                     </span>
                     {neg ? (
-                      <span className="ml-1 text-[10px] font-semibold uppercase text-rose-700">Neg</span>
+                      <span className="ml-1 text-[10px] font-semibold uppercase text-rose-700">{t("Neg")}</span>
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
@@ -147,12 +147,10 @@ export function LeaveBalancesTable({
                         variant="ghost"
                         onClick={() => setHistoryFor(`${b.employeeId}:${b.leaveTypeId}`)}
                       >
-                        Ledger
-                      </Button>
+                        {t("Ledger")}</Button>
                       {isAdmin ? (
                         <Button size="sm" variant="outline" onClick={() => setAdjust(b)}>
-                          Adjust
-                        </Button>
+                          {t("Adjust")}</Button>
                       ) : null}
                     </div>
                   </td>
@@ -164,13 +162,12 @@ export function LeaveBalancesTable({
         {historyFor ? (
           <div className="border-t px-4 py-3">
             <div className="mb-2 flex items-center justify-between">
-              <p className="text-sm font-medium">Balance transactions</p>
+              <p className="text-sm font-medium">{t("Balance transactions")}</p>
               <Button size="sm" variant="ghost" onClick={() => setHistoryFor(null)}>
-                Close
-              </Button>
+                {t("Close")}</Button>
             </div>
             {history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No transactions yet.</p>
+              <p className="text-sm text-muted-foreground">{t("No transactions yet.")}</p>
             ) : (
               <ul className="space-y-2">
                 {history.slice(0, 12).map((t) => (
@@ -197,13 +194,11 @@ export function LeaveBalancesTable({
         ) : null}
         {adjust ? (
           <div className="border-t px-4 py-3">
-            <p className="text-sm font-medium">Adjust leave balance</p>
+            <p className="text-sm font-medium">{t("Adjust leave balance")}</p>
             <p className="text-xs text-muted-foreground">
-              Posts a MANUAL_ADJUSTMENT. Remaining days update immediately.
-            </p>
+              {t("Posts a MANUAL_ADJUSTMENT. Remaining days update immediately.")}</p>
             <Label className="mt-2 text-xs text-muted-foreground">
-              Days to add (use a negative number to subtract)
-            </Label>
+              {t("Days to add (use a negative number to subtract)")}</Label>
             <Input
               className="mt-1 h-9"
               type="number"
@@ -211,7 +206,7 @@ export function LeaveBalancesTable({
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
             />
-            <Label className="mt-2 text-xs text-muted-foreground">Reason (required)</Label>
+            <Label className="mt-2 text-xs text-muted-foreground">{t("Reason (required)")}</Label>
             <textarea className={`${TEXTAREA_CLASS} mt-1`} value={note} onChange={(e) => setNote(e.target.value)} />
             <div className="mt-2 flex gap-2">
               <Button
@@ -223,11 +218,9 @@ export function LeaveBalancesTable({
                   setNote("");
                 }}
               >
-                Post adjustment
-              </Button>
+                {t("Post adjustment")}</Button>
               <Button size="sm" variant="ghost" onClick={() => setAdjust(null)}>
-                Cancel
-              </Button>
+                {t("Cancel")}</Button>
             </div>
           </div>
         ) : null}

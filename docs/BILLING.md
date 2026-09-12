@@ -42,3 +42,10 @@ Active employee count is enforced against `plans.seat_limit` on create/import/re
 ## Manual overrides
 
 Super admins can cancel or force-activate subscriptions under `/app/subscriptions` for support cases.
+
+## Smoke checklist
+
+1. Log in as a **tenant admin**.
+2. Open `/app/billing` — current plan and seat summary load.
+3. Confirm the **available plan list** is shown.
+4. Start **checkout** on a paid plan — requires Paymob env (`PAYMOB_*`); without it, checkout returns `503`.

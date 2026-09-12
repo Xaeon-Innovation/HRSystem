@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function ThemeToggle({
   className,
@@ -22,16 +23,16 @@ export function ThemeToggle({
   return (
     <div
       className={cn(
-        "inline-flex items-center rounded-lg border border-border bg-muted/80 p-0.5",
+        "inline-flex items-center rounded-lg border border-white/40 bg-muted/55 p-0.5 backdrop-blur-md dark:border-white/10",
         className,
       )}
       role="group"
-      aria-label="Color theme"
+      aria-label={t("Color theme")}
     >
       <button
         type="button"
         onClick={() => setTheme("light")}
-        aria-label="Light mode"
+        aria-label={t("Light mode")}
         aria-pressed={mounted ? !isDark : undefined}
         className={cn(
           "inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
@@ -41,12 +42,12 @@ export function ThemeToggle({
         )}
       >
         <Sun className="h-3.5 w-3.5" />
-        {showLabels ? "Light" : null}
+        {showLabels ? t("Light") : null}
       </button>
       <button
         type="button"
         onClick={() => setTheme("dark")}
-        aria-label="Dark mode"
+        aria-label={t("Dark mode")}
         aria-pressed={mounted ? isDark : undefined}
         className={cn(
           "inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors",
@@ -56,7 +57,7 @@ export function ThemeToggle({
         )}
       >
         <Moon className="h-3.5 w-3.5" />
-        {showLabels ? "Dark" : null}
+        {showLabels ? t("Dark") : null}
       </button>
     </div>
   );

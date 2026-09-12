@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { CategoryScore, KpiAlert, KpiCategoryId } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 const SEVERITY: Record<KpiAlert["severity"], string> = {
   high: "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800",
@@ -21,14 +22,13 @@ export function KpiCategoryPanel({
   return (
     <Card className="h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Category breakdown</CardTitle>
+        <CardTitle className="text-base">{t("Category breakdown")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Weighted score by KPI group — click to filter the table
-        </p>
+          {t("Weighted score by KPI group — click to filter the table")}</p>
       </CardHeader>
       <CardContent className="space-y-2">
         {categories.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No categorized KPIs in view.</p>
+          <p className="text-sm text-muted-foreground">{t("No categorized KPIs in view.")}</p>
         ) : (
           categories.map((c) => {
             const selected = active === c.id;
@@ -45,8 +45,7 @@ export function KpiCategoryPanel({
                 <div>
                   <p className="text-sm font-medium">{c.label}</p>
                   <p className="text-[11px] text-muted-foreground">
-                    {c.metCount}/{c.kpiCount} at target
-                    {c.missingCount ? ` · ${c.missingCount} missing` : ""}
+                    {c.metCount}/{c.kpiCount} {t("at target")}{c.missingCount ? ` · ${c.missingCount} missing` : ""}
                   </p>
                 </div>
                 <p className="text-lg font-semibold tabular-nums">
@@ -71,16 +70,14 @@ export function KpiAlertsPanel({
   return (
     <Card className="h-full" id="kpi-alerts">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Alerts & exceptions</CardTitle>
+        <CardTitle className="text-base">{t("Alerts & exceptions")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Thresholds and gaps that need a decision, not just a number
-        </p>
+          {t("Thresholds and gaps that need a decision, not just a number")}</p>
       </CardHeader>
       <CardContent className="space-y-2">
         {alerts.length === 0 ? (
           <p className="rounded-lg bg-emerald-50 px-3 py-3 text-sm text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-300">
-            No active exceptions in this period.
-          </p>
+            {t("No active exceptions in this period.")}</p>
         ) : (
           alerts.slice(0, 8).map((alert) => (
             <button

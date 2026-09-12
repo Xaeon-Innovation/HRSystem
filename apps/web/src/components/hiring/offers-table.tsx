@@ -6,6 +6,7 @@ import { HiringEmptyState } from "@/components/hiring/hiring-states";
 import { OfferStatusBadge } from "@/components/hiring/hiring-status-badge";
 import { formatDate, formatMoney } from "@/lib/hiring/format";
 import type { Offer } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function OffersTable({
   offers,
@@ -23,13 +24,12 @@ export function OffersTable({
   if (offers.length === 0) {
     return (
       <HiringEmptyState
-        title="No offers yet"
+        title={t("No offers yet")}
         description="When a candidate is ready, draft an offer from their profile or here."
         action={
           canManage ? (
             <Button size="sm" onClick={onNew}>
-              New offer
-            </Button>
+              {t("New offer")}</Button>
           ) : null
         }
       />
@@ -41,8 +41,7 @@ export function OffersTable({
       {canManage ? (
         <div className="flex justify-end">
           <Button size="sm" onClick={onNew}>
-            New offer
-          </Button>
+            {t("New offer")}</Button>
         </div>
       ) : null}
       {offers.map((o) => (
@@ -51,11 +50,11 @@ export function OffersTable({
             <button type="button" className="min-w-0 text-left" onClick={() => onOpen(o.id)}>
               <p className="font-semibold">{o.candidateName}</p>
               <p className="text-xs text-muted-foreground">
-                {o.offeredTitle} · {formatMoney(o.offeredSalary, o.currency)} · join{" "}
+                {o.offeredTitle} · {formatMoney(o.offeredSalary, o.currency)} {t("· join")}{" "}
                 {formatDate(o.expectedJoinDate)}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Offered {formatDate(o.offerDate)} · expires {formatDate(o.expiryDate)}
+                {t("Offered")}{formatDate(o.offerDate)} {t("· expires")}{formatDate(o.expiryDate)}
                 {o.approvedByName ? ` · approved by ${o.approvedByName}` : ""}
               </p>
             </button>
@@ -63,12 +62,10 @@ export function OffersTable({
               <OfferStatusBadge status={o.status} />
               {o.status === "pending_approval" && canManage ? (
                 <Button size="sm" onClick={() => onApprove(o.id)}>
-                  Approve & send
-                </Button>
+                  {t("Approve & send")}</Button>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => onOpen(o.id)}>
-                Open
-              </Button>
+                {t("Open")}</Button>
             </div>
           </CardContent>
         </Card>

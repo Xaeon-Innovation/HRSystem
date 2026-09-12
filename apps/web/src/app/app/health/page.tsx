@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 type Metrics = {
   aggregates: { metric: string; total: number }[];
@@ -26,15 +28,14 @@ export default function HealthPage() {
   }, []);
 
   if (error) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Health metrics</h1>
+        <h1 className="text-2xl font-semibold">{t("Health metrics")}</h1>
         <p className="text-sm text-muted-foreground">
-          Missed clock-outs, sync failures, notification issues
-        </p>
+          {t("Missed clock-outs, sync failures, notification issues")}</p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         {data.aggregates.map((a) => (

@@ -19,6 +19,7 @@ import {
 } from "@/lib/hiring/format";
 import type { Interview, InterviewStatus } from "@/lib/hiring/types";
 import { INTERVIEW_STATUSES } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function InterviewsCalendar({
   interviews,
@@ -88,7 +89,7 @@ export function InterviewsCalendar({
             value={status}
             onChange={(e) => setStatus(e.target.value as InterviewStatus | "")}
           >
-            <option value="">All statuses</option>
+            <option value="">{t("All statuses")}</option>
             {INTERVIEW_STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s.replace("_", " ")}
@@ -97,8 +98,7 @@ export function InterviewsCalendar({
           </select>
           {canSchedule ? (
             <Button size="sm" onClick={onSchedule}>
-              Schedule
-            </Button>
+              {t("Schedule")}</Button>
           ) : null}
         </div>
       </div>
@@ -107,13 +107,12 @@ export function InterviewsCalendar({
         <h3 className="text-sm font-semibold">{formatDate(day)}</h3>
         {onDay.length === 0 ? (
           <HiringEmptyState
-            title="No interviews this day"
-            description="Pick another day on the strip, or schedule a screen."
+            title={t("No interviews this day")}
+            description={t("Pick another day on the strip, or schedule a screen.")}
             action={
               canSchedule ? (
                 <Button size="sm" onClick={onSchedule}>
-                  Schedule interview
-                </Button>
+                  {t("Schedule interview")}</Button>
               ) : null
             }
           />
@@ -133,7 +132,7 @@ export function InterviewsCalendar({
       </div>
 
       <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Upcoming</h3>
+        <h3 className="text-sm font-semibold">{t("Upcoming")}</h3>
         {upcoming.slice(0, 12).map((i) => (
           <InterviewRow
             key={i.id}
@@ -179,10 +178,10 @@ function InterviewRow({
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {formatDateTime(i.scheduledAt)} · {i.interviewerNames.join(", ")}
-            {i.meetingLink ? " · online link saved" : i.location ? ` · ${i.location}` : ""}
+            {i.meetingLink ? t(" · online link saved") : i.location ? ` · ${i.location}` : ""}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Candidate confirmation: {i.confirmationStatus}
+            {t("Candidate confirmation:")}{i.confirmationStatus}
           </p>
         </button>
         <div className="flex flex-wrap items-center gap-2">
@@ -192,25 +191,20 @@ function InterviewRow({
             <>
               {i.confirmationStatus !== "confirmed" && i.status === "scheduled" ? (
                 <Button size="sm" variant="outline" onClick={() => onConfirm(i.id)}>
-                  Mark confirmed
-                </Button>
+                  {t("Mark confirmed")}</Button>
               ) : null}
               <Button size="sm" variant="outline" onClick={() => onReschedule(i.id)}>
-                Reschedule
-              </Button>
+                {t("Reschedule")}</Button>
               {i.status !== "no_show" && i.status !== "completed" ? (
                 <Button size="sm" variant="ghost" onClick={() => onNoShow(i.id)}>
-                  No-show
-                </Button>
+                  {t("No-show")}</Button>
               ) : null}
               <Button size="sm" onClick={() => onScore(i.id)}>
-                Scorecard
-              </Button>
+                {t("Scorecard")}</Button>
             </>
           ) : (
             <Button size="sm" variant="ghost" onClick={() => onOpenCandidate(i.candidateId)}>
-              Open
-            </Button>
+              {t("Open")}</Button>
           )}
         </div>
       </CardContent>

@@ -17,7 +17,11 @@ import { LeaveRequestDetailDrawer } from "@/components/leave/leave-request-detai
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
 import { LeaveRequestsTable } from "@/components/leave/leave-requests-table";
 import { LeaveErrorState, LeaveLoadingSkeleton } from "@/components/leave/leave-states";
-import { LeaveStore, type LeaveActor, type LeaveRequestFilters, type LeaveSnapshot } from "@/lib/leave";
+import { LeaveSubNav, type LeaveSection } from "@/components/leave/leave-sub-nav";
+import { LeaveStore, actorCanActOnStep, currentApprovalStep, type LeaveActor, type LeaveRequestFilters, type LeaveSnapshot } from "@/lib/leave";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { useRouter } from "next/navigation";
+import { t } from "@/i18n";
 
 const EMPTY_FILTERS: LeaveRequestFilters = {
   search: "",
@@ -41,7 +45,10 @@ function actorFrom(user: AuthUser | null): LeaveActor {
   };
 }
 
-export function LeaveDashboard() {
+export function LeaveDashboard({ section }: { section?: LeaveSection }) {
+  const redesign = useUiRedesign();
+  const router = useRouter();
+  const split = Boolean(redesign && section);
   const storeRef = useRef(new LeaveStore());
   const store = storeRef.current;
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -62,6 +69,12 @@ export function LeaveDashboard() {
   const refresh = () => setTick((n) => n + 1);
   const actor = actorFrom(user);
   const isAdmin = userHasModule(user, "leaves");
+
+  useEffect(() => {
+    if (split && section === "policies" && !loading && user && !isAdmin) {
+      router.replace("/app/leave");
+    }
+  }, [split, section, loading, user, isAdmin, router]);
 
   function applyLeave(leave: LeaveSnapshot) {
     store.applySnapshot(leave);
@@ -100,7 +113,24 @@ export function LeaveDashboard() {
     : actor.employeeId
       ? store.balancesFor(actor.employeeId)
       : [];
-  const inbox = isAdmin ? store.inboxAlerts() : [];
+  const managerPending = useMemo(
+    () =>
+      !isAdmin && actor.employeeId
+        ? requests.filter(
+            (r) =>
+              r.status === "pending" &&
+              (r.managerId === actor.employeeId ||
+                actorCanActOnStep(actor, currentApprovalStep(r))),
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tick, requests, isAdmin, actor.employeeId, actor.id],
+  );
+  const inbox = isAdmin ? store.inboxAlerts() : managerPending.map((request) => ({
+    request,
+    reminder: false,
+    escalation: false,
+  }));
   const reminderCount = inbox.filter((i) => i.reminder || i.escalation).length;
 
   function patchFilters(patch: Partial<LeaveRequestFilters>) {
@@ -151,11 +181,21 @@ export function LeaveDashboard() {
 
       {reminderCount > 0 && isAdmin ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          {reminderCount} pending request{reminderCount === 1 ? "" : "s"} past the reminder or
-          escalation window.
-        </p>
+          {reminderCount} {t("pending request")}{reminderCount === 1 ? "" : "s"} {t("past the reminder or escalation window.")}</p>
       ) : null}
 
+      {managerPending.length > 0 ? (
+        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-800 dark:bg-sky-950/50">
+          <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">
+            {t("Team leave to approve")}</p>
+          <p className="mt-0.5 text-xs text-sky-900/80 dark:text-sky-200/80">
+            {managerPending.length} {t("request")}{managerPending.length === 1 ? "" : "s"} {t("waiting on you as manager.")}</p>
+        </div>
+      ) : null}
+
+      {split ? <LeaveSubNav isAdmin={isAdmin} /> : null}
+
+      {(!split || section === "requests") ? (
       <LeaveOverviewCards
         summary={
           isAdmin
@@ -169,32 +209,29 @@ export function LeaveDashboard() {
         remaining={myAnnual?.remaining ?? null}
         isAdmin={isAdmin}
       />
+      ) : null}
 
+      {!split ? (
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           <TabsTrigger value="requests" className="flex-none px-3">
-            Requests
-          </TabsTrigger>
+            {t("Requests")}</TabsTrigger>
           <TabsTrigger value="balances" className="flex-none px-3">
-            Balances
-          </TabsTrigger>
+            {t("Balances")}</TabsTrigger>
           <TabsTrigger value="calendar" className="flex-none px-3">
-            Calendar
-          </TabsTrigger>
+            {t("Calendar")}</TabsTrigger>
           {isAdmin ? (
             <TabsTrigger value="policies" className="flex-none px-3">
-              Policies
-            </TabsTrigger>
+              {t("Policies")}</TabsTrigger>
           ) : null}
           <TabsTrigger value="reports" className="flex-none px-3">
-            Reports
-          </TabsTrigger>
+            {t("Reports")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests" className="mt-4 space-y-3">
           {isAdmin && selectedIds.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
-              <p className="text-sm">{selectedIds.length} selected</p>
+              <p className="text-sm">{selectedIds.length} {t("selected")}</p>
               <Button
                 size="sm"
                 disabled={busy}
@@ -205,7 +242,7 @@ export function LeaveDashboard() {
                       body: JSON.stringify({
                         ids: selectedIds,
                         decision: "approved",
-                        comment: "Bulk approved",
+                        comment: t("Bulk approved"),
                       }),
                     });
                     applyLeave(res.leave);
@@ -213,8 +250,7 @@ export function LeaveDashboard() {
                   })
                 }
               >
-                Approve selected
-              </Button>
+                {t("Approve selected")}</Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -223,11 +259,9 @@ export function LeaveDashboard() {
                   if (first) setRejectId(first);
                 }}
               >
-                Reject selected
-              </Button>
+                {t("Reject selected")}</Button>
               <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                Clear
-              </Button>
+                {t("Clear")}</Button>
             </div>
           ) : null}
           <LeaveRequestsTable
@@ -237,12 +271,13 @@ export function LeaveDashboard() {
             employees={employees}
             types={types}
             isAdmin={isAdmin}
+            actor={actor}
             onOpen={setSelectedId}
             onQuickApprove={(id) =>
               void run(async () => {
                 const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
                   method: "POST",
-                  body: JSON.stringify({ decision: "approved", comment: "Approved" }),
+                  body: JSON.stringify({ decision: "approved", comment: t("Approved") }),
                 });
                 applyLeave(res.leave);
               })
@@ -324,7 +359,7 @@ export function LeaveDashboard() {
                   applyLeave(res.leave);
                   setAccrualMsg(
                     res.posted === 0
-                      ? "No accruals due — already posted for this period."
+                      ? t("No accruals due — already posted for this period.")
                       : `Posted ${res.posted} accrual transaction${res.posted === 1 ? "" : "s"}.`,
                   );
                 })
@@ -338,6 +373,148 @@ export function LeaveDashboard() {
           <LeaveReportsPanel summary={summary} />
         </TabsContent>
       </Tabs>
+      ) : (
+        <div className="space-y-3">
+          {section === "requests" ? (
+            <>
+              {isAdmin && selectedIds.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
+                  <p className="text-sm">{selectedIds.length} {t("selected")}</p>
+                  <Button
+                    size="sm"
+                    disabled={busy}
+                    onClick={() =>
+                      void run(async () => {
+                        const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
+                          method: "POST",
+                          body: JSON.stringify({
+                            ids: selectedIds,
+                            decision: "approved",
+                            comment: t("Bulk approved"),
+                          }),
+                        });
+                        applyLeave(res.leave);
+                        setSelectedIds([]);
+                      })
+                    }
+                  >
+                    {t("Approve selected")}</Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const first = selectedIds[0];
+                      if (first) setRejectId(first);
+                    }}
+                  >
+                    {t("Reject selected")}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
+                    {t("Clear")}</Button>
+                </div>
+              ) : null}
+              <LeaveRequestsTable
+                requests={requests}
+                filters={filters}
+                onChange={patchFilters}
+                employees={employees}
+                types={types}
+                isAdmin={isAdmin}
+                actor={actor}
+                onOpen={setSelectedId}
+                onQuickApprove={(id) =>
+                  void run(async () => {
+                    const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+                      method: "POST",
+                      body: JSON.stringify({ decision: "approved", comment: t("Approved") }),
+                    });
+                    applyLeave(res.leave);
+                  })
+                }
+                onQuickReject={(id) => setRejectId(id)}
+                selectedIds={selectedIds}
+                onToggleSelect={(id, selectedNow) =>
+                  setSelectedIds((prev) =>
+                    selectedNow ? [...new Set([...prev, id])] : prev.filter((x) => x !== id),
+                  )
+                }
+              />
+            </>
+          ) : null}
+          {section === "balances" ? (
+            <LeaveBalancesTable
+              balances={viewerBalances}
+              employees={employees}
+              types={types}
+              transactions={store.transactions()}
+              isAdmin={isAdmin}
+              onAdjust={(employeeId, leaveTypeId, amount, note) =>
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/balances/adjust", {
+                    method: "POST",
+                    body: JSON.stringify({ employeeId, leaveTypeId, amount, note }),
+                  });
+                  applyLeave(res.leave);
+                })
+              }
+            />
+          ) : null}
+          {section === "calendar" ? (
+            <LeaveCalendarView
+              events={store.calendar()}
+              employees={employees}
+              policies={policies}
+              requests={store.requests(undefined, isAdmin ? actor : actor)}
+              onOpen={setSelectedId}
+            />
+          ) : null}
+          {section === "policies" && isAdmin ? (
+            <LeavePoliciesPanel
+              types={types}
+              policies={policies}
+              notifications={store.notifications()}
+              onTypeChange={(id, patch) =>
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/types/${id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(patch),
+                  });
+                  applyLeave(res.leave);
+                })
+              }
+              onPolicyChange={(id, patch) =>
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/policies/${id}`, {
+                    method: "PATCH",
+                    body: JSON.stringify(patch),
+                  });
+                  applyLeave(res.leave);
+                })
+              }
+              onNotificationChange={(event, patch) =>
+                void run(async () => {
+                  store.updateNotification(event, patch);
+                  refresh();
+                })
+              }
+              onRunAccrual={() =>
+                void run(async () => {
+                  const res = await api<{ posted: number; leave: LeaveSnapshot }>("/v1/leave/accrual", {
+                    method: "POST",
+                  });
+                  applyLeave(res.leave);
+                  setAccrualMsg(
+                    res.posted === 0
+                      ? t("No accruals due — already posted for this period.")
+                      : `Posted ${res.posted} accrual transaction${res.posted === 1 ? "" : "s"}.`,
+                  );
+                })
+              }
+              lastPosted={accrualMsg}
+            />
+          ) : null}
+          {section === "reports" ? <LeaveReportsPanel summary={summary} /> : null}
+        </div>
+      )}
 
       <LeaveRequestForm
         key={`${formOpen}-${editingId ?? "new"}`}
@@ -434,7 +611,7 @@ export function LeaveDashboard() {
 
       <ConfirmDialog
         open={Boolean(rejectId)}
-        title="Reject leave request"
+        title={t("Reject leave request")}
         description="A written reason is required. The employee balance will not change."
         confirmLabel="Reject"
         variant="destructive"
@@ -480,7 +657,7 @@ export function LeaveDashboard() {
           className={`${TEXTAREA_CLASS} mt-3`}
           value={rejectReason}
           onChange={(e) => setRejectReason(e.target.value)}
-          placeholder="Why this request is being declined"
+          placeholder={t("Why this request is being declined")}
         />
       </ConfirmDialog>
     </div>

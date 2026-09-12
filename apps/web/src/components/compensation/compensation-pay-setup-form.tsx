@@ -25,6 +25,7 @@ import {
   SELECT_CLASS,
 } from "@/lib/compensation/format";
 import type { CompensationStore } from "@/lib/compensation/store";
+import { t } from "@/i18n";
 
 export function CompensationPaySetupForm({
   open,
@@ -93,11 +94,9 @@ export function CompensationPaySetupForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="max-w-lg">
         <SheetHeader>
-          <SheetTitle>Set hourly rate</SheetTitle>
+          <SheetTitle>{t("Set hourly rate")}</SheetTitle>
           <SheetDescription>
-            Hourly employees are paid from clock in/out hours this cycle. Time over the daily
-            standard (weekly hours ÷ 5) is overtime at 1.5×.
-          </SheetDescription>
+            {t("Hourly employees are paid from clock in/out hours this cycle. Time over the daily standard (weekly hours ÷ 5) is overtime at 1.5×.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-4">
           <Field label="Employee">
@@ -115,7 +114,7 @@ export function CompensationPaySetupForm({
           </Field>
           {rec ? (
             <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-muted-foreground">
-              Current {payStructureLabel(rec.payStructure)} ·{" "}
+              {t("Current")}{payStructureLabel(rec.payStructure)} ·{" "}
               {formatMoney(rec.baseAmount, rec.currency)}
               {rec.payStructure === "hourly" ? "/hr" : ""}
             </p>
@@ -155,17 +154,15 @@ export function CompensationPaySetupForm({
           </div>
           {payStructure === "hourly" ? (
             <p className="text-xs text-muted-foreground">
-              Payroll uses actual clocked hours × this rate. Overtime starts after{" "}
-              {(Number(hoursPerWeek) || 40) / 5} hours in a day.
-            </p>
+              {t("Payroll uses actual clocked hours × this rate. Overtime starts after")}{" "}
+              {(Number(hoursPerWeek) || 40) / 5} {t("hours in a day.")}</p>
           ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={save}>Save rate</Button>
+            {t("Cancel")}</Button>
+          <Button onClick={save}>{t("Save rate")}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

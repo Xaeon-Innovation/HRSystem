@@ -7,6 +7,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDays } from "@/lib/leave/format";
 import type { LeaveReportSummary } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeaveOverviewCards({
   summary,
@@ -20,53 +21,53 @@ export function LeaveOverviewCards({
   const cards = isAdmin
     ? [
         {
-          label: "Pending review",
+          label: t("Pending review"),
           value: String(summary.pendingCount),
-          hint: "Waiting on an approver",
+          hint: t("Waiting on an approver"),
           icon: Clock3,
         },
         {
-          label: "Off today",
+          label: t("Off today"),
           value: String(summary.currentlyOff),
-          hint: "Approved and in progress",
+          hint: t("Approved and in progress"),
           icon: Users,
         },
         {
-          label: "Approved this month",
+          label: t("Approved this month"),
           value: String(summary.approvedThisMonth),
           hint: `${summary.rejectedThisMonth} rejected`,
           icon: CalendarCheck,
         },
         {
-          label: "Unused leave",
+          label: t("Unused leave"),
           value: formatDays(summary.unusedLeaveTotal),
-          hint: "Balance liability across staff",
+          hint: t("Balance liability across staff"),
           icon: Palmtree,
         },
       ]
     : [
         {
-          label: "Your remaining",
+          label: t("Your remaining"),
           value: remaining == null ? "—" : formatDays(remaining),
-          hint: "Annual leave available",
+          hint: t("Annual leave available"),
           icon: Palmtree,
         },
         {
-          label: "Pending",
+          label: t("Pending"),
           value: String(summary.pendingCount),
-          hint: "Your requests in review",
+          hint: t("Your requests in review"),
           icon: Clock3,
         },
         {
-          label: "Upcoming",
+          label: t("Upcoming"),
           value: String(summary.upcomingAbsences),
-          hint: "Approved time off ahead",
+          hint: t("Approved time off ahead"),
           icon: CalendarCheck,
         },
         {
-          label: "Off today (team)",
+          label: t("Off today (team)"),
           value: String(summary.currentlyOff),
-          hint: "Approved absences today",
+          hint: t("Approved absences today"),
           icon: Users,
         },
       ];

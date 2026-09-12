@@ -9,6 +9,9 @@ const nextConfig = {
   output: "standalone",
   outputFileTracingRoot: root,
   transpilePackages: ["@hr/shared", "pdfjs-dist"],
+  experimental: {
+    optimizePackageImports: ["lucide-react"],
+  },
 };
 
 export default nextConfig;

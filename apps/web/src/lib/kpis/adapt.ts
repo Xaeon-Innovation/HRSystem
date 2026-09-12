@@ -45,11 +45,13 @@ function historyFromScores(
         new Date(b.reviewDate).getTime() - new Date(a.reviewDate).getTime(),
     )
     .map((score, index) => ({
+      scoreId: score.id,
       period: `Review ${item.scores.length - index}`,
       actualValue: score.score,
       targetValue,
       reviewDate: score.reviewDate,
       notes: score.notes,
+      acknowledgedAt: score.acknowledgedAt ?? null,
     }));
 }
 
@@ -130,6 +132,8 @@ export function adaptSummaryItem(
     direction: template?.direction ?? "higher",
     lastUpdated: current?.reviewDate ?? history[0]?.reviewDate ?? null,
     dueAt: item.assignment.dueAt,
+    latestScoreId: current?.scoreId ?? history[0]?.scoreId ?? null,
+    acknowledgedAt: current?.acknowledgedAt ?? history[0]?.acknowledgedAt ?? null,
     formula:
       template?.formula ??
       "achievementPercent = actualValue / targetValue × 100; weightedScore = min(achievementPercent, cap) × weight; overall = sum(weightedScore) / sum(weights)",

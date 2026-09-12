@@ -3,17 +3,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDays, formatPercent, sourceLabel, stageLabel } from "@/lib/hiring/format";
 import type { RecruitmentMetricSummary } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function HiringReportsPanel({ summary }: { summary: RecruitmentMetricSummary }) {
   const stats = [
-    { label: "Open roles", value: String(summary.openPositions) },
-    { label: "Seats to fill", value: String(summary.openingsHeadcount) },
-    { label: "Time to hire", value: formatDays(summary.avgTimeToHireDays), hint: "Pipeline entry → offer accepted" },
-    { label: "Time to fill", value: formatDays(summary.avgTimeToFillDays), hint: "Req open → offer accepted" },
-    { label: "Interview → offer", value: formatPercent(summary.interviewToOfferRate) },
-    { label: "Offer acceptance", value: formatPercent(summary.offerAcceptanceRate) },
-    { label: "Hires this month", value: String(summary.hiresThisMonth) },
-    { label: "Stuck in stage", value: String(summary.bottleneckCount) },
+    { label: t("Open roles"), value: String(summary.openPositions) },
+    { label: t("Seats to fill"), value: String(summary.openingsHeadcount) },
+    { label: t("Time to hire"), value: formatDays(summary.avgTimeToHireDays), hint: t("Pipeline entry → offer accepted") },
+    { label: t("Time to fill"), value: formatDays(summary.avgTimeToFillDays), hint: t("Req open → offer accepted") },
+    { label: t("Interview → offer"), value: formatPercent(summary.interviewToOfferRate) },
+    { label: t("Offer acceptance"), value: formatPercent(summary.offerAcceptanceRate) },
+    { label: t("Hires this month"), value: String(summary.hiresThisMonth) },
+    { label: t("Stuck in stage"), value: String(summary.bottleneckCount) },
   ];
 
   return (
@@ -37,7 +38,7 @@ export function HiringReportsPanel({ summary }: { summary: RecruitmentMetricSumm
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Stage conversion</CardTitle>
+            <CardTitle className="text-base">{t("Stage conversion")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {summary.stageConversion.map((row) => (
@@ -63,11 +64,11 @@ export function HiringReportsPanel({ summary }: { summary: RecruitmentMetricSumm
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Source effectiveness</CardTitle>
+            <CardTitle className="text-base">{t("Source effectiveness")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {summary.sourcePerformance.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No sources recorded.</p>
+              <p className="text-sm text-muted-foreground">{t("No sources recorded.")}</p>
             ) : (
               summary.sourcePerformance
                 .slice()
@@ -77,7 +78,7 @@ export function HiringReportsPanel({ summary }: { summary: RecruitmentMetricSumm
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span>{sourceLabel(s.source)}</span>
                       <span className="tabular-nums text-muted-foreground">
-                        {s.hired} hired / {s.candidates} · {formatPercent(s.hireRate)}
+                        {s.hired} {t("hired /")}{s.candidates} · {formatPercent(s.hireRate)}
                       </span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-secondary">
@@ -94,7 +95,7 @@ export function HiringReportsPanel({ summary }: { summary: RecruitmentMetricSumm
 
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Time in stage</CardTitle>
+            <CardTitle className="text-base">{t("Time in stage")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

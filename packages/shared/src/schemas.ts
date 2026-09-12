@@ -47,6 +47,8 @@ export const uploadAvatarSchema = z.object({
   imageBase64: z.string().min(32).max(2_800_000),
 });
 
+export const uploadLogoSchema = uploadAvatarSchema;
+
 export const createTenantSchema = z.object({
   name: z.string().min(2).max(120),
   slug: z
@@ -85,6 +87,22 @@ export const mapAppearanceSchema = z.object({
 
 export const updateMapAppearanceSchema = mapAppearanceSchema.partial();
 
+export const brandPresetSchema = z.enum([
+  "neutral",
+  "teal",
+  "forest",
+  "slate",
+]);
+
+export const updateBrandingSchema = z.object({
+  brandingName: z.string().min(1).max(120).optional(),
+  /** @deprecated Logos are uploaded as files; this field is ignored on write. */
+  logoUrl: z
+    .union([z.string().url(), z.literal(""), z.null()])
+    .optional(),
+  brandPreset: brandPresetSchema.optional(),
+});
+
 export const updateTenantSchema = z.object({
   name: z.string().min(2).max(120).optional(),
   status: z.enum(TENANT_STATUSES).optional(),
@@ -92,6 +110,7 @@ export const updateTenantSchema = z.object({
     .object({
       brandingName: z.string().optional(),
       logoUrl: z.string().url().optional().nullable(),
+      brandPreset: brandPresetSchema.optional(),
       timezone: z.string().optional(),
       pingIntervalSec: z.number().int().min(15).max(30).optional(),
       locationRetentionDays: z.number().int().min(30).max(90).optional(),
@@ -146,6 +165,7 @@ const employeeBaseFields = {
     .nullable(),
   jobRoleIds: z.array(z.string().uuid()).max(50).optional(),
   systemModuleRoles: systemModuleRolesSchema,
+  managerId: z.string().uuid().optional().nullable(),
 };
 
 export const createEmployeeSchema = z
@@ -192,6 +212,7 @@ export const updateEmployeeSchema = z
       .max(50_000)
       .optional()
       .nullable(),
+    managerId: z.string().uuid().optional().nullable(),
   })
   .superRefine((data, ctx) => {
     const hasAny =
@@ -279,6 +300,10 @@ export const recordKpiScoreSchema = z.object({
   score: z.number(),
   notes: z.string().max(2000).optional().nullable(),
   reviewDate: z.string().datetime().optional(),
+});
+
+export const acknowledgeKpiScoresSchema = z.object({
+  scoreIds: z.array(z.string().uuid()).min(1).max(50),
 });
 
 export const announcementSchema = z.object({
@@ -603,6 +628,19 @@ export const leaveRequestDraftSchema = z.object({
   handoverNotes: z.string().trim().max(2000).optional().default(""),
   coverageEmployeeId: z.string().uuid().nullable().optional(),
   attachmentName: z.string().trim().max(240).nullable().optional(),
+  attachments: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(80),
+        name: z.string().trim().min(1).max(240),
+        mime: z.string().trim().min(1).max(120),
+        size: z.number().int().min(0).max(Math.floor(1.5 * 1024 * 1024)),
+        dataUrl: z.string().min(1).max(2_200_000),
+      }),
+    )
+    .max(3)
+    .optional()
+    .default([]),
   asDraft: z.boolean().optional().default(false),
 });
 

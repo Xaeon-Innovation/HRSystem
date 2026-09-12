@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type Tenant = {
   id: string;
@@ -58,80 +59,73 @@ export default function TenantsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Tenants</h1>
+        <h1 className="text-2xl font-semibold">{t("Tenants")}</h1>
         <p className="text-sm text-muted-foreground">
-          Platform super-admin provisioning
-        </p>
+          {t("Platform super-admin provisioning")}</p>
       </div>
       <Card className="border-primary/20 bg-primary/5">
         <CardContent className="py-3 text-sm text-muted-foreground">
-          Integrations Hub and Analytics live in the{" "}
-          <span className="font-medium text-foreground">tenant admin</span> app, not
-          here. Sign out and log in as that tenant&apos;s admin (e.g.{" "}
-          <code>admin@cms.local</code>, slug <code>cms</code>) to configure connectors
-          and dashboards. Connection health counts appear on each tenant detail page.
-        </CardContent>
+          {t("Integrations Hub and Analytics live in the")}{" "}
+          <span className="font-medium text-foreground">{t("tenant admin")}</span> {t("app, not here. Sign out and log in as that tenant&apos;s admin (e.g.")}{" "}
+          <code>admin@cms.local</code>{t(", slug")}<code>{t("cms")}</code>{t(") to configure connectors and dashboards. Connection health counts appear on each tenant detail page.")}</CardContent>
       </Card>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
-        {tenants.map((t) => (
-          <Card key={t.id}>
+        {tenants.map((tenant) => (
+          <Card key={tenant.id}>
             <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div>
                 <Link
-                  href={`/app/tenants/${t.id}`}
+                  href={`/app/tenants/${tenant.id}`}
                   className="font-medium hover:underline"
                 >
-                  {t.name}
+                  {tenant.name}
                 </Link>
                 <p className="text-xs text-muted-foreground">
-                  {t.slug}
-                  {t.plan ? ` · ${t.plan.name}` : ""}
-                  {t.subscription ? ` · ${t.subscription.status}` : ""}
-                  {typeof t.seatsUsed === "number"
-                    ? ` · ${t.seatsUsed}${t.plan?.seatLimit != null ? `/${t.plan.seatLimit}` : ""} seats`
+                  {tenant.slug}
+                  {tenant.plan ? ` · ${tenant.plan.name}` : ""}
+                  {tenant.subscription ? ` · ${tenant.subscription.status}` : ""}
+                  {typeof tenant.seatsUsed === "number"
+                    ? ` · ${tenant.seatsUsed}${tenant.plan?.seatLimit != null ? `/${tenant.plan.seatLimit}` : ""} seats`
                     : ""}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs uppercase">{t.status}</span>
-                {t.status === "active" ? (
+                <span className="text-xs uppercase">{tenant.status}</span>
+                {tenant.status === "active" ? (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                      api(`/v1/tenants/${t.id}`, {
+                      api(`/v1/tenants/${tenant.id}`, {
                         method: "PATCH",
                         body: JSON.stringify({ status: "suspended" }),
                       }).then(load)
                     }
                   >
-                    Suspend
-                  </Button>
-                ) : t.status !== "deleted" ? (
+                    {t("Suspend")}</Button>
+                ) : tenant.status !== "deleted" ? (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                      api(`/v1/tenants/${t.id}`, {
+                      api(`/v1/tenants/${tenant.id}`, {
                         method: "PATCH",
                         body: JSON.stringify({ status: "active" }),
                       }).then(load)
                     }
                   >
-                    Activate
-                  </Button>
+                    {t("Activate")}</Button>
                 ) : null}
-                {t.status !== "deleted" ? (
+                {tenant.status !== "deleted" ? (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() =>
-                      api(`/v1/tenants/${t.id}`, { method: "DELETE" }).then(load)
+                      api(`/v1/tenants/${tenant.id}`, { method: "DELETE" }).then(load)
                     }
                   >
-                    Soft delete
-                  </Button>
+                    {t("Soft delete")}</Button>
                 ) : null}
               </div>
             </CardContent>
@@ -140,17 +134,17 @@ export default function TenantsPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Provision tenant</CardTitle>
+          <CardTitle className="text-base">{t("Provision tenant")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-2" onSubmit={create}>
             {(
               [
-                ["name", "Organization name"],
-                ["slug", "Slug"],
-                ["adminName", "Admin name"],
-                ["adminEmail", "Admin email"],
-                ["adminPassword", "Admin password"],
+                ["name", t("Organization name")],
+                ["slug", t("Slug")],
+                ["adminName", t("Admin name")],
+                ["adminEmail", t("Admin email")],
+                ["adminPassword", t("Admin password")],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="space-y-1">
@@ -166,7 +160,7 @@ export default function TenantsPage() {
               </div>
             ))}
             <div className="md:col-span-2">
-              <Button type="submit">Create tenant</Button>
+              <Button type="submit">{t("Create tenant")}</Button>
             </div>
           </form>
         </CardContent>

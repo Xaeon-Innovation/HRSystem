@@ -8,6 +8,7 @@ import {
 } from "@/lib/compensation/format";
 import type { CompEmployee, SalaryHistoryEntry } from "@/lib/compensation/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function CompensationHistoryPanel({
   history,
@@ -23,30 +24,29 @@ export function CompensationHistoryPanel({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Salary history</CardTitle>
+        <CardTitle className="text-base">{t("Salary history")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Starting pay and every approved change, with reason, review cycle, and approver
-        </p>
+          {t("Starting pay and every approved change, with reason, review cycle, and approver")}</p>
       </CardHeader>
       <CardContent className="overflow-x-auto px-0 pb-0">
         {history.length === 0 ? (
           <div className="px-4 pb-4">
             <CompEmptyState
-              title="No salary history yet"
-              description="Approved change requests will land here with previous and new amounts."
+              title={t("No salary history yet")}
+              description={t("Approved change requests will land here with previous and new amounts.")}
             />
           </div>
         ) : (
           <table className="w-full min-w-[820px] text-left text-sm">
             <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
               <tr>
-                <th className="px-4 py-2 font-medium">Employee</th>
-                <th className="px-3 py-2 font-medium">Type</th>
-                <th className="px-3 py-2 font-medium">Previous</th>
-                <th className="px-3 py-2 font-medium">New</th>
-                <th className="px-3 py-2 font-medium">Change</th>
-                <th className="px-3 py-2 font-medium">Effective</th>
-                <th className="px-4 py-2 font-medium">Approved by</th>
+                <th className="px-4 py-2 font-medium">{t("Employee")}</th>
+                <th className="px-3 py-2 font-medium">{t("Type")}</th>
+                <th className="px-3 py-2 font-medium">{t("Previous")}</th>
+                <th className="px-3 py-2 font-medium">{t("New")}</th>
+                <th className="px-3 py-2 font-medium">{t("Change")}</th>
+                <th className="px-3 py-2 font-medium">{t("Effective")}</th>
+                <th className="px-4 py-2 font-medium">{t("Approved by")}</th>
               </tr>
             </thead>
             <tbody>
@@ -80,7 +80,7 @@ export function CompensationHistoryPanel({
                   <td className="px-4 py-3 text-xs">
                     <p>{h.approvedByName ?? "—"}</p>
                     <p className="text-muted-foreground">
-                      {h.reviewCycleName ?? "No review cycle"}
+                      {h.reviewCycleName ?? t("No review cycle")}
                     </p>
                   </td>
                 </tr>

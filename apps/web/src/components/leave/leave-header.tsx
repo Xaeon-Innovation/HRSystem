@@ -1,5 +1,8 @@
+"use client";
+
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { t } from "@/i18n";
 
 export function LeaveHeader({
   isAdmin,
@@ -9,19 +12,18 @@ export function LeaveHeader({
   onNew: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="max-w-xl">
-        <h1 className="text-2xl font-semibold tracking-tight">Leave</h1>
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="max-w-xl min-w-0">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Leave")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {isAdmin
-            ? "Review requests, watch who is off, and keep balances and accrual rules in one place."
-            : "Check your remaining days, file time off, and follow the status of each request."}
+            ? t("Review requests, watch who is off, and keep balances and accrual rules in one place.")
+            : t("Check your remaining days, file time off, and follow the status of each request.")}
         </p>
       </div>
-      <Button size="sm" onClick={onNew}>
+      <Button size="sm" className="w-full sm:w-auto" onClick={onNew}>
         <Plus className="h-4 w-4" />
-        New leave request
-      </Button>
+        {t("New leave request")}</Button>
     </div>
   );
 }

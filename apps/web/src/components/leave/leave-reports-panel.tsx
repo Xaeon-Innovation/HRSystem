@@ -3,20 +3,21 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDays } from "@/lib/leave/format";
 import type { LeaveReportSummary } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeaveReportsPanel({ summary }: { summary: LeaveReportSummary }) {
   const stats = [
-    { label: "Pending requests", value: String(summary.pendingCount) },
-    { label: "Approved this month", value: String(summary.approvedThisMonth) },
-    { label: "Rejected this month", value: String(summary.rejectedThisMonth) },
-    { label: "Currently off", value: String(summary.currentlyOff) },
-    { label: "Upcoming absences", value: String(summary.upcomingAbsences) },
+    { label: t("Pending requests"), value: String(summary.pendingCount) },
+    { label: t("Approved this month"), value: String(summary.approvedThisMonth) },
+    { label: t("Rejected this month"), value: String(summary.rejectedThisMonth) },
+    { label: t("Currently off"), value: String(summary.currentlyOff) },
+    { label: t("Upcoming absences"), value: String(summary.upcomingAbsences) },
     {
-      label: "Avg. approval time",
+      label: t("Avg. approval time"),
       value: summary.avgApprovalHours == null ? "—" : `${summary.avgApprovalHours}h`,
     },
-    { label: "Most-used type", value: summary.mostUsedLeaveType ?? "—" },
-    { label: "Unused leave total", value: formatDays(summary.unusedLeaveTotal) },
+    { label: t("Most-used type"), value: summary.mostUsedLeaveType ?? "—" },
+    { label: t("Unused leave total"), value: formatDays(summary.unusedLeaveTotal) },
   ];
 
   return (
@@ -35,11 +36,11 @@ export function LeaveReportsPanel({ summary }: { summary: LeaveReportSummary }) 
       </div>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Leave by department</CardTitle>
+          <CardTitle className="text-base">{t("Leave by department")}</CardTitle>
         </CardHeader>
         <CardContent>
           {summary.departmentUsage.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No approved leave to chart yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No approved leave to chart yet.")}</p>
           ) : (
             <ul className="space-y-3">
               {summary.departmentUsage.map((d) => {
@@ -49,8 +50,7 @@ export function LeaveReportsPanel({ summary }: { summary: LeaveReportSummary }) 
                     <div className="mb-1 flex items-center justify-between text-sm">
                       <span className="font-medium">{d.department}</span>
                       <span className="tabular-nums text-muted-foreground">
-                        {formatDays(d.days)} · {d.people} people
-                      </span>
+                        {formatDays(d.days)} · {d.people} {t("people")}</span>
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-secondary">
                       <div

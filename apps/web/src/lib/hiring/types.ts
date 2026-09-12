@@ -413,7 +413,7 @@ export type CommunicationRecord = {
   subject: string;
   body: string;
   channel: "email";
-  status: "logged" | "mocked_sent";
+  status: "logged" | "sent" | "failed";
   actorId: string;
   actorName: string;
   sentAt: string;

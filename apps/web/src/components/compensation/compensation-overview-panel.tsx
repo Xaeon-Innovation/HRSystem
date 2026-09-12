@@ -9,6 +9,7 @@ import type {
   SalaryHistoryEntry,
 } from "@/lib/compensation/types";
 import type { CompensationStore } from "@/lib/compensation/store";
+import { t } from "@/i18n";
 
 export function CompensationOverviewPanel({
   summary,
@@ -38,10 +39,9 @@ export function CompensationOverviewPanel({
     <div className="grid gap-3 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Cost by team</CardTitle>
+          <CardTitle className="text-base">{t("Cost by team")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Monthly equivalent plus recurring allowances and approved cycle incentives
-          </p>
+            {t("Monthly equivalent plus recurring allowances and approved cycle incentives")}</p>
         </CardHeader>
         <CardContent>
           <DepartmentBars items={report.costByTeam} currency={currency} />
@@ -51,15 +51,14 @@ export function CompensationOverviewPanel({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base">Pending approvals</CardTitle>
+            <CardTitle className="text-base">{t("Pending approvals")}</CardTitle>
             <button type="button" className="text-xs text-primary hover:underline" onClick={onGoApprovals}>
-              View all
-            </button>
+              {t("View all")}</button>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {pending.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing waiting on HR.</p>
+            <p className="text-sm text-muted-foreground">{t("Nothing waiting on HR.")}</p>
           ) : (
             pending.slice(0, 4).map((r) => (
               <button
@@ -83,11 +82,11 @@ export function CompensationOverviewPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Outside band</CardTitle>
+          <CardTitle className="text-base">{t("Outside band")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {report.outOfBand.length === 0 ? (
-            <p className="text-sm text-muted-foreground">All employees sit inside their grade.</p>
+            <p className="text-sm text-muted-foreground">{t("All employees sit inside their grade.")}</p>
           ) : (
             report.outOfBand.map((row) => (
               <button
@@ -106,11 +105,11 @@ export function CompensationOverviewPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent salary changes</CardTitle>
+          <CardTitle className="text-base">{t("Recent salary changes")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {recent.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No changes in the last 90 days.</p>
+            <p className="text-sm text-muted-foreground">{t("No changes in the last 90 days.")}</p>
           ) : (
             recent.slice(0, 5).map((h) => (
               <button
@@ -132,7 +131,7 @@ export function CompensationOverviewPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Average by role</CardTitle>
+          <CardTitle className="text-base">{t("Average by role")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {summary.avgByRole.slice(0, 6).map((r) => (
@@ -150,7 +149,7 @@ export function CompensationOverviewPanel({
 
       <Card className="lg:col-span-3">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Pay structures in use</CardTitle>
+          <CardTitle className="text-base">{t("Pay structures in use")}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
           {employees.map((e) => {
@@ -181,7 +180,7 @@ function DepartmentBars({
   currency: string;
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-muted-foreground">No cost data.</p>;
+    return <p className="text-sm text-muted-foreground">{t("No cost data.")}</p>;
   }
   const max = Math.max(...items.map((i) => i.amount), 1);
   return (

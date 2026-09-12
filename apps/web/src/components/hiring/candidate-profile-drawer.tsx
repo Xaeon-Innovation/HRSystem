@@ -38,6 +38,8 @@ import {
 } from "@/lib/hiring/format";
 import { CANDIDATE_STAGES, NOTE_VISIBILITY, type Candidate, type CandidateStage, type HiringActor, type NoteVisibility } from "@/lib/hiring/types";
 import type { HiringStore } from "@/lib/hiring/store";
+import { api } from "@/lib/api";
+import { t } from "@/i18n";
 
 export function CandidateProfileDrawer({
   candidate,
@@ -129,14 +131,13 @@ export function CandidateProfileDrawer({
             <FitScoreBadge result={fit} />
             {duplicate ? (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold uppercase text-amber-900">
-                Possible duplicate
-              </span>
+                {t("Possible duplicate")}</span>
             ) : null}
           </div>
 
           {canMove ? (
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">Move stage</span>
+              <span className="mb-1 block text-xs font-medium text-muted-foreground">{t("Move stage")}</span>
               <select
                 className={SELECT_CLASS}
                 value={candidate.currentStage}
@@ -154,49 +155,42 @@ export function CandidateProfileDrawer({
           <div className="flex flex-wrap gap-2">
             {canManage ? (
               <Button size="sm" variant="outline" onClick={() => onSchedule(candidate.id)}>
-                Schedule interview
-              </Button>
+                {t("Schedule interview")}</Button>
             ) : null}
             {canManage ? (
               <Button size="sm" variant="outline" onClick={() => onOffer(candidate.id)}>
-                Create offer
-              </Button>
+                {t("Create offer")}</Button>
             ) : null}
             {convertible ? (
               <Button size="sm" onClick={() => onConvert(candidate.id)}>
-                Convert to employee
-              </Button>
+                {t("Convert to employee")}</Button>
             ) : null}
             {candidate.convertedEmployeeId ? (
               <a
                 href="/app/employees"
                 className="inline-flex h-9 items-center rounded-md border px-3 text-sm hover:bg-accent"
               >
-                View employee roster
-              </a>
+                {t("View employee roster")}</a>
             ) : null}
             {canManage ? (
               <Button size="sm" variant="outline" onClick={() => setPendingReject(true)}>
-                Reject
-              </Button>
+                {t("Reject")}</Button>
             ) : null}
             {canManage ? (
               <Button size="sm" variant="outline" onClick={() => setPendingRemove(true)}>
-                Remove
-              </Button>
+                {t("Remove")}</Button>
             ) : null}
           </div>
 
           {canManage ? (
             <div className="space-y-2 rounded-lg border p-3">
-              <p className="text-xs font-medium">Save as best fit</p>
+              <p className="text-xs font-medium">{t("Save as best fit")}</p>
               <p className="text-[11px] text-muted-foreground">
-                Keeps this contact on the Best fit bench for a later opening.
-              </p>
+                {t("Keeps this contact on the Best fit bench for a later opening.")}</p>
               <textarea
                 className={TEXTAREA_CLASS}
                 rows={2}
-                placeholder="Optional note (salary band, follow-up, etc.)"
+                placeholder={t("Optional note (salary band, follow-up, etc.)")}
                 value={bestFitNote}
                 onChange={(e) => setBestFitNote(e.target.value)}
               />
@@ -215,28 +209,22 @@ export function CandidateProfileDrawer({
                   }
                 }}
               >
-                Save as best fit
-              </Button>
+                {t("Save as best fit")}</Button>
             </div>
           ) : null}
 
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
               <TabsTrigger value="overview" className="flex-none px-3">
-                Overview
-              </TabsTrigger>
+                {t("Overview")}</TabsTrigger>
               <TabsTrigger value="resume" className="flex-none px-3">
-                Resume
-              </TabsTrigger>
+                {t("Resume")}</TabsTrigger>
               <TabsTrigger value="interviews" className="flex-none px-3">
-                Interviews
-              </TabsTrigger>
+                {t("Interviews")}</TabsTrigger>
               <TabsTrigger value="notes" className="flex-none px-3">
-                Notes
-              </TabsTrigger>
+                {t("Notes")}</TabsTrigger>
               <TabsTrigger value="activity" className="flex-none px-3">
-                Activity
-              </TabsTrigger>
+                {t("Activity")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" className="mt-4 space-y-4">
@@ -262,7 +250,7 @@ export function CandidateProfileDrawer({
               {canManage ? (
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Add tag"
+                    placeholder={t("Add tag")}
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                   />
@@ -277,8 +265,7 @@ export function CandidateProfileDrawer({
                       onChanged();
                     }}
                   >
-                    Tag
-                  </Button>
+                    {t("Tag")}</Button>
                 </div>
               ) : null}
               <ScreeningQuestionsPanel
@@ -290,14 +277,14 @@ export function CandidateProfileDrawer({
               {offer ? (
                 <div className="rounded-lg border p-3 text-sm">
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="font-medium">Offer</p>
+                    <p className="font-medium">{t("Offer")}</p>
                     <OfferStatusBadge status={offer.status} />
                   </div>
                   <p>
                     {offer.offeredTitle} · {formatMoney(offer.offeredSalary, offer.currency)}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Join {formatDate(offer.expectedJoinDate)} · expires {formatDate(offer.expiryDate)}
+                    {t("Join")}{formatDate(offer.expectedJoinDate)} {t("· expires")}{formatDate(offer.expiryDate)}
                   </p>
                 </div>
               ) : null}
@@ -316,7 +303,7 @@ export function CandidateProfileDrawer({
 
             <TabsContent value="interviews" className="mt-4 space-y-3">
               {interviews.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No interviews scheduled.</p>
+                <p className="text-sm text-muted-foreground">{t("No interviews scheduled.")}</p>
               ) : (
                 interviews.map((i) => (
                   <div key={i.id} className="rounded-lg border p-3 text-sm">
@@ -327,8 +314,7 @@ export function CandidateProfileDrawer({
                       {i.interviewerNames.join(", ")} · {i.status} · {i.outcome}
                     </p>
                     <Button size="sm" className="mt-2" variant="outline" onClick={() => onScore(i.id)}>
-                      Scorecard
-                    </Button>
+                      {t("Scorecard")}</Button>
                   </div>
                 ))
               )}
@@ -339,11 +325,11 @@ export function CandidateProfileDrawer({
                     <RecommendationBadge value={s.recommendation} />
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Tech {s.technicalScore} · Comm {s.communicationScore} · Fit {s.cultureFitScore}
+                    {t("Tech")}{s.technicalScore} {t("· Comm")}{s.communicationScore} {t("· Fit")}{s.cultureFitScore}
                   </p>
                   {s.comments ? <p className="mt-2">{s.comments}</p> : null}
                   {s.hiringManagerNote ? (
-                    <p className="mt-1 text-muted-foreground">HM: {s.hiringManagerNote}</p>
+                    <p className="mt-1 text-muted-foreground">{t("HM:")}{s.hiringManagerNote}</p>
                   ) : null}
                 </div>
               ))}
@@ -354,7 +340,7 @@ export function CandidateProfileDrawer({
                 <div className="space-y-2">
                   <textarea
                     className={TEXTAREA_CLASS}
-                    placeholder="Internal note — @mentions are stored as text for now"
+                    placeholder={t("Internal note — @mentions are stored as text for now")}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                   />
@@ -379,13 +365,12 @@ export function CandidateProfileDrawer({
                         onChanged();
                       }}
                     >
-                      Add note
-                    </Button>
+                      {t("Add note")}</Button>
                   </div>
                 </div>
               ) : null}
               {candidate.notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No notes yet.</p>
+                <p className="text-sm text-muted-foreground">{t("No notes yet.")}</p>
               ) : (
                 [...candidate.notes]
                   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -393,7 +378,7 @@ export function CandidateProfileDrawer({
                     <div key={n.id} className="rounded-lg border p-3 text-sm">
                       <p className="text-xs text-muted-foreground">
                         {n.authorName} · {noteVisibilityLabel(n.visibility)} · {formatDateTime(n.createdAt)}
-                        {n.mentionPlaceholder ? " · @mention" : ""}
+                        {n.mentionPlaceholder ? t(" · @mention") : ""}
                       </p>
                       <p className="mt-1">{n.body}</p>
                     </div>
@@ -401,10 +386,9 @@ export function CandidateProfileDrawer({
               )}
 
               <div className="border-t pt-3">
-                <p className="mb-2 text-sm font-medium">Communication</p>
+                <p className="mb-2 text-sm font-medium">{t("Communication")}</p>
                 <p className="mb-2 text-xs text-muted-foreground">
-                  Templates are logged. Sending is mocked until email is connected.
-                </p>
+                  {t("Templates are logged. Sending is mocked until email is connected.")}</p>
                 {canManage ? (
                   <div className="mb-3 flex gap-2">
                     <select
@@ -422,12 +406,28 @@ export function CandidateProfileDrawer({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        store.sendCommunication(candidate.id, commTpl, actor);
-                        onChanged();
+                        void store
+                          .sendCommunication(
+                            candidate.id,
+                            commTpl,
+                            actor,
+                            undefined,
+                            async (input) => {
+                              const res = await api<{
+                                ok: boolean;
+                                reason?: string;
+                              }>("/v1/hiring/send-email", {
+                                method: "POST",
+                                body: JSON.stringify(input),
+                              });
+                              return res;
+                            },
+                          )
+                          .then(() => onChanged())
+                          .catch(() => onChanged());
                       }}
                     >
-                      Log send
-                    </Button>
+                      {t("Send email")}</Button>
                   </div>
                 ) : null}
                 {comms.map((c) => (
@@ -444,7 +444,7 @@ export function CandidateProfileDrawer({
 
             <TabsContent value="activity" className="mt-4">
               {activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
+                <p className="text-sm text-muted-foreground">{t("No activity yet.")}</p>
               ) : (
                 <ol className="space-y-3">
                   {activity.map((e) => (
@@ -460,12 +460,12 @@ export function CandidateProfileDrawer({
                 </ol>
               )}
               <div className="mt-4">
-                <p className="mb-2 text-sm font-medium">Stage history</p>
+                <p className="mb-2 text-sm font-medium">{t("Stage history")}</p>
                 <ul className="space-y-1 text-sm">
                   {candidate.stageHistory.map((h, i) => (
                     <li key={`${h.stage}-${i}`} className="text-muted-foreground">
                       {stageLabel(h.stage)} · {formatDateTime(h.enteredAt)}
-                      {h.leftAt ? ` → ${formatDateTime(h.leftAt)}` : " · current"}
+                      {h.leftAt ? ` → ${formatDateTime(h.leftAt)}` : t(" · current")}
                     </li>
                   ))}
                 </ul>
@@ -504,16 +504,14 @@ export function CandidateProfileDrawer({
             checked={keepTalentPool}
             onChange={(e) => setKeepTalentPool(e.target.checked)}
           />
-          Keep in talent pool
-        </label>
+          {t("Keep in talent pool")}</label>
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
             checked={keepBestFit}
             onChange={(e) => setKeepBestFit(e.target.checked)}
           />
-          Keep as best fit for this role
-        </label>
+          {t("Keep as best fit for this role")}</label>
       </div>
     </ConfirmDialog>
     <ConfirmDialog

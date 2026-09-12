@@ -15,6 +15,7 @@ import type {
   Recommendation,
 } from "./types";
 import { CANDIDATE_STAGES } from "./types";
+import { t, intlLocale, intlDateOptions } from "@/i18n";
 
 export const SELECT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -82,23 +83,23 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const d = parseIsoDate(value.slice(0, 10));
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
+  return d.toLocaleDateString(intlLocale(), intlDateOptions({
     month: "short",
     day: "numeric",
     year: "numeric",
-  });
+  }));
 }
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
+  return d.toLocaleString(intlLocale(), intlDateOptions({
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
+  }));
 }
 
 export function formatMoney(
@@ -117,7 +118,9 @@ export function formatDays(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "—";
   const rounded = Math.round(value * 10) / 10;
   const n = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
-  return `${n} ${Math.abs(rounded) === 1 ? "day" : "days"}`;
+  return Math.abs(rounded) === 1
+    ? t("{n} day", { n })
+    : t("{n} days", { n });
 }
 
 export function formatPercent(value: number | null | undefined): string {
@@ -126,207 +129,207 @@ export function formatPercent(value: number | null | undefined): string {
 }
 
 export function stageLabel(stage: CandidateStage): string {
-  return DEFAULT_STAGE_LABELS[stage];
+  return t(DEFAULT_STAGE_LABELS[stage]);
 }
 
 export function sourceLabel(source: CandidateSource): string {
   switch (source) {
     case "careers_page":
-      return "Careers page";
+      return t("Careers page");
     case "referral":
-      return "Referral";
+      return t("Referral");
     case "linkedin":
-      return "LinkedIn";
+      return t("LinkedIn");
     case "job_board":
-      return "Job board";
+      return t("Job board");
     case "recruiter_upload":
-      return "Recruiter upload";
+      return t("Recruiter upload");
     case "walk_in":
-      return "Walk-in";
+      return t("Walk-in");
     case "agency":
-      return "Agency";
+      return t("Agency");
     case "internal_transfer":
-      return "Internal transfer";
+      return t("Internal transfer");
   }
 }
 
 export function jobStatusLabel(status: JobStatus): string {
   switch (status) {
     case "draft":
-      return "Draft";
+      return t("Draft");
     case "open":
-      return "Open";
+      return t("Open");
     case "paused":
-      return "Paused";
+      return t("Paused");
     case "closed":
-      return "Closed";
+      return t("Closed");
     case "filled":
-      return "Filled";
+      return t("Filled");
   }
 }
 
 export function candidateStatusLabel(status: CandidateStatus): string {
   switch (status) {
     case "active":
-      return "Active";
+      return t("Active");
     case "on_hold":
-      return "On hold";
+      return t("On hold");
     case "hired":
-      return "Hired";
+      return t("Hired");
     case "rejected":
-      return "Rejected";
+      return t("Rejected");
     case "withdrawn":
-      return "Withdrawn";
+      return t("Withdrawn");
     case "talent_pool":
-      return "Talent pool";
+      return t("Talent pool");
   }
 }
 
 export function priorityLabel(priority: JobPriority): string {
   switch (priority) {
     case "low":
-      return "Low";
+      return t("Low");
     case "medium":
-      return "Medium";
+      return t("Medium");
     case "high":
-      return "High";
+      return t("High");
     case "urgent":
-      return "Urgent";
+      return t("Urgent");
   }
 }
 
 export function employmentTypeLabel(type: EmploymentType): string {
   switch (type) {
     case "full_time":
-      return "Full-time";
+      return t("Full-time");
     case "part_time":
-      return "Part-time";
+      return t("Part-time");
     case "contract":
-      return "Contract";
+      return t("Contract");
     case "intern":
-      return "Intern";
+      return t("Intern");
   }
 }
 
 export function interviewTypeLabel(type: InterviewType): string {
   switch (type) {
     case "phone_screen":
-      return "Phone screen";
+      return t("Phone screen");
     case "assessment_review":
-      return "Assessment review";
+      return t("Assessment review");
     case "technical":
-      return "Technical";
+      return t("Technical");
     case "hiring_manager":
-      return "Hiring manager";
+      return t("Hiring manager");
     case "panel":
-      return "Panel";
+      return t("Panel");
     case "final":
-      return "Final";
+      return t("Final");
     case "culture":
-      return "Culture / team fit";
+      return t("Culture / team fit");
   }
 }
 
 export function interviewModeLabel(mode: InterviewMode): string {
   switch (mode) {
     case "onsite":
-      return "Onsite";
+      return t("Onsite");
     case "phone":
-      return "Phone";
+      return t("Phone");
     case "online":
-      return "Online";
+      return t("Online");
   }
 }
 
 export function interviewStatusLabel(status: InterviewStatus): string {
   switch (status) {
     case "scheduled":
-      return "Scheduled";
+      return t("Scheduled");
     case "confirmed":
-      return "Confirmed";
+      return t("Confirmed");
     case "rescheduled":
-      return "Rescheduled";
+      return t("Rescheduled");
     case "completed":
-      return "Completed";
+      return t("Completed");
     case "no_show":
-      return "No-show";
+      return t("No-show");
     case "cancelled":
-      return "Cancelled";
+      return t("Cancelled");
   }
 }
 
 export function outcomeLabel(outcome: InterviewOutcome): string {
   switch (outcome) {
     case "pending":
-      return "Pending";
+      return t("Pending");
     case "advance":
-      return "Advance";
+      return t("Advance");
     case "hold":
-      return "Hold";
+      return t("Hold");
     case "reject":
-      return "Reject";
+      return t("Reject");
   }
 }
 
 export function recommendationLabel(rec: Recommendation): string {
   switch (rec) {
     case "strong_yes":
-      return "Strong yes";
+      return t("Strong yes");
     case "yes":
-      return "Yes";
+      return t("Yes");
     case "maybe":
-      return "Maybe";
+      return t("Maybe");
     case "no":
-      return "No";
+      return t("No");
   }
 }
 
 export function offerStatusLabel(status: OfferStatus): string {
   switch (status) {
     case "draft":
-      return "Draft";
+      return t("Draft");
     case "pending_approval":
-      return "Awaiting approval";
+      return t("Awaiting approval");
     case "sent":
-      return "Sent";
+      return t("Sent");
     case "accepted":
-      return "Accepted";
+      return t("Accepted");
     case "rejected":
-      return "Declined";
+      return t("Declined");
     case "expired":
-      return "Expired";
+      return t("Expired");
   }
 }
 
 export function commEventLabel(event: CommEvent): string {
   switch (event) {
     case "application_received":
-      return "Application received";
+      return t("Application received");
     case "interview_invitation":
-      return "Interview invitation";
+      return t("Interview invitation");
     case "reminder":
-      return "Reminder";
+      return t("Reminder");
     case "rejection":
-      return "Rejection";
+      return t("Rejection");
     case "offer_sent":
-      return "Offer sent";
+      return t("Offer sent");
     case "follow_up":
-      return "Follow-up";
+      return t("Follow-up");
     case "status_update":
-      return "Status update";
+      return t("Status update");
   }
 }
 
 export function noteVisibilityLabel(v: NoteVisibility): string {
   switch (v) {
     case "recruiter":
-      return "Recruiter";
+      return t("Recruiter");
     case "hiring_manager":
-      return "Hiring manager";
+      return t("Hiring manager");
     case "interviewer":
-      return "Interviewer";
+      return t("Interviewer");
     case "internal":
-      return "Internal only";
+      return t("Internal only");
   }
 }
 

@@ -11,6 +11,7 @@ import type {
   RecruitmentMetricSummary,
 } from "@/lib/hiring/types";
 import { OfferStatusBadge, StageBadge } from "@/components/hiring/hiring-status-badge";
+import { t } from "@/i18n";
 
 export function HiringHomePanel({
   summary,
@@ -45,14 +46,12 @@ export function HiringHomePanel({
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <CardTitle className="text-base">Pipeline funnel</CardTitle>
+              <CardTitle className="text-base">{t("Pipeline funnel")}</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">
-                People in each stage right now. Drag the board to move them.
-              </p>
+                {t("People in each stage right now. Drag the board to move them.")}</p>
             </div>
             <button type="button" className="text-xs text-primary hover:underline" onClick={onGoPipeline}>
-              Open pipeline
-            </button>
+              {t("Open pipeline")}</button>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -80,11 +79,11 @@ export function HiringHomePanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Needs attention</CardTitle>
+          <CardTitle className="text-base">{t("Needs attention")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Pipeline looks healthy.</p>
+            <p className="text-sm text-muted-foreground">{t("Pipeline looks healthy.")}</p>
           ) : (
             alerts.slice(0, 6).map((a) => (
               <button
@@ -121,15 +120,14 @@ export function HiringHomePanel({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Today’s interviews</CardTitle>
+            <CardTitle className="text-base">{t("Today’s interviews")}</CardTitle>
             <button type="button" className="text-xs text-primary hover:underline" onClick={onGoInterviews}>
-              Calendar
-            </button>
+              {t("Calendar")}</button>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {interviewsToday.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nothing on the calendar today.</p>
+            <p className="text-sm text-muted-foreground">{t("Nothing on the calendar today.")}</p>
           ) : (
             interviewsToday.map((i) => (
               <button
@@ -151,15 +149,14 @@ export function HiringHomePanel({
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-base">Offers in flight</CardTitle>
+            <CardTitle className="text-base">{t("Offers in flight")}</CardTitle>
             <button type="button" className="text-xs text-primary hover:underline" onClick={onGoOffers}>
-              All offers
-            </button>
+              {t("All offers")}</button>
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
           {pendingOffers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No offers waiting.</p>
+            <p className="text-sm text-muted-foreground">{t("No offers waiting.")}</p>
           ) : (
             pendingOffers.map((o) => (
               <button
@@ -181,11 +178,11 @@ export function HiringHomePanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Source performance</CardTitle>
+          <CardTitle className="text-base">{t("Source performance")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {summary.sourcePerformance.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No source data yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No source data yet.")}</p>
           ) : (
             summary.sourcePerformance
               .slice()
@@ -194,7 +191,7 @@ export function HiringHomePanel({
                 <div key={s.source} className="flex items-center justify-between text-sm">
                   <span>{sourceLabel(s.source)}</span>
                   <span className="tabular-nums text-muted-foreground">
-                    {s.hired}/{s.candidates} hired · {formatPercent(s.hireRate)}
+                    {s.hired}/{s.candidates} {t("hired ·")}{formatPercent(s.hireRate)}
                   </span>
                 </div>
               ))
@@ -204,11 +201,11 @@ export function HiringHomePanel({
 
       <Card className="lg:col-span-3">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Aging in stage</CardTitle>
+          <CardTitle className="text-base">{t("Aging in stage")}</CardTitle>
         </CardHeader>
         <CardContent>
           {stuck.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No one is sitting too long in a stage.</p>
+            <p className="text-sm text-muted-foreground">{t("No one is sitting too long in a stage.")}</p>
           ) : (
             <ul className="divide-y">
               {stuck.slice(0, 8).map((c) => (
@@ -220,8 +217,7 @@ export function HiringHomePanel({
                   <div className="flex items-center gap-2">
                     <StageBadge stage={c.currentStage} />
                     <Button size="sm" variant="ghost" onClick={() => onOpenCandidate(c.id)}>
-                      Open
-                    </Button>
+                      {t("Open")}</Button>
                   </div>
                 </li>
               ))}

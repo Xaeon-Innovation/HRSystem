@@ -20,6 +20,7 @@ import {
   URGENCY_BAR,
   UrgencyBadge,
 } from "@/components/alerts/alert-badges";
+import { t } from "@/i18n";
 
 export function AlertsInbox({
   items,
@@ -58,18 +59,16 @@ export function AlertsInbox({
               onUrgency("");
             }}
           >
-            All
-          </FilterChip>
+            {t("All")}</FilterChip>
           <FilterChip active={unreadOnly} onClick={() => onUnreadOnly(!unreadOnly)}>
-            Unread
-          </FilterChip>
+            {t("Unread")}</FilterChip>
           {ALERT_URGENCIES.map((u) => (
             <FilterChip
               key={u}
               active={urgency === u}
               onClick={() => onUrgency(urgency === u ? "" : u)}
             >
-              {u === "info" ? "Info" : u === "warning" ? "Warning" : "Critical"}
+              {u === "info" ? t("Info") : u === "warning" ? t("Warning") : t("Critical")}
             </FilterChip>
           ))}
         </div>
@@ -77,13 +76,11 @@ export function AlertsInbox({
           {isAdmin ? (
             <Button size="sm" variant="outline" onClick={onAnnounce}>
               <Megaphone className="h-4 w-4" />
-              Announce
-            </Button>
+              {t("Announce")}</Button>
           ) : null}
           <Button size="sm" variant="outline" onClick={onMarkAll}>
             <CheckCheck className="h-4 w-4" />
-            Mark all read
-          </Button>
+            {t("Mark all read")}</Button>
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5">
@@ -103,11 +100,9 @@ export function AlertsInbox({
             <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
               <Bell className="h-6 w-6" />
             </div>
-            <p className="text-base font-semibold">You’re all caught up</p>
+            <p className="text-base font-semibold">{t("You’re all caught up")}</p>
             <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              New leave requests, compliance deadlines, KPI exceptions, and system
-              issues will land here.
-            </p>
+              {t("New leave requests, compliance deadlines, KPI exceptions, and system issues will land here.")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -138,7 +133,7 @@ export function AlertsInbox({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
                         {!item.read ? (
-                          <span className="h-2 w-2 rounded-full bg-primary" aria-label="Unread" />
+                          <span className="h-2 w-2 rounded-full bg-primary" aria-label={t("Unread")} />
                         ) : null}
                         <p className="font-medium leading-tight">{item.title}</p>
                       </div>
@@ -157,8 +152,7 @@ export function AlertsInbox({
                         variant="outline"
                         onClick={() => onMarkRead(item.id)}
                       >
-                        Read
-                      </Button>
+                        {t("Read")}</Button>
                     ) : null}
                   </div>
                 </CardContent>

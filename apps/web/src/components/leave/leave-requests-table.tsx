@@ -15,8 +15,10 @@ import {
   SELECT_CLASS,
   statusLabel,
 } from "@/lib/leave/format";
-import { LEAVE_REQUEST_STATUSES, type LeaveEmployee, type LeaveRequest, type LeaveRequestFilters, type LeaveRequestStatus, type LeaveType } from "@/lib/leave/types";
+import { LEAVE_REQUEST_STATUSES, type LeaveActor, type LeaveEmployee, type LeaveRequest, type LeaveRequestFilters, type LeaveRequestStatus, type LeaveType } from "@/lib/leave/types";
+import { actorCanActOnStep, currentApprovalStep } from "@/lib/leave/workflow";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function LeaveRequestsTable({
   requests,
@@ -25,6 +27,7 @@ export function LeaveRequestsTable({
   employees,
   types,
   isAdmin,
+  actor,
   onOpen,
   onQuickApprove,
   onQuickReject,
@@ -37,6 +40,7 @@ export function LeaveRequestsTable({
   employees: LeaveEmployee[];
   types: LeaveType[];
   isAdmin: boolean;
+  actor?: LeaveActor;
   onOpen: (id: string) => void;
   onQuickApprove?: (id: string) => void;
   onQuickReject?: (id: string) => void;
@@ -55,17 +59,16 @@ export function LeaveRequestsTable({
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <CardTitle className="text-base">Leave requests</CardTitle>
+            <CardTitle className="text-base">{t("Leave requests")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Status, dates, and who needs a decision
-            </p>
+              {t("Status, dates, and who needs a decision")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 className="h-9 w-44 pl-8"
-                placeholder="Search"
+                placeholder={t("Search")}
                 value={filters.search}
                 onChange={(e) => onChange({ search: e.target.value })}
               />
@@ -75,7 +78,7 @@ export function LeaveRequestsTable({
               value={filters.status}
               onChange={(e) => onChange({ status: e.target.value as LeaveRequestStatus | "" })}
             >
-              <option value="">Any status</option>
+              <option value="">{t("Any status")}</option>
               {LEAVE_REQUEST_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {statusLabel(s)}
@@ -83,19 +86,19 @@ export function LeaveRequestsTable({
               ))}
             </select>
             <Button type="button" variant="ghost" size="sm" onClick={() => setMore((v) => !v)}>
-              {more ? "Fewer filters" : "More filters"}
+              {more ? t("Fewer filters") : t("More filters")}
             </Button>
           </div>
         </div>
         {more ? (
           <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
-            <FilterField label="Type">
+            <FilterField label={t("Type")}>
               <select
                 className={SELECT_CLASS}
                 value={filters.leaveTypeId}
                 onChange={(e) => onChange({ leaveTypeId: e.target.value })}
               >
-                <option value="">All types</option>
+                <option value="">{t("All types")}</option>
                 {types.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -104,13 +107,13 @@ export function LeaveRequestsTable({
               </select>
             </FilterField>
             {isAdmin ? (
-              <FilterField label="Employee">
+              <FilterField label={t("Employee")}>
                 <select
                   className={SELECT_CLASS}
                   value={filters.employeeId}
                   onChange={(e) => onChange({ employeeId: e.target.value })}
                 >
-                  <option value="">Everyone</option>
+                  <option value="">{t("Everyone")}</option>
                   {employees.map((e) => (
                     <option key={e.id} value={e.id}>
                       {e.name}
@@ -119,13 +122,13 @@ export function LeaveRequestsTable({
                 </select>
               </FilterField>
             ) : null}
-            <FilterField label="Department">
+            <FilterField label={t("Department")}>
               <select
                 className={SELECT_CLASS}
                 value={filters.department}
                 onChange={(e) => onChange({ department: e.target.value })}
               >
-                <option value="">All departments</option>
+                <option value="">{t("All departments")}</option>
                 {departments.map((d) => (
                   <option key={d} value={d}>
                     {d}
@@ -133,13 +136,13 @@ export function LeaveRequestsTable({
                 ))}
               </select>
             </FilterField>
-            <FilterField label="Branch">
+            <FilterField label={t("Branch")}>
               <select
                 className={SELECT_CLASS}
                 value={filters.branchId}
                 onChange={(e) => onChange({ branchId: e.target.value })}
               >
-                <option value="">All branches</option>
+                <option value="">{t("All branches")}</option>
                 {branches.map(([id, name]) => (
                   <option key={id} value={id}>
                     {name}
@@ -148,13 +151,13 @@ export function LeaveRequestsTable({
               </select>
             </FilterField>
             {isAdmin ? (
-              <FilterField label="Manager">
+              <FilterField label={t("Manager")}>
                 <select
                   className={SELECT_CLASS}
                   value={filters.managerId}
                   onChange={(e) => onChange({ managerId: e.target.value })}
                 >
-                  <option value="">Any manager</option>
+                  <option value="">{t("Any manager")}</option>
                   {managers.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.name}
@@ -163,10 +166,10 @@ export function LeaveRequestsTable({
                 </select>
               </FilterField>
             ) : null}
-            <FilterField label="From">
+            <FilterField label={t("From")}>
               <Input type="date" className="h-9" value={filters.from} onChange={(e) => onChange({ from: e.target.value })} />
             </FilterField>
-            <FilterField label="To">
+            <FilterField label={t("To")}>
               <Input type="date" className="h-9" value={filters.to} onChange={(e) => onChange({ to: e.target.value })} />
             </FilterField>
           </div>
@@ -176,8 +179,8 @@ export function LeaveRequestsTable({
         {requests.length === 0 ? (
           <div className="px-4 pb-4">
             <LeaveEmptyState
-              title="No requests match"
-              description="Try another status, or file a new leave request."
+              title={t("No requests match")}
+              description={t("Try another status, or file a new leave request.")}
             />
           </div>
         ) : (
@@ -188,7 +191,7 @@ export function LeaveRequestsTable({
                   <th className="px-3 py-2">
                     <input
                       type="checkbox"
-                      aria-label="Select pending"
+                      aria-label={t("Select pending")}
                       checked={allPendingSelected}
                       onChange={(e) => {
                         pendingIds.forEach((id) => onToggleSelect(id, e.target.checked));
@@ -196,13 +199,13 @@ export function LeaveRequestsTable({
                     />
                   </th>
                 ) : null}
-                <th className="px-3 py-2">Person</th>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2">Dates</th>
-                <th className="px-3 py-2">Days</th>
-                <th className="px-3 py-2">Submitted</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Approver</th>
+                <th className="px-3 py-2">{t("Person")}</th>
+                <th className="px-3 py-2">{t("Type")}</th>
+                <th className="px-3 py-2">{t("Dates")}</th>
+                <th className="px-3 py-2">{t("Days")}</th>
+                <th className="px-3 py-2">{t("Submitted")}</th>
+                <th className="px-3 py-2">{t("Status")}</th>
+                <th className="px-3 py-2">{t("Approver")}</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
@@ -246,19 +249,20 @@ export function LeaveRequestsTable({
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">
-                      {isAdmin && r.status === "pending" && onQuickApprove ? (
+                      {r.status === "pending" &&
+                      onQuickApprove &&
+                      (isAdmin ||
+                        (actor &&
+                          actorCanActOnStep(actor, currentApprovalStep(r)))) ? (
                         <>
                           <Button size="sm" variant="outline" onClick={() => onQuickApprove(r.id)}>
-                            Approve
-                          </Button>
+                            {t("Approve")}</Button>
                           <Button size="sm" variant="ghost" onClick={() => onQuickReject?.(r.id)}>
-                            Reject
-                          </Button>
+                            {t("Reject")}</Button>
                         </>
                       ) : (
                         <Button size="sm" variant="ghost" onClick={() => onOpen(r.id)}>
-                          View
-                        </Button>
+                          {t("View")}</Button>
                       )}
                     </div>
                   </td>

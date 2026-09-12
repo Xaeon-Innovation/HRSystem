@@ -58,11 +58,13 @@ export type KpiEvidence = {
 };
 
 export type KpiHistoryPoint = {
+  scoreId?: string;
   period: string;
   actualValue: number;
   targetValue: number | null;
   reviewDate: string;
   notes: string | null;
+  acknowledgedAt?: string | null;
 };
 
 export type KpiThreshold = {
@@ -100,6 +102,8 @@ export type KpiItem = {
   lastUpdated: string | null;
   dueAt: string | null;
   formula: string;
+  latestScoreId?: string | null;
+  acknowledgedAt?: string | null;
 };
 
 export type ScoredKpi = KpiItem & {
@@ -261,6 +265,8 @@ export type ApiKpiScore = {
   reviewDate: string;
   notes: string | null;
   reviewerUserId?: string;
+  acknowledgedAt?: string | null;
+  acknowledgedByUserId?: string | null;
 };
 
 export type ApiSummaryItem = {

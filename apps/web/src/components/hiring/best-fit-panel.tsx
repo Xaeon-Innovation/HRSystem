@@ -9,6 +9,7 @@ import { HiringEmptyState } from "@/components/hiring/hiring-states";
 import { formatDateTime, SELECT_CLASS } from "@/lib/hiring/format";
 import { bandFor } from "@/lib/hiring/fit-score";
 import type { BestFitDraft, Candidate, JobOpening } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function BestFitPanel({
   drafts,
@@ -34,15 +35,14 @@ export function BestFitPanel({
   return (
     <div className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold">Best-fit bench</h2>
+        <h2 className="text-sm font-semibold">{t("Best-fit bench")}</h2>
         <p className="text-xs text-muted-foreground">
-          Strong contacts kept for later openings. Removing someone from the bench does not delete them.
-        </p>
+          {t("Strong contacts kept for later openings. Removing someone from the bench does not delete them.")}</p>
       </div>
       {drafts.length === 0 ? (
         <HiringEmptyState
-          title="No best-fit drafts yet"
-          description="Save a candidate as best fit from their profile or the pipeline when you want to keep the contact warm."
+          title={t("No best-fit drafts yet")}
+          description={t("Save a candidate as best fit from their profile or the pipeline when you want to keep the contact warm.")}
         />
       ) : (
         <ul className="space-y-2">
@@ -58,10 +58,10 @@ export function BestFitPanel({
                 <div className="flex min-w-0 items-start gap-3">
                   <UserAvatar name={c?.fullName ?? d.jobTitle} size="md" />
                   <div className="min-w-0">
-                    <p className="font-semibold">{c?.fullName ?? "Candidate removed"}</p>
+                    <p className="font-semibold">{c?.fullName ?? t("Candidate removed")}</p>
                     <p className="text-xs text-muted-foreground">
                       {d.jobTitle} · {d.department}
-                      {d.jobId ? "" : " · opening gone"}
+                      {d.jobId ? "" : t(" · opening gone")}
                     </p>
                     {c ? (
                       <p className="mt-1 text-xs">
@@ -71,7 +71,7 @@ export function BestFitPanel({
                     ) : null}
                     {d.note ? <p className="mt-1 text-sm">{d.note}</p> : null}
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      Saved by {d.savedByName} · {formatDateTime(d.savedAt)}
+                      {t("Saved by")}{d.savedByName} · {formatDateTime(d.savedAt)}
                     </p>
                   </div>
                 </div>
@@ -79,8 +79,7 @@ export function BestFitPanel({
                   {fit ? <FitScoreBadge result={fit} /> : <FitScoreBadge result={{ score: null, band: null, matchedSkills: [], missingSkills: [], knockout: false, usedInterview: false }} />}
                   {c ? (
                     <Button size="sm" variant="outline" onClick={() => onOpenCandidate(c.id)}>
-                      Profile
-                    </Button>
+                      {t("Profile")}</Button>
                   ) : null}
                   {canManage && c ? (
                     <>
@@ -89,7 +88,7 @@ export function BestFitPanel({
                         value={jobId}
                         onChange={(e) => setJobByDraft((prev) => ({ ...prev, [d.id]: e.target.value }))}
                       >
-                        {openJobs.length === 0 ? <option value="">No open jobs</option> : null}
+                        {openJobs.length === 0 ? <option value="">{t("No open jobs")}</option> : null}
                         {openJobs.map((j) => (
                           <option key={j.id} value={j.id}>
                             {j.title}
@@ -103,11 +102,9 @@ export function BestFitPanel({
                           if (jobId) onAttach(d.id, jobId);
                         }}
                       >
-                        Attach to opening
-                      </Button>
+                        {t("Attach to opening")}</Button>
                       <Button size="sm" variant="ghost" onClick={() => setPending(d)}>
-                        Remove from bench
-                      </Button>
+                        {t("Remove from bench")}</Button>
                     </>
                   ) : null}
                 </div>

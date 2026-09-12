@@ -4,6 +4,7 @@ import {
   decodeBase64Image,
   detectImageMime,
   isUserId,
+  logoUrlFor,
 } from "./avatar.js";
 
 const PNG_1X1 =
@@ -36,5 +37,13 @@ describe("avatar helpers", () => {
   it("validates user ids used as avatar filenames", () => {
     expect(isUserId("11111111-1111-1111-1111-111111111111")).toBe(true);
     expect(isUserId("../etc/passwd")).toBe(false);
+  });
+
+  it("builds a public logo path only when a mime is set", () => {
+    const id = "11111111-1111-1111-1111-111111111111";
+    expect(logoUrlFor(id, null)).toBeNull();
+    expect(logoUrlFor(id, "image/png", new Date(1_700_000_000_000))).toBe(
+      `/v1/uploads/logos/${id}?v=1700000000000`,
+    );
   });
 });

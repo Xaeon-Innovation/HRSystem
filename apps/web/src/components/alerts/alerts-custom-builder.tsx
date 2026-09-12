@@ -46,6 +46,7 @@ import {
 } from "@hr/shared";
 import type { AlertChannel, AlertRecipient } from "@hr/shared";
 import { CategoryBadge, UrgencyBadge } from "@/components/alerts/alert-badges";
+import { t } from "@/i18n";
 
 export type CustomAlertDraft = {
   name: string;
@@ -179,13 +180,10 @@ export function AlertsCustomBuilder({
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <p className="max-w-xl text-sm text-muted-foreground">
-          Build a threshold on a metric, pick who should hear about it, and write
-          the message. Start from a common example or define your own.
-        </p>
+          {t("Build a threshold on a metric, pick who should hear about it, and write the message. Start from a common example or define your own.")}</p>
         <Button size="sm" onClick={() => openNew()}>
           <Plus className="h-4 w-4" />
-          New custom alert
-        </Button>
+          {t("New custom alert")}</Button>
       </div>
       <div className="flex flex-wrap gap-2">
         {CUSTOM_ALERT_EXAMPLES.map((example) => (
@@ -202,9 +200,7 @@ export function AlertsCustomBuilder({
       {custom.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No custom alerts yet. Try “Low annual leave balance” to see the
-            builder with a real example filled in.
-          </CardContent>
+            {t("No custom alerts yet. Try “Low annual leave balance” to see the builder with a real example filled in.")}</CardContent>
         </Card>
       ) : (
         <div className="space-y-2">
@@ -263,7 +259,7 @@ export function AlertsCustomBuilder({
       />
       <ConfirmDialog
         open={Boolean(deleteId)}
-        title="Delete custom alert?"
+        title={t("Delete custom alert?")}
         description="This rule will stop firing. Existing inbox items stay in history."
         confirmLabel="Delete"
         variant="destructive"
@@ -298,10 +294,10 @@ function CustomAlertSheet({
 }) {
   const allowedMetrics = draft.source ? metricsForSource(draft.source) : [...ALERT_METRICS];
   const previewVars = {
-    employee_name: "Amina Hassan",
-    department: "Field ops",
+    employee_name: t("Amina Hassan"),
+    department: t("Field ops"),
     branch: "Cairo",
-    date: "28 Aug 2026",
+    date: t("28 Aug 2026"),
     metric_value: draft.threshold ?? draft.durationValue ?? 2,
     threshold: draft.threshold ?? 0,
     title: draft.name || "Alert",
@@ -363,12 +359,11 @@ function CustomAlertSheet({
         <SheetHeader>
           <SheetTitle>{title}</SheetTitle>
           <SheetDescription>
-            Choose a source and condition, then decide who is notified and how.
-          </SheetDescription>
+            {t("Choose a source and condition, then decide who is notified and how.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-5">
           <div className="space-y-2">
-            <Label htmlFor="custom-name">Name</Label>
+            <Label htmlFor="custom-name">{t("Name")}</Label>
             <Input
               id="custom-name"
               value={draft.name}
@@ -378,7 +373,7 @@ function CustomAlertSheet({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="custom-source">Source</Label>
+              <Label htmlFor="custom-source">{t("Source")}</Label>
               <select
                 id="custom-source"
                 className={SELECT_CLASS}
@@ -398,7 +393,7 @@ function CustomAlertSheet({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="custom-metric">Metric</Label>
+              <Label htmlFor="custom-metric">{t("Metric")}</Label>
               <select
                 id="custom-metric"
                 className={SELECT_CLASS}
@@ -420,7 +415,7 @@ function CustomAlertSheet({
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="custom-condition">Condition</Label>
+              <Label htmlFor="custom-condition">{t("Condition")}</Label>
               <select
                 id="custom-condition"
                 className={SELECT_CLASS}
@@ -440,7 +435,7 @@ function CustomAlertSheet({
               </select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="custom-scope">Scope</Label>
+              <Label htmlFor="custom-scope">{t("Scope")}</Label>
               <select
                 id="custom-scope"
                 className={SELECT_CLASS}
@@ -463,8 +458,7 @@ function CustomAlertSheet({
           {needsThreshold ? (
             <div className="space-y-2">
               <Label htmlFor="custom-threshold">
-                Threshold
-                {draft.metric ? ` (${ALERT_METRIC_META[draft.metric].unit})` : ""}
+                {t("Threshold")}{draft.metric ? ` (${ALERT_METRIC_META[draft.metric].unit})` : ""}
               </Label>
               <Input
                 id="custom-threshold"
@@ -482,7 +476,7 @@ function CustomAlertSheet({
           {needsDuration ? (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="custom-duration">For</Label>
+                <Label htmlFor="custom-duration">{t("For")}</Label>
                 <Input
                   id="custom-duration"
                   type="number"
@@ -498,7 +492,7 @@ function CustomAlertSheet({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="custom-unit">Unit</Label>
+                <Label htmlFor="custom-unit">{t("Unit")}</Label>
                 <select
                   id="custom-unit"
                   className={SELECT_CLASS}
@@ -522,7 +516,7 @@ function CustomAlertSheet({
             </div>
           ) : null}
           <div className="space-y-2">
-            <Label htmlFor="custom-title">Message title</Label>
+            <Label htmlFor="custom-title">{t("Message title")}</Label>
             <Input
               id="custom-title"
               value={draft.titleTemplate}
@@ -530,7 +524,7 @@ function CustomAlertSheet({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="custom-body">Message body</Label>
+            <Label htmlFor="custom-body">{t("Message body")}</Label>
             <textarea
               id="custom-body"
               className={TEXTAREA_CLASS}
@@ -540,8 +534,7 @@ function CustomAlertSheet({
             <div className="flex flex-wrap gap-1">{fieldButtons}</div>
             <div className="rounded-md bg-secondary/60 p-3 text-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Preview
-              </p>
+                {t("Preview")}</p>
               <p className="mt-1 font-medium">
                 {interpolateAlertTemplate(draft.titleTemplate, previewVars)}
               </p>
@@ -551,7 +544,7 @@ function CustomAlertSheet({
             </div>
           </div>
           <fieldset className="space-y-2">
-            <Label>Urgency</Label>
+            <Label>{t("Urgency")}</Label>
             <div className="grid grid-cols-3 gap-2">
               {ALERT_URGENCIES.map((urgency) => (
                 <button
@@ -570,7 +563,7 @@ function CustomAlertSheet({
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <Label>Recipients</Label>
+            <Label>{t("Recipients")}</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {ALERT_RECIPIENTS.map((recipient) => (
                 <label
@@ -593,7 +586,7 @@ function CustomAlertSheet({
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <Label>Channel</Label>
+            <Label>{t("Channel")}</Label>
             {ALERT_CHANNELS.map((channel) => (
               <label
                 key={channel}
@@ -614,7 +607,7 @@ function CustomAlertSheet({
             ))}
           </fieldset>
           <div className="space-y-2">
-            <Label htmlFor="custom-frequency">Frequency</Label>
+            <Label htmlFor="custom-frequency">{t("Frequency")}</Label>
             <select
               id="custom-frequency"
               className={SELECT_CLASS}
@@ -636,10 +629,9 @@ function CustomAlertSheet({
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button disabled={!valid || saving} onClick={onSave}>
-            {saving ? "Saving…" : "Save alert"}
+            {saving ? t("Saving…") : t("Save alert")}
           </Button>
         </SheetFooter>
       </SheetContent>

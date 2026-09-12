@@ -16,6 +16,7 @@ import {
 import { addDaysIso, SELECT_CLASS, TEXTAREA_CLASS, todayIso } from "@/lib/hiring/format";
 import type { HiringStore } from "@/lib/hiring/store";
 import type { HiringActor, OfferDraft } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function OfferForm({
   open,
@@ -68,15 +69,15 @@ export function OfferForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>New offer</SheetTitle>
-          <SheetDescription>Salary and benefits are placeholders until payroll is wired.</SheetDescription>
+          <SheetTitle>{t("New offer")}</SheetTitle>
+          <SheetDescription>{t("Salary and benefits are placeholders until payroll is wired.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-3">
           {error ? (
             <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">{error}</p>
           ) : null}
           <div className="space-y-1">
-            <Label>Candidate</Label>
+            <Label>{t("Candidate")}</Label>
             <select
               className={SELECT_CLASS}
               value={form.candidateId}
@@ -96,11 +97,11 @@ export function OfferForm({
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Offered title</Label>
+            <Label>{t("Offered title")}</Label>
             <Input value={form.offeredTitle} onChange={(e) => patch({ offeredTitle: e.target.value })} />
           </div>
           <div className="space-y-1">
-            <Label>Offered salary (placeholder)</Label>
+            <Label>{t("Offered salary (placeholder)")}</Label>
             <Input
               type="number"
               value={form.offeredSalary}
@@ -109,15 +110,15 @@ export function OfferForm({
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1">
-              <Label>Offer date</Label>
+              <Label>{t("Offer date")}</Label>
               <Input type="date" value={form.offerDate} onChange={(e) => patch({ offerDate: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label>Expiry</Label>
+              <Label>{t("Expiry")}</Label>
               <Input type="date" value={form.expiryDate} onChange={(e) => patch({ expiryDate: e.target.value })} />
             </div>
             <div className="space-y-1">
-              <Label>Expected join date</Label>
+              <Label>{t("Expected join date")}</Label>
               <Input
                 type="date"
                 value={form.expectedJoinDate}
@@ -126,7 +127,7 @@ export function OfferForm({
             </div>
           </div>
           <div className="space-y-1">
-            <Label>Benefits / notes</Label>
+            <Label>{t("Benefits / notes")}</Label>
             <textarea
               className={TEXTAREA_CLASS}
               value={form.benefitsNotes}
@@ -134,17 +135,15 @@ export function OfferForm({
             />
           </div>
           <div className="space-y-1">
-            <Label>Internal notes</Label>
+            <Label>{t("Internal notes")}</Label>
             <textarea className={TEXTAREA_CLASS} value={form.notes} onChange={(e) => patch({ notes: e.target.value })} />
           </div>
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button type="button" onClick={submit}>
-            Save draft
-          </Button>
+            {t("Save draft")}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

@@ -6,6 +6,7 @@ import {
   formatPercent,
 } from "@/lib/compensation/format";
 import type { CompEmployee, CompReport, OverviewSummary } from "@/lib/compensation/types";
+import { t } from "@/i18n";
 
 const PALETTE = [
   "hsl(199 89% 32%)",
@@ -35,7 +36,7 @@ export function CompensationReportsPanel({
       <div className="grid gap-3 lg:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Total compensation by department</CardTitle>
+            <CardTitle className="text-base">{t("Total compensation by department")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -49,7 +50,7 @@ export function CompensationReportsPanel({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Salary by role</CardTitle>
+            <CardTitle className="text-base">{t("Salary by role")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -63,7 +64,7 @@ export function CompensationReportsPanel({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Average salary by branch</CardTitle>
+            <CardTitle className="text-base">{t("Average salary by branch")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -77,7 +78,7 @@ export function CompensationReportsPanel({
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Compensation growth (change events)</CardTitle>
+            <CardTitle className="text-base">{t("Compensation growth (change events)")}</CardTitle>
           </CardHeader>
           <CardContent>
             <TrendChart
@@ -98,11 +99,11 @@ export function CompensationReportsPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Outside salary bands</CardTitle>
+          <CardTitle className="text-base">{t("Outside salary bands")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {report.outOfBand.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Everyone in scope sits inside their band.</p>
+            <p className="text-sm text-muted-foreground">{t("Everyone in scope sits inside their band.")}</p>
           ) : (
             report.outOfBand.map((row) => (
               <button
@@ -127,11 +128,11 @@ export function CompensationReportsPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent salary changes</CardTitle>
+          <CardTitle className="text-base">{t("Recent salary changes")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {report.recentChanges.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No changes in the last 90 days.</p>
+            <p className="text-sm text-muted-foreground">{t("No changes in the last 90 days.")}</p>
           ) : (
             report.recentChanges.slice(0, 8).map((h) => (
               <button
@@ -179,7 +180,7 @@ function HBar({
   format: (v: number) => string;
 }) {
   if (items.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">Nothing to chart.</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">{t("Nothing to chart.")}</p>;
   }
   const max = Math.max(...items.map((i) => i.value), 1);
   const width = 640;
@@ -216,7 +217,7 @@ function HBar({
 
 function TrendChart({ points }: { points: { label: string; value: number }[] }) {
   if (points.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">Not enough history.</p>;
+    return <p className="py-8 text-center text-sm text-muted-foreground">{t("Not enough history.")}</p>;
   }
   const width = 640;
   const height = 200;

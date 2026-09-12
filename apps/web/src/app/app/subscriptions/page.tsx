@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type SubscriptionRow = {
   id: string;
@@ -34,10 +35,9 @@ export default function SubscriptionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Subscriptions</h1>
+        <h1 className="text-2xl font-semibold">{t("Subscriptions")}</h1>
         <p className="text-sm text-muted-foreground">
-          Cross-tenant billing status and overrides
-        </p>
+          {t("Cross-tenant billing status and overrides")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
@@ -46,18 +46,17 @@ export default function SubscriptionsPage() {
             <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div>
                 <p className="font-medium">
-                  {s.tenant?.name ?? "Unknown tenant"}{" "}
+                  {s.tenant?.name ?? t("Unknown tenant")}{" "}
                   <span className="text-xs text-muted-foreground">
                     ({s.tenant?.slug})
                   </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {s.plan?.name ?? "No plan"} · {s.status}
-                  {s.cancelAtPeriodEnd ? " · cancel at period end" : ""}
+                  {s.plan?.name ?? t("No plan")} · {s.status}
+                  {s.cancelAtPeriodEnd ? t(" · cancel at period end") : ""}
                   {" · "}
                   {s.seatsUsed}
-                  {s.seatLimit != null ? `/${s.seatLimit}` : ""} seats
-                  {s.currentPeriodEnd
+                  {s.seatLimit != null ? `/${s.seatLimit}` : ""} {t("seats")}{s.currentPeriodEnd
                     ? ` · ends ${new Date(s.currentPeriodEnd).toLocaleDateString()}`
                     : ""}
                 </p>
@@ -79,8 +78,7 @@ export default function SubscriptionsPage() {
                         .catch((e) => setError(e.message))
                     }
                   >
-                    Cancel
-                  </Button>
+                    {t("Cancel")}</Button>
                 ) : null}
                 {s.status === "past_due" || s.status === "canceled" ? (
                   <Button
@@ -95,15 +93,14 @@ export default function SubscriptionsPage() {
                         .catch((e) => setError(e.message))
                     }
                   >
-                    Force active
-                  </Button>
+                    {t("Force active")}</Button>
                 ) : null}
               </div>
             </CardContent>
           </Card>
         ))}
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No subscriptions.</p>
+          <p className="text-sm text-muted-foreground">{t("No subscriptions.")}</p>
         ) : null}
       </div>
     </div>

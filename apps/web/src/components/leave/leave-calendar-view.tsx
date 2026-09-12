@@ -16,6 +16,7 @@ import type {
   LeaveRequest,
 } from "@/lib/leave/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function LeaveCalendarView({
   events,
@@ -62,14 +63,14 @@ export function LeaveCalendarView({
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">Team calendar</CardTitle>
+              <CardTitle className="text-base">{t("Team calendar")}</CardTitle>
               <div className="flex items-center gap-2">
                 <select
                   className={cn(SELECT_CLASS, "w-40")}
                   value={department}
                   onChange={(e) => setDepartment(e.target.value)}
                 >
-                  <option value="">All departments</option>
+                  <option value="">{t("All departments")}</option>
                   {departments.map((d) => (
                     <option key={d} value={d}>
                       {d}
@@ -79,7 +80,7 @@ export function LeaveCalendarView({
                 <Button
                   size="icon"
                   variant="outline"
-                  aria-label="Previous month"
+                  aria-label={t("Previous month")}
                   onClick={() => setCursor(shiftMonth(cursor, -1))}
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -88,7 +89,7 @@ export function LeaveCalendarView({
                 <Button
                   size="icon"
                   variant="outline"
-                  aria-label="Next month"
+                  aria-label={t("Next month")}
                   onClick={() => setCursor(shiftMonth(cursor, 1))}
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -98,7 +99,7 @@ export function LeaveCalendarView({
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
+              {[t("Sun"), t("Mon"), t("Tue"), t("Wed"), t("Thu"), t("Fri"), t("Sat")].map((d) => (
                 <div key={d} className="py-1">
                   {d}
                 </div>
@@ -153,11 +154,11 @@ export function LeaveCalendarView({
         <div className="space-y-3">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Off today</CardTitle>
+              <CardTitle className="text-base">{t("Off today")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {offToday.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Nobody is off today.</p>
+                <p className="text-sm text-muted-foreground">{t("Nobody is off today.")}</p>
               ) : (
                 offToday.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
               )}
@@ -170,19 +171,19 @@ export function LeaveCalendarView({
             <CardContent className="space-y-2">
               {holidayOn(selected, holidays) ? (
                 <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                  Public holiday: {holidayOn(selected, holidays)}
+                  {t("Public holiday:")}{holidayOn(selected, holidays)}
                 </p>
               ) : null}
               {blackoutOn(selected, blackouts) ? (
                 <p className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-900 dark:bg-rose-950/60 dark:text-rose-200">
-                  Restricted: {blackoutOn(selected, blackouts)}
+                  {t("Restricted:")}{blackoutOn(selected, blackouts)}
                 </p>
               ) : null}
               {staffing ? (
                 <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-950 dark:bg-amber-950/60 dark:text-amber-200">{staffing}</p>
               ) : null}
               {selectedOff.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No approved leave on this day.</p>
+                <p className="text-sm text-muted-foreground">{t("No approved leave on this day.")}</p>
               ) : (
                 selectedOff.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
               )}
@@ -190,11 +191,11 @@ export function LeaveCalendarView({
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Upcoming</CardTitle>
+              <CardTitle className="text-base">{t("Upcoming")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No upcoming approved leave.</p>
+                <p className="text-sm text-muted-foreground">{t("No upcoming approved leave.")}</p>
               ) : (
                 upcoming.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} extra />)
               )}

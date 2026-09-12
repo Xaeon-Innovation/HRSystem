@@ -14,6 +14,7 @@ import {
   SELECT_CLASS,
 } from "@/lib/hiring/format";
 import { JOB_STATUSES, type JobOpening, type JobStatus } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function JobOpeningsTable({
   jobs,
@@ -51,7 +52,7 @@ export function JobOpeningsTable({
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="Search title, department, manager…"
+          placeholder={t("Search title, department, manager…")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-sm"
@@ -61,7 +62,7 @@ export function JobOpeningsTable({
           value={status}
           onChange={(e) => setStatus(e.target.value as JobStatus | "")}
         >
-          <option value="">All statuses</option>
+          <option value="">{t("All statuses")}</option>
           {JOB_STATUSES.map((s) => (
             <option key={s} value={s}>
               {jobStatusLabel(s)}
@@ -73,7 +74,7 @@ export function JobOpeningsTable({
           value={dept}
           onChange={(e) => setDept(e.target.value)}
         >
-          <option value="">All departments</option>
+          <option value="">{t("All departments")}</option>
           {departments.map((d) => (
             <option key={d} value={d}>
               {d}
@@ -83,13 +84,12 @@ export function JobOpeningsTable({
       </div>
       {filtered.length === 0 ? (
         <HiringEmptyState
-          title="No job openings match"
-          description="Create a requisition to start a pipeline, or clear the filters."
+          title={t("No job openings match")}
+          description={t("Create a requisition to start a pipeline, or clear the filters.")}
           action={
             canManage ? (
               <Button size="sm" onClick={onNew}>
-                New job opening
-              </Button>
+                {t("New job opening")}</Button>
             ) : null
           }
         />
@@ -106,8 +106,7 @@ export function JobOpeningsTable({
                       {job.hiringManagerName}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      {job.filledCount}/{job.openingsCount} filled · opened {formatDate(job.openedAt)} ·
-                      target {formatDate(job.targetHireDate)} ·{" "}
+                      {job.filledCount}/{job.openingsCount} {t("filled · opened")}{formatDate(job.openedAt)} {t("· target")}{formatDate(job.targetHireDate)} ·{" "}
                       {formatMoney(job.salaryRangeMin, job.currency)}–
                       {formatMoney(job.salaryRangeMax, job.currency)}
                     </p>
@@ -116,12 +115,10 @@ export function JobOpeningsTable({
                     <PriorityBadge priority={job.priority} />
                     <JobStatusBadge status={job.status} />
                     <Button size="sm" variant="outline" onClick={() => onOpen(job.id)}>
-                      Open
-                    </Button>
+                      {t("Open")}</Button>
                     {canManage ? (
                       <Button size="sm" variant="ghost" onClick={() => onRemove(job.id)}>
-                        Remove
-                      </Button>
+                        {t("Remove")}</Button>
                     ) : null}
                   </div>
                 </div>

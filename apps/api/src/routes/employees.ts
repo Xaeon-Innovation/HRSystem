@@ -53,6 +53,7 @@ const employeeSelect = {
   status: employees.status,
   branchId: employees.branchId,
   siteId: employees.siteId,
+  managerId: employees.managerId,
   geofenceLat: employees.geofenceLat,
   geofenceLng: employees.geofenceLng,
   geofenceRadiusMeters: employees.geofenceRadiusMeters,
@@ -114,6 +115,27 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     return branch.id;
   }
 
+  async function resolveManagerId(
+    tenantId: string,
+    managerId: string | null | undefined,
+    selfEmployeeId?: string,
+  ): Promise<string | null | undefined> {
+    if (managerId === undefined) return undefined;
+    if (managerId == null) return null;
+    if (selfEmployeeId && managerId === selfEmployeeId) {
+      throw new Error("Employee cannot be their own manager");
+    }
+    const manager = await app.db.query.employees.findFirst({
+      where: and(
+        eq(employees.id, managerId),
+        eq(employees.tenantId, tenantId),
+      ),
+      columns: { id: true },
+    });
+    if (!manager) throw new Error("Manager not found in tenant");
+    return manager.id;
+  }
+
   async function insertEmployee(
     tenantId: string,
     data: CreateEmployeeInput,
@@ -134,6 +156,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     if (data.jobRoleIds?.length) {
       await assertJobRolesExist(app.db, tenantId, data.jobRoleIds);
     }
+    const managerId = await resolveManagerId(tenantId, data.managerId);
 
     const existing = await app.db.query.users.findFirst({
       where: and(eq(users.email, data.email), eq(users.tenantId, tenantId)),
@@ -179,6 +202,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         status: data.status,
         branchId,
         siteId: data.siteId ?? null,
+        managerId: managerId ?? null,
         geofenceLat: data.geofenceLat ?? null,
         geofenceLng: data.geofenceLng ?? null,
         geofenceRadiusMeters: data.geofenceRadiusMeters ?? null,
@@ -250,6 +274,26 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         }),
       ),
     };
+  });
+
+  /** Lightweight count of direct reports for nav gating. */
+  app.get("/managed", async (request) => {
+    const tenantId = tenantIdOf(request);
+    const user = request.user as JwtPayload;
+    if (!user.employeeId) {
+      return { count: 0 };
+    }
+    const rows = await app.db
+      .select({ id: employees.id })
+      .from(employees)
+      .where(
+        and(
+          eq(employees.tenantId, tenantId),
+          eq(employees.managerId, user.employeeId),
+          eq(employees.status, "active"),
+        ),
+      );
+    return { count: rows.length };
   });
 
   app.post(
@@ -460,6 +504,21 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         if (!nextBranchId) nextBranchId = site.branchId;
       }
 
+      let nextManagerId: string | null = emp.managerId;
+      if (parsed.data.managerId !== undefined) {
+        try {
+          nextManagerId =
+            (await resolveManagerId(
+              tenantId,
+              parsed.data.managerId,
+              id,
+            )) ?? null;
+        } catch (err) {
+          const message = err instanceof Error ? err.message : "Invalid manager";
+          return reply.code(400).send({ error: message });
+        }
+      }
+
       if (parsed.data.nationalId) {
         const clash = await app.db.query.employees.findFirst({
           where: and(
@@ -545,6 +604,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           status: nextStatus,
           branchId: nextBranchId,
           siteId: nextSiteId,
+          managerId: nextManagerId,
           geofenceLat: nextGeofenceLat,
           geofenceLng: nextGeofenceLng,
           geofenceRadiusMeters: nextGeofenceRadius,

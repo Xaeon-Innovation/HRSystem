@@ -12,6 +12,7 @@ import type {
   VariableCycle,
   VariableStatus,
 } from "./types";
+import { t, intlDateOptions, intlLocale, intlNumberOptions } from "@/i18n";
 
 export const SELECT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -63,23 +64,25 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const d = parseIsoDate(value.slice(0, 10));
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return d.toLocaleDateString(
+    intlLocale(),
+    intlDateOptions({ month: "short", day: "numeric", year: "numeric" }),
+  );
 }
 
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  return d.toLocaleString(
+    intlLocale(),
+    intlDateOptions({
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }),
+  );
 }
 
 export function roundMoney(value: number): number {
@@ -125,210 +128,210 @@ export function formatHours(value: number | null | undefined, digits = 1): strin
 export function payStructureLabel(value: PayStructure): string {
   switch (value) {
     case "monthly":
-      return "Monthly salary";
+      return t("Monthly salary");
     case "weekly":
-      return "Weekly salary";
+      return t("Weekly salary");
     case "daily":
-      return "Daily wage";
+      return t("Daily wage");
     case "hourly":
-      return "Hourly rate";
+      return t("Hourly rate");
     case "commission_only":
-      return "Commission only";
+      return t("Commission only");
     case "salary_plus_commission":
-      return "Salary + commission";
+      return t("Salary + commission");
     case "salary_plus_bonus":
-      return "Salary + bonus";
+      return t("Salary + bonus");
     case "hybrid":
-      return "Custom hybrid";
+      return t("Custom hybrid");
   }
 }
 
 export function payFrequencyLabel(value: PayFrequency): string {
   switch (value) {
     case "monthly":
-      return "Monthly";
+      return t("Monthly");
     case "biweekly":
-      return "Biweekly";
+      return t("Biweekly");
     case "weekly":
-      return "Weekly";
+      return t("Weekly");
     case "daily":
-      return "Daily";
+      return t("Daily");
   }
 }
 
 export function employmentTypeLabel(value: EmploymentType): string {
   switch (value) {
     case "full_time":
-      return "Full time";
+      return t("Full time");
     case "part_time":
-      return "Part time";
+      return t("Part time");
     case "contract":
-      return "Contract";
+      return t("Contract");
     case "intern":
-      return "Intern";
+      return t("Intern");
   }
 }
 
 export function compStatusLabel(value: CompStatus): string {
   switch (value) {
     case "active":
-      return "Active";
+      return t("Active");
     case "pending_change":
-      return "Pending change";
+      return t("Pending change");
     case "frozen":
-      return "Frozen";
+      return t("Frozen");
     case "inactive":
-      return "Inactive";
+      return t("Inactive");
   }
 }
 
 export function changeTypeLabel(value: ChangeType): string {
   switch (value) {
     case "hire_salary":
-      return "Hire salary";
+      return t("Hire salary");
     case "promotion_increase":
-      return "Promotion increase";
+      return t("Promotion increase");
     case "merit_increase":
-      return "Merit increase";
+      return t("Merit increase");
     case "adjustment":
-      return "Adjustment / correction";
+      return t("Adjustment / correction");
     case "market_adjustment":
-      return "Market adjustment";
+      return t("Market adjustment");
     case "bonus_payout":
-      return "Bonus payout";
+      return t("Bonus payout");
     case "commission_payout":
-      return "Commission payout";
+      return t("Commission payout");
     case "temporary_allowance":
-      return "Temporary allowance";
+      return t("Temporary allowance");
     case "deduction_setup":
-      return "Deduction setup";
+      return t("Deduction setup");
     case "salary_freeze":
-      return "Salary freeze";
+      return t("Salary freeze");
     case "salary_reduction":
-      return "Salary reduction";
+      return t("Salary reduction");
     case "transfer_related":
-      return "Transfer-related";
+      return t("Transfer-related");
   }
 }
 
 export function changeStatusLabel(value: ChangeRequestStatus): string {
   switch (value) {
     case "draft":
-      return "Draft";
+      return t("Draft");
     case "pending":
-      return "Pending";
+      return t("Pending");
     case "approved":
-      return "Approved";
+      return t("Approved");
     case "rejected":
-      return "Rejected";
+      return t("Rejected");
     case "returned":
-      return "Returned";
+      return t("Returned");
   }
 }
 
 export function componentKindLabel(value: ComponentKind): string {
   switch (value) {
     case "base_salary":
-      return "Base salary";
+      return t("Base salary");
     case "housing_allowance":
-      return "Housing allowance";
+      return t("Housing allowance");
     case "transport_allowance":
-      return "Transport allowance";
+      return t("Transport allowance");
     case "meal_allowance":
-      return "Meal allowance";
+      return t("Meal allowance");
     case "mobile_allowance":
-      return "Mobile allowance";
+      return t("Mobile allowance");
     case "overtime":
-      return "Overtime";
+      return t("Overtime");
     case "bonus":
-      return "Bonus";
+      return t("Bonus");
     case "commission":
-      return "Commission";
+      return t("Commission");
     case "custom_earning":
-      return "Custom earning";
+      return t("Custom earning");
     case "advance_loan":
-      return "Advance / loan";
+      return t("Advance / loan");
     case "penalty":
-      return "Penalty / fine";
+      return t("Penalty / fine");
     case "absence":
-      return "Absence deduction";
+      return t("Absence deduction");
     case "unpaid_leave":
-      return "Unpaid leave";
+      return t("Unpaid leave");
     case "insurance_placeholder":
-      return "Insurance (placeholder)";
+      return t("Insurance (placeholder)");
     case "tax_placeholder":
-      return "Tax (placeholder)";
+      return t("Tax (placeholder)");
     case "custom_deduction":
-      return "Custom deduction";
+      return t("Custom deduction");
   }
 }
 
 export function bonusTypeLabel(value: BonusType): string {
   switch (value) {
     case "annual":
-      return "Annual bonus";
+      return t("Annual bonus");
     case "quarterly":
-      return "Quarterly bonus";
+      return t("Quarterly bonus");
     case "spot":
-      return "Spot bonus";
+      return t("Spot bonus");
     case "signing":
-      return "Signing bonus";
+      return t("Signing bonus");
     case "retention":
-      return "Retention bonus";
+      return t("Retention bonus");
     case "kpi_incentive":
-      return "KPI incentive";
+      return t("KPI incentive");
   }
 }
 
 export function variableCycleLabel(value: VariableCycle): string {
   switch (value) {
     case "monthly":
-      return "Monthly";
+      return t("Monthly");
     case "quarterly":
-      return "Quarterly";
+      return t("Quarterly");
     case "annual":
-      return "Annual";
+      return t("Annual");
     case "one_off":
-      return "One-off";
+      return t("One-off");
   }
 }
 
 export function variableStatusLabel(value: VariableStatus): string {
   switch (value) {
     case "draft":
-      return "Draft";
+      return t("Draft");
     case "pending":
-      return "Pending";
+      return t("Pending");
     case "approved":
-      return "Approved";
+      return t("Approved");
     case "paid":
-      return "Paid";
+      return t("Paid");
     case "rejected":
-      return "Rejected";
+      return t("Rejected");
   }
 }
 
 export function bandPositionLabel(value: BandPosition): string {
   switch (value) {
     case "below":
-      return "Below band";
+      return t("Below band");
     case "in_band":
-      return "In band";
+      return t("In band");
     case "above":
-      return "Above band";
+      return t("Above band");
   }
 }
 
 export function appraisalLabel(value: AppraisalResult | null | undefined): string {
   switch (value) {
     case "exceeds":
-      return "Exceeds";
+      return t("Exceeds");
     case "meets":
-      return "Meets";
+      return t("Meets");
     case "developing":
-      return "Developing";
+      return t("Developing");
     case "below":
-      return "Below";
+      return t("Below");
     default:
       return "—";
   }

@@ -15,6 +15,7 @@ import {
 import { recommendationLabel, SELECT_CLASS, TEXTAREA_CLASS } from "@/lib/hiring/format";
 import type { HiringStore } from "@/lib/hiring/store";
 import { RECOMMENDATIONS, type HiringActor, type Interview, type Recommendation } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function InterviewScorecardForm({
   open,
@@ -51,8 +52,8 @@ export function InterviewScorecardForm({
           communicationScore: communication,
           cultureFitScore: culture,
           criteria: [
-            { id: "role-skill", label: "Role-specific skill", score: roleSkill },
-            { id: "problem", label: "Problem solving", score: problem },
+            { id: "role-skill", label: t("Role-specific skill"), score: roleSkill },
+            { id: "problem", label: t("Problem solving"), score: problem },
           ],
           recommendation: rec,
           comments,
@@ -71,11 +72,11 @@ export function InterviewScorecardForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Interview scorecard</SheetTitle>
+          <SheetTitle>{t("Interview scorecard")}</SheetTitle>
           <SheetDescription>
             {interview
               ? `${interview.candidateName} · ${interview.jobTitle}`
-              : "Structured feedback so decisions are comparable."}
+              : t("Structured feedback so decisions are comparable.")}
           </SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-4">
@@ -88,7 +89,7 @@ export function InterviewScorecardForm({
           <Score name="Role-specific skill" value={roleSkill} onChange={setRoleSkill} />
           <Score name="Problem solving" value={problem} onChange={setProblem} />
           <div className="space-y-1">
-            <Label>Recommendation</Label>
+            <Label>{t("Recommendation")}</Label>
             <select
               className={SELECT_CLASS}
               value={rec}
@@ -102,21 +103,19 @@ export function InterviewScorecardForm({
             </select>
           </div>
           <div className="space-y-1">
-            <Label>Comments</Label>
+            <Label>{t("Comments")}</Label>
             <textarea className={TEXTAREA_CLASS} value={comments} onChange={(e) => setComments(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label>Hiring manager decision note</Label>
+            <Label>{t("Hiring manager decision note")}</Label>
             <textarea className={TEXTAREA_CLASS} value={hmNote} onChange={(e) => setHmNote(e.target.value)} />
           </div>
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button type="button" onClick={submit}>
-            Submit scorecard
-          </Button>
+            {t("Submit scorecard")}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

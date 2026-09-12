@@ -3,6 +3,7 @@
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function ConfirmDialog({
   open,
@@ -30,17 +31,17 @@ export function ConfirmDialog({
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/20 backdrop-blur-[2px]" />
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/20 backdrop-blur-md" />
         <DialogPrimitive.Content
           className={cn(
-            "fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-2xl",
+            "fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-white/40 bg-card p-5 shadow-2xl dark:border-white/10",
           )}
         >
           <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-            {title}
+            {t(title)}
           </DialogPrimitive.Title>
           <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
-            {description}
+            {t(description)}
           </DialogPrimitive.Description>
           {children}
           <div className="mt-5 flex justify-end gap-2">
@@ -50,7 +51,7 @@ export function ConfirmDialog({
               disabled={busy}
               onClick={() => onOpenChange(false)}
             >
-              {cancelLabel}
+              {t(cancelLabel)}
             </Button>
             <Button
               type="button"
@@ -58,7 +59,7 @@ export function ConfirmDialog({
               disabled={busy}
               onClick={() => void onConfirm()}
             >
-              {busy ? "Working…" : confirmLabel}
+              {busy ? t("Working…") : t(confirmLabel)}
             </Button>
           </div>
         </DialogPrimitive.Content>

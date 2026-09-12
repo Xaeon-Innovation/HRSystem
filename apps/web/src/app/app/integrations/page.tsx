@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type Connection = {
   id: string;
@@ -60,7 +61,7 @@ export default function IntegrationsPage() {
         {
           method: "POST",
           body: JSON.stringify({
-            name: "Creative Intelligent CMS Goals",
+            name: t("Creative Intelligent CMS Goals"),
             providerType: "cms",
             preset: "creative_cms_goals",
             baseUrl: cmsBaseUrl.trim() || CMS_DEFAULT_BASE,
@@ -107,39 +108,34 @@ export default function IntegrationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Integrations</h1>
+        <h1 className="text-2xl font-semibold">{t("Integrations")}</h1>
         <p className="text-sm text-muted-foreground">
-          Connect your CMS so employee goals flow into Analytics — no API wiring
-          required for Creative Intelligent CMS.
-        </p>
+          {t("Connect your CMS so employee goals flow into Analytics — no API wiring required for Creative Intelligent CMS.")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <Card className="border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/30">
         <CardHeader>
           <CardTitle className="text-base">
-            Connect Creative Intelligent CMS (Goals)
-          </CardTitle>
+            {t("Connect Creative Intelligent CMS (Goals)")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-2" onSubmit={connectCmsGoals}>
             <p className="md:col-span-2 text-sm text-muted-foreground">
-              Enter a CMS <strong>admin</strong> or <strong>team_leader</strong>{" "}
-              service account. We log in, refresh tokens automatically, and set
-              endpoints plus field mappings for you.
-            </p>
+              {t("Enter a CMS")}<strong>{t("admin")}</strong> or <strong>team_leader</strong>{" "}
+              {t("service account. We log in, refresh tokens automatically, and set endpoints plus field mappings for you.")}</p>
             <div className="space-y-1">
-              <Label>Service account phone</Label>
+              <Label>{t("Service account phone")}</Label>
               <Input
                 value={cmsPhone}
                 onChange={(e) => setCmsPhone(e.target.value)}
-                placeholder="+9715XXXXXXXX"
+                placeholder={t("+9715XXXXXXXX")}
                 required
                 autoComplete="username"
               />
             </div>
             <div className="space-y-1">
-              <Label>Password</Label>
+              <Label>{t("Password")}</Label>
               <Input
                 type="password"
                 value={cmsPassword}
@@ -154,12 +150,12 @@ export default function IntegrationsPage() {
                 className="text-xs text-muted-foreground underline hover:text-foreground"
                 onClick={() => setCmsAdvanced((v) => !v)}
               >
-                {cmsAdvanced ? "Hide advanced" : "Advanced (base URL)"}
+                {cmsAdvanced ? t("Hide advanced") : t("Advanced (base URL)")}
               </button>
             </div>
             {cmsAdvanced ? (
               <div className="space-y-1 md:col-span-2">
-                <Label>Base URL</Label>
+                <Label>{t("Base URL")}</Label>
                 <Input
                   type="url"
                   value={cmsBaseUrl}
@@ -168,12 +164,10 @@ export default function IntegrationsPage() {
               </div>
             ) : null}
             <p className="md:col-span-2 text-xs text-muted-foreground">
-              For Analytics attribution, HR employees should use the same CMS
-              employee UUID as their external ID.
-            </p>
+              {t("For Analytics attribution, HR employees should use the same CMS employee UUID as their external ID.")}</p>
             <div className="md:col-span-2">
               <Button type="submit" disabled={cmsConnecting}>
-                {cmsConnecting ? "Connecting…" : "Connect CMS Goals"}
+                {cmsConnecting ? t("Connecting…") : t("Connect CMS Goals")}
               </Button>
             </div>
           </form>
@@ -189,9 +183,9 @@ export default function IntegrationsPage() {
                   <p className="font-medium">{row.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {row.connectorConfig?.preset === "creative_cms_goals"
-                      ? "CMS Goals"
+                      ? t("CMS Goals")
                       : row.providerType}{" "}
-                    · {row.syncMode} · last sync{" "}
+                    · {row.syncMode} {t("· last sync")}{" "}
                     {row.lastSyncAt
                       ? new Date(row.lastSyncAt).toLocaleString()
                       : "never"}
@@ -209,8 +203,7 @@ export default function IntegrationsPage() {
         ))}
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            No connections yet — use Connect CMS Goals above.
-          </p>
+            {t("No connections yet — use Connect CMS Goals above.")}</p>
         ) : null}
       </div>
 
@@ -221,20 +214,20 @@ export default function IntegrationsPage() {
           onClick={() => setShowAdvanced((v) => !v)}
         >
           {showAdvanced
-            ? "Hide custom / advanced connection"
-            : "Custom REST / advanced connection"}
+            ? t("Hide custom / advanced connection")
+            : t("Custom REST / advanced connection")}
         </button>
       </div>
 
       {showAdvanced ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Custom REST connection</CardTitle>
+            <CardTitle className="text-base">{t("Custom REST connection")}</CardTitle>
           </CardHeader>
           <CardContent>
             <form className="grid gap-3 md:grid-cols-2" onSubmit={create}>
               <div className="space-y-1">
-                <Label>Name</Label>
+                <Label>{t("Name")}</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -242,34 +235,34 @@ export default function IntegrationsPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>Provider</Label>
+                <Label>{t("Provider")}</Label>
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={providerType}
                   onChange={(e) => setProviderType(e.target.value)}
                 >
-                  <option value="custom_api">Custom REST API</option>
-                  <option value="webhook">Webhook</option>
-                  <option value="csv">CSV import</option>
-                  <option value="crm">CRM (via Custom REST)</option>
-                  <option value="erp">ERP (via Custom REST)</option>
+                  <option value="custom_api">{t("Custom REST API")}</option>
+                  <option value="webhook">{t("Webhook")}</option>
+                  <option value="csv">{t("CSV import")}</option>
+                  <option value="crm">{t("CRM (via Custom REST)")}</option>
+                  <option value="erp">{t("ERP (via Custom REST)")}</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Sync mode</Label>
+                <Label>{t("Sync mode")}</Label>
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={syncMode}
                   onChange={(e) => setSyncMode(e.target.value)}
                 >
-                  <option value="polling">Polling</option>
-                  <option value="webhook">Webhook</option>
-                  <option value="manual">Manual / CSV</option>
-                  <option value="hybrid">Hybrid</option>
+                  <option value="polling">{t("Polling")}</option>
+                  <option value="webhook">{t("Webhook")}</option>
+                  <option value="manual">{t("Manual / CSV")}</option>
+                  <option value="hybrid">{t("Hybrid")}</option>
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Base URL</Label>
+                <Label>{t("Base URL")}</Label>
                 <Input
                   value={baseUrl}
                   onChange={(e) => setBaseUrl(e.target.value)}
@@ -278,7 +271,7 @@ export default function IntegrationsPage() {
               </div>
               <div className="md:col-span-2">
                 <Button type="submit" disabled={creating}>
-                  {creating ? "Creating…" : "Create and continue"}
+                  {creating ? t("Creating…") : t("Create and continue")}
                 </Button>
               </div>
             </form>

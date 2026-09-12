@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatKpiValue, formatPercent } from "@/lib/kpis/format";
 import type { CategoryScore, ScoredKpi } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 const PALETTE = [
   "hsl(199 89% 32%)",
@@ -28,19 +29,16 @@ export function KpiCharts({
     return (
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Goal vs result</CardTitle>
+          <CardTitle className="text-base">{t("Target vs result")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Grey bar is the goal. Blue bar is the result. Click a row to open it.
-          </p>
+            {t("Grey bar is the target. Blue bar is the result. Click a row to open it.")}</p>
         </CardHeader>
         <CardContent>
           <div className="mb-2 flex gap-4 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm bg-slate-400" /> Goal
-            </span>
+              <span className="h-2 w-2 rounded-sm bg-slate-400" /> {t("Target")}</span>
             <span className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-sm bg-primary" /> Result
-            </span>
+              <span className="h-2 w-2 rounded-sm bg-primary" /> {t("Result")}</span>
           </div>
           <TargetActualChart items={items.slice(0, 8)} onSelect={onSelect} />
         </CardContent>
@@ -51,10 +49,9 @@ export function KpiCharts({
     <div className="grid gap-3 lg:grid-cols-2">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Target vs actual</CardTitle>
+          <CardTitle className="text-base">{t("Target vs actual")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Click a bar to open the KPI definition and evidence
-          </p>
+            {t("Click a bar to open the KPI definition and evidence")}</p>
         </CardHeader>
         <CardContent>
           <TargetActualChart items={items.slice(0, 8)} onSelect={onSelect} />
@@ -62,10 +59,9 @@ export function KpiCharts({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Performance trend</CardTitle>
+          <CardTitle className="text-base">{t("Performance trend")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Average achievement across review snapshots
-          </p>
+            {t("Average achievement across review snapshots")}</p>
         </CardHeader>
         <CardContent>
           <TrendChart items={items} onSelect={onSelect} />
@@ -73,7 +69,7 @@ export function KpiCharts({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Category score distribution</CardTitle>
+          <CardTitle className="text-base">{t("Category score distribution")}</CardTitle>
         </CardHeader>
         <CardContent>
           <CategoryBars categories={categories} />
@@ -81,7 +77,7 @@ export function KpiCharts({
       </Card>
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Previous period comparison</CardTitle>
+          <CardTitle className="text-base">{t("Previous period comparison")}</CardTitle>
         </CardHeader>
         <CardContent>
           <PreviousCompare items={items.slice(0, 8)} onSelect={onSelect} />
@@ -300,11 +296,9 @@ function PreviousCompare({
     <div>
       <div className="mb-2 flex gap-4 text-[11px] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
-          <span className="h-2 w-2 rounded-sm bg-slate-400" /> Previous
-        </span>
+          <span className="h-2 w-2 rounded-sm bg-slate-400" /> {t("Previous")}</span>
         <span className="inline-flex items-center gap-1">
-          <span className="h-2 w-2 rounded-sm bg-primary" /> Current
-        </span>
+          <span className="h-2 w-2 rounded-sm bg-primary" /> {t("Current")}</span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full">
         {items.map((k, i) => {
@@ -347,8 +341,7 @@ function PreviousCompare({
 function EmptyChart() {
   return (
     <p className="py-10 text-center text-sm text-muted-foreground">
-      Not enough values to chart this period.
-    </p>
+      {t("Not enough values to chart this period.")}</p>
   );
 }
 

@@ -188,9 +188,16 @@ API_PUBLISH_PORT=4000
 
 SEED_SUPER_ADMIN_EMAIL=you@YOURDOMAIN
 SEED_SUPER_ADMIN_PASSWORD=...
+
+# Optional email delivery for in-app notifications (pick one):
+# RESEND_API_KEY=re_...
+# EMAIL_FROM=HR Track <noreply@YOURDOMAIN>   # default: HR Track <onboarding@resend.dev>
+# SMTP_WEBHOOK_URL=https://hooks.example/mail  # POST {to,subject,html,text} if not using Resend
 ```
 
 Outbound HTTPS: custom REST polling only allows HTTPS (HTTP loopback in non-production). Private IPs are blocked (SSRF). Webhook ingest: `https://api.YOURDOMAIN/v1/webhooks/integrations/:connectionId`.
+
+**Notifications email:** With `RESEND_API_KEY`, the API sends via [Resend](https://resend.com). Without it, set `SMTP_WEBHOOK_URL` to a relay that accepts JSON `{ to, subject, html, text }`. If neither is set, notifications stay in-app (`delivered_local`, or `queued` when `FCM_SERVER_KEY` is present).
 
 `NEXT_PUBLIC_*` are baked into the web image at **build** time — change them later ⇒ rebuild `web`.
 

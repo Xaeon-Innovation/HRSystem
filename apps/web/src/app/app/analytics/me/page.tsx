@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getUser } from "@/lib/api";
+import { t } from "@/i18n";
 
 export default function MyAnalyticsRedirect() {
   const router = useRouter();
@@ -14,5 +15,5 @@ export default function MyAnalyticsRedirect() {
       router.replace("/app");
     }
   }, [router]);
-  return <p className="text-muted-foreground">Opening your analytics…</p>;
+  return <p className="text-muted-foreground">{t("Opening your analytics…")}</p>;
 }

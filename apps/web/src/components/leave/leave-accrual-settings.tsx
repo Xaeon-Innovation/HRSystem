@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SELECT_CLASS } from "@/lib/leave/format";
 import type { LeaveAccrualMethod, LeavePolicy, LeaveType } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeaveAccrualSettings({
   policies,
@@ -27,14 +28,12 @@ export function LeaveAccrualSettings({
       <CardHeader className="pb-2">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <CardTitle className="text-base">Accrual & carry-over</CardTitle>
+            <CardTitle className="text-base">{t("Accrual & carry-over")}</CardTitle>
             <p className="text-xs text-muted-foreground">
-              Example: add 2 days on the 1st of every month. Ready for a scheduler to call the same posting function.
-            </p>
+              {t("Example: add 2 days on the 1st of every month. Ready for a scheduler to call the same posting function.")}</p>
           </div>
           <Button size="sm" onClick={onRunAccrual}>
-            Run monthly accrual now
-          </Button>
+            {t("Run monthly accrual now")}</Button>
         </div>
         {lastPosted ? (
           <p className="text-xs text-muted-foreground">{lastPosted}</p>
@@ -47,7 +46,7 @@ export function LeaveAccrualSettings({
             <div key={p.id} className="rounded-xl border p-3">
               <p className="font-medium">{typeName(p.leaveTypeId)}</p>
               <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Field label="Annual entitlement">
+                <Field label={t("Annual entitlement")}>
                   <Input
                     type="number"
                     className="h-9"
@@ -55,7 +54,7 @@ export function LeaveAccrualSettings({
                     onChange={(e) => onChange(p.id, { annualEntitlement: Number(e.target.value) })}
                   />
                 </Field>
-                <Field label="Accrual method">
+                <Field label={t("Accrual method")}>
                   <select
                     className={SELECT_CLASS}
                     value={p.accrual.method}
@@ -65,12 +64,12 @@ export function LeaveAccrualSettings({
                       })
                     }
                   >
-                    <option value="monthly_fixed">Fixed days / month</option>
-                    <option value="annual_divided">Annual ÷ 12</option>
-                    <option value="tenure_tiered">By years of service</option>
+                    <option value="monthly_fixed">{t("Fixed days / month")}</option>
+                    <option value="annual_divided">{t("Annual ÷ 12")}</option>
+                    <option value="tenure_tiered">{t("By years of service")}</option>
                   </select>
                 </Field>
-                <Field label="Days each month">
+                <Field label={t("Days each month")}>
                   <Input
                     type="number"
                     step={0.5}
@@ -83,7 +82,7 @@ export function LeaveAccrualSettings({
                     }
                   />
                 </Field>
-                <Field label="Run on day">
+                <Field label={t("Run on day")}>
                   <Input
                     type="number"
                     min={1}
@@ -107,8 +106,7 @@ export function LeaveAccrualSettings({
                       onChange(p.id, { accrual: { ...p.accrual, enabled: e.target.checked } })
                     }
                   />
-                  Accrual on
-                </label>
+                  {t("Accrual on")}</label>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -117,8 +115,7 @@ export function LeaveAccrualSettings({
                       onChange(p.id, { accrual: { ...p.accrual, prorateNewHires: e.target.checked } })
                     }
                   />
-                  Pro-rate new hires
-                </label>
+                  {t("Pro-rate new hires")}</label>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -127,12 +124,11 @@ export function LeaveAccrualSettings({
                       onChange(p.id, { carryOver: { ...p.carryOver, enabled: e.target.checked } })
                     }
                   />
-                  Allow carry-over
-                </label>
+                  {t("Allow carry-over")}</label>
               </div>
               {p.carryOver.enabled ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                  <Field label="Max carry-over days">
+                  <Field label={t("Max carry-over days")}>
                     <Input
                       type="number"
                       className="h-9"
@@ -144,7 +140,7 @@ export function LeaveAccrualSettings({
                       }
                     />
                   </Field>
-                  <Field label="Expiry month">
+                  <Field label={t("Expiry month")}>
                     <Input
                       type="number"
                       min={1}
@@ -158,7 +154,7 @@ export function LeaveAccrualSettings({
                       }
                     />
                   </Field>
-                  <Field label="Expiry day">
+                  <Field label={t("Expiry day")}>
                     <Input
                       type="number"
                       min={1}
@@ -176,7 +172,7 @@ export function LeaveAccrualSettings({
               ) : null}
               {p.accrual.method === "tenure_tiered" ? (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Tiers: {p.accrual.tenureTiers.map((t) => `${t.minYears}y → ${t.monthlyDays}d`).join(" · ") || "None"}
+                  {t("Tiers:")}{p.accrual.tenureTiers.map((t) => `${t.minYears}y → ${t.monthlyDays}d`).join(" · ") || t("None")}
                 </p>
               ) : null}
             </div>

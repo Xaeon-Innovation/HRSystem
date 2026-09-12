@@ -13,6 +13,7 @@ import {
   type SalaryBand,
   type VariablePay,
 } from "./types";
+import { t } from "@/i18n";
 
 export function toMonthlyEquivalent(record: Pick<
   CompensationRecord,
@@ -262,7 +263,7 @@ export function buildPayslip(input: {
   if (cycleVar.bonuses > 0) {
     lines.push({
       kind: "bonus",
-      label: "Bonus / incentive",
+      label: t("Bonus / incentive"),
       side: "earning",
       amount: cycleVar.bonuses,
     });
@@ -270,7 +271,7 @@ export function buildPayslip(input: {
   if (cycleVar.commissions > 0) {
     lines.push({
       kind: "commission",
-      label: "Commission",
+      label: t("Commission"),
       side: "earning",
       amount: cycleVar.commissions,
     });
@@ -326,7 +327,7 @@ export function buildPayslip(input: {
   if (attendance > 0) {
     lines.push({
       kind: "penalty",
-      label: "Attendance impact",
+      label: t("Attendance impact"),
       side: "deduction",
       amount: attendance,
     });

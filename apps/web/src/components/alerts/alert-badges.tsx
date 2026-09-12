@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 import type { AlertCategory, AlertUrgency } from "@hr/shared";
 import { ALERT_CATEGORY_META, ALERT_URGENCY_META } from "@hr/shared";
 
@@ -65,7 +66,7 @@ export function CategoryBadge({ category }: { category: AlertCategory }) {
       )}
     >
       <Icon className="h-3 w-3" />
-      {ALERT_CATEGORY_META[category].label}
+      {t(ALERT_CATEGORY_META[category].label)}
     </span>
   );
 }
@@ -78,7 +79,7 @@ export function UrgencyBadge({ urgency }: { urgency: AlertUrgency }) {
         URGENCY_TONE[urgency],
       )}
     >
-      {ALERT_URGENCY_META[urgency].label}
+      {t(ALERT_URGENCY_META[urgency].label)}
     </span>
   );
 }

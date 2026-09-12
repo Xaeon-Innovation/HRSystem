@@ -21,6 +21,28 @@
   --input: 30 12% 88%;
   --ring: 199 85% 32%;
   --radius: 0.65rem;
+  --card-alpha: 0.86;
+}
+
+/* Redesign demo spine — neutral operational calm (presets override --primary in JS) */
+html[data-ui-redesign="1"] {
+  --background: 220 16% 98%;
+  --foreground: 222 18% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 18% 12%;
+  --primary: 222 14% 28%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 220 12% 94%;
+  --secondary-foreground: 222 14% 18%;
+  --muted: 220 10% 94%;
+  --muted-foreground: 220 8% 42%;
+  --accent: 220 14% 94%;
+  --accent-foreground: 222 14% 18%;
+  --border: 220 12% 88%;
+  --input: 220 12% 88%;
+  --ring: 222 14% 28%;
+  --radius: 0.5rem;
+  --card-alpha: 0.84;
 }
 
 .dark {
@@ -41,6 +63,26 @@
   --border: 24 8% 18%;
   --input: 24 8% 18%;
   --ring: 192 70% 46%;
+  --card-alpha: 0.78;
+}
+
+html.dark[data-ui-redesign="1"] {
+  --background: 222 14% 7%;
+  --foreground: 220 12% 95%;
+  --card: 222 12% 10%;
+  --card-foreground: 220 12% 95%;
+  --primary: 210 20% 70%;
+  --primary-foreground: 222 18% 10%;
+  --secondary: 222 10% 14%;
+  --secondary-foreground: 220 10% 90%;
+  --muted: 222 8% 14%;
+  --muted-foreground: 220 8% 62%;
+  --accent: 222 12% 16%;
+  --accent-foreground: 210 20% 85%;
+  --border: 222 8% 18%;
+  --input: 222 8% 18%;
+  --ring: 210 20% 70%;
+  --card-alpha: 0.76;
 }
 
 * {
@@ -49,6 +91,8 @@
 
 html {
   color-scheme: light;
+  background-color: hsl(var(--background));
+  overflow-x: hidden;
 }
 
 html.dark {
@@ -56,8 +100,47 @@ html.dark {
 }
 
 body {
-  @apply bg-background text-foreground antialiased;
+  @apply text-foreground antialiased;
   min-height: 100dvh;
+  background: transparent;
+}
+
+/* Arabic copy keeps LTR chrome; avoid letter-spacing/uppercase on connected glyphs */
+html[data-locale="ar"] .uppercase {
+  text-transform: none;
+}
+html[data-locale="ar"] .tracking-tight,
+html[data-locale="ar"] .tracking-wide,
+html[data-locale="ar"] .tracking-\[0\.14em\],
+html[data-locale="ar"] .tracking-\[0\.18em\],
+html[data-locale="ar"] .tracking-\[0\.2em\] {
+  letter-spacing: 0;
+}
+
+/* Frosted glass on card surfaces so the bubble field shows through */
+.bg-card {
+  backdrop-filter: blur(24px) saturate(1.15);
+  -webkit-backdrop-filter: blur(24px) saturate(1.15);
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.04),
+    inset 0 1px 0 hsl(0 0% 100% / 0.28);
+}
+
+.dark .bg-card {
+  box-shadow:
+    0 1px 2px hsl(var(--foreground) / 0.18),
+    inset 0 1px 0 hsl(0 0% 100% / 0.06);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --card-alpha: 1;
+  }
+
+  .bg-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 }
 
 /* —— Live map markers & chrome —— */
@@ -272,10 +355,12 @@ body {
 .lm-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   padding: 0;
-  background: hsl(var(--card));
+  background: hsl(var(--card) / var(--card-alpha));
   color: hsl(var(--card-foreground));
   box-shadow: 0 12px 32px hsl(var(--foreground) / 0.16);
-  border: 1px solid hsl(var(--border));
+  border: 1px solid hsl(var(--border) / 0.65);
+  backdrop-filter: blur(18px) saturate(1.45);
+  -webkit-backdrop-filter: blur(18px) saturate(1.45);
 }
 
 .lm-popup .leaflet-popup-content {
@@ -420,3 +505,236 @@ body {
     animation: none !important;
   }
 }
+
+/* ——— Sidebar nav scrollbar (follows tenant --primary) ——— */
+.app-sidebar-nav {
+  --sidebar-scroll-thumb: hsl(var(--primary) / 0.45);
+  --sidebar-scroll-thumb-hover: hsl(var(--primary) / 0.75);
+  --sidebar-scroll-track: hsl(var(--foreground) / 0.06);
+}
+
+.dark .app-sidebar-nav {
+  /* Brand primaries are often dark; mix with white so the thumb stays visible. */
+  --sidebar-scroll-thumb: color-mix(in srgb, hsl(var(--primary)) 58%, white);
+  --sidebar-scroll-thumb-hover: color-mix(in srgb, hsl(var(--primary)) 82%, white);
+  --sidebar-scroll-track: hsl(var(--foreground) / 0.08);
+}
+
+/* Firefox (no ::-webkit-scrollbar). Do not set scrollbar-width on Chromium —
+   it replaces the branded WebKit thumb with the native OS bar. */
+@supports not selector(::-webkit-scrollbar) {
+  .app-sidebar-nav {
+    scrollbar-width: thin;
+    scrollbar-color: var(--sidebar-scroll-thumb) var(--sidebar-scroll-track);
+  }
+}
+
+.app-sidebar-nav::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-track {
+  background: var(--sidebar-scroll-track);
+  border-radius: 999px;
+  margin-block: 8px;
+  margin-inline: 2px;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-thumb {
+  background-color: var(--sidebar-scroll-thumb);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+.app-sidebar-nav:hover::-webkit-scrollbar-thumb,
+.app-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background-color: var(--sidebar-scroll-thumb-hover);
+}
+
+.app-sidebar-nav::-webkit-scrollbar-thumb:active {
+  background-color: hsl(var(--primary));
+}
+
+.app-sidebar-nav::-webkit-scrollbar-button,
+.app-sidebar-nav::-webkit-scrollbar-button:start:decrement,
+.app-sidebar-nav::-webkit-scrollbar-button:end:increment,
+.app-sidebar-nav::-webkit-scrollbar-button:vertical:start:decrement,
+.app-sidebar-nav::-webkit-scrollbar-button:vertical:end:increment,
+.app-sidebar-nav::-webkit-scrollbar-button:horizontal:start:decrement,
+.app-sidebar-nav::-webkit-scrollbar-button:horizontal:end:increment {
+  display: none;
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
+.app-sidebar-nav::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* ——— App navigation & content motion ——— */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes nav-progress-run {
+  0% {
+    transform: scaleX(0.06);
+    opacity: 1;
+  }
+  18% {
+    transform: scaleX(0.48);
+    opacity: 1;
+  }
+  55% {
+    transform: scaleX(0.72);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(0.9);
+    opacity: 1;
+  }
+}
+
+@keyframes nav-progress-finish {
+  0% {
+    transform: scaleX(0.9);
+    opacity: 1;
+  }
+  62% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.page-enter {
+  animation: page-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 80;
+  height: 3px;
+  transform-origin: left center;
+  background: hsl(var(--primary));
+  box-shadow: 0 0 16px hsl(var(--primary) / 0.55);
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: nav-progress-run 1.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.nav-progress--done {
+  animation: nav-progress-finish 240ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.skeleton-block {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--muted));
+  box-shadow: inset 0 0 0 1px hsl(var(--border) / 0.7);
+}
+
+.skeleton-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--card) / 0.9) 48%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.45s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  animation-delay: inherit;
+}
+
+.lm-map-fallback,
+.lm-tiles-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  background: hsl(var(--muted));
+}
+
+.lm-map-fallback::after,
+.lm-tiles-veil::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--card) / 0.7) 48%,
+    transparent 100%
+  );
+  animation: skeleton-shimmer 1.45s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.lm-tiles-veil {
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lm-tiles-veil--hide {
+  opacity: 0;
+}
+
+.lm-tiles-veil--hide::after {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none !important;
+  }
+
+  .nav-progress,
+  .nav-progress--done {
+    animation: none !important;
+    opacity: 0 !important;
+  }
+
+  .skeleton-block {
+    background: hsl(var(--muted));
+  }
+
+  .skeleton-block::after,
+  .lm-map-fallback::after,
+  .lm-tiles-veil::after {
+    animation: none !important;
+  }
+
+  .lm-tiles-veil {
+    transition: none;
+  }
+}
+

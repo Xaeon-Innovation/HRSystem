@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 type Day = {
   day: string;
@@ -34,14 +36,13 @@ export default function BranchAnalyticsPage() {
   }, [params.id]);
 
   if (error) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       <div>
         <Link href="/app/analytics" className="text-sm text-muted-foreground hover:underline">
-          ← Analytics
-        </Link>
+          {t("← Analytics")}</Link>
         <h1 className="text-2xl font-semibold">{data.branch.name}</h1>
       </div>
       <div className="space-y-2">
@@ -51,15 +52,14 @@ export default function BranchAnalyticsPage() {
               <CardTitle className="text-base">{d.day}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              attendance {Math.round(d.attendanceRate * 100)}% · jobs{" "}
-              {d.jobsCompletedCount} · visits {d.visitsCompletedCount} · revenue{" "}
-              {d.revenueGenerated.toFixed(0)} · productivity{" "}
-              {d.productivityIndex.toFixed(1)} · {d.activeEmployees} employees
-            </CardContent>
+              {t("attendance")}{Math.round(d.attendanceRate * 100)}{t("% · jobs")}{" "}
+              {d.jobsCompletedCount} {t("· visits")}{d.visitsCompletedCount} {t("· revenue")}{" "}
+              {d.revenueGenerated.toFixed(0)} {t("· productivity")}{" "}
+              {d.productivityIndex.toFixed(1)} · {d.activeEmployees} {t("employees")}</CardContent>
           </Card>
         ))}
         {data.days.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No branch summaries yet.</p>
+          <p className="text-sm text-muted-foreground">{t("No branch summaries yet.")}</p>
         ) : null}
       </div>
     </div>

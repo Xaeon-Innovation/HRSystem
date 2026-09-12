@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeaveType } from "@/lib/leave/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function LeaveTypesManager({
   types,
@@ -15,65 +16,64 @@ export function LeaveTypesManager({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Leave types</CardTitle>
+        <CardTitle className="text-base">{t("Leave types")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Each type has its own balance, approval, and attachment rules.
-        </p>
+          {t("Each type has its own balance, approval, and attachment rules.")}</p>
       </CardHeader>
       <CardContent className="space-y-3">
-        {types.map((t) => (
-          <div key={t.id} className="rounded-xl border p-3">
+        {types.map((lt) => (
+          <div key={lt.id} className="rounded-xl border p-3">
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: t.color }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: lt.color }} />
                 <div>
-                  <p className="font-medium">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.description}</p>
+                  <p className="font-medium">{lt.name}</p>
+                  <p className="text-xs text-muted-foreground">{lt.description}</p>
                 </div>
               </div>
               <Button
                 size="sm"
-                variant={t.enabled ? "outline" : "secondary"}
-                onClick={() => onChange(t.id, { enabled: !t.enabled })}
+                variant={lt.enabled ? "outline" : "secondary"}
+                onClick={() => onChange(lt.id, { enabled: !lt.enabled })}
               >
-                {t.enabled ? "On" : "Off"}
+                {lt.enabled ? t("On") : t("Off")}
               </Button>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <Toggle
-                label="Tracks balance"
-                on={t.tracksBalance}
-                onClick={() => onChange(t.id, { tracksBalance: !t.tracksBalance })}
+                label={t("Tracks balance")}
+                on={lt.tracksBalance}
+                onClick={() => onChange(lt.id, { tracksBalance: !lt.tracksBalance })}
               />
               <Toggle
-                label="Approval required"
-                on={t.approvalRequired}
-                onClick={() => onChange(t.id, { approvalRequired: !t.approvalRequired })}
+                label={t("Approval required")}
+                on={lt.approvalRequired}
+                onClick={() => onChange(lt.id, { approvalRequired: !lt.approvalRequired })}
               />
               <Toggle
-                label="Attachment"
-                on={t.attachmentRequired}
-                onClick={() => onChange(t.id, { attachmentRequired: !t.attachmentRequired })}
+                label={t("Attachment")}
+                on={lt.attachmentRequired}
+                onClick={() => onChange(lt.id, { attachmentRequired: !lt.attachmentRequired })}
               />
               <Toggle
-                label="Paid"
-                on={t.paid}
-                onClick={() => onChange(t.id, { paid: !t.paid })}
+                label={t("Paid")}
+                on={lt.paid}
+                onClick={() => onChange(lt.id, { paid: !lt.paid })}
               />
               <Toggle
-                label="Counts as annual"
-                on={t.countsAgainstAnnual}
-                onClick={() => onChange(t.id, { countsAgainstAnnual: !t.countsAgainstAnnual })}
+                label={t("Counts as annual")}
+                on={lt.countsAgainstAnnual}
+                onClick={() => onChange(lt.id, { countsAgainstAnnual: !lt.countsAgainstAnnual })}
               />
               <Toggle
-                label="Half-day"
-                on={t.allowHalfDay}
-                onClick={() => onChange(t.id, { allowHalfDay: !t.allowHalfDay })}
+                label={t("Half-day")}
+                on={lt.allowHalfDay}
+                onClick={() => onChange(lt.id, { allowHalfDay: !lt.allowHalfDay })}
               />
               <Toggle
-                label="Emergency"
-                on={t.allowEmergency}
-                onClick={() => onChange(t.id, { allowEmergency: !t.allowEmergency })}
+                label={t("Emergency")}
+                on={lt.allowEmergency}
+                onClick={() => onChange(lt.id, { allowEmergency: !lt.allowEmergency })}
               />
             </div>
           </div>

@@ -134,6 +134,52 @@ Attendance rate = clocked-in / active employees (no roster). Labor cost uses ten
 | GET | `/v1/admin/dashboard` | Aggregates |
 | GET | `/v1/admin/health-metrics` | Health counters |
 
+## Branding (tenant_admin)
+
+Stored on `tenants.settings` (`brandingName`, `logoUrl`, `brandPreset`).
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/admin/branding` | `{ branding: { brandingName, logoUrl, brandPreset } }` |
+| PATCH | `/v1/admin/branding` | Partial: `brandingName`, `logoUrl` (URL or `""`/`null` to clear), `brandPreset` (`neutral`\|`teal`\|`forest`\|`slate`) |
+
+## Leave
+
+Tenant-scoped leave store (persisted JSON). GET returns a role-filtered snapshot; mutations are request/policy endpoints (not a full PUT replace).
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/leave` | `{ leave }` snapshot for the actor |
+| POST | `/v1/leave/requests` | Submit / draft leave request |
+| POST | `/v1/leave/requests/:id/resubmit` | Resubmit with body |
+| POST | `/v1/leave/requests/:id/decide` | Approve / reject (module role) |
+| POST | `/v1/leave/requests/bulk-decide` | Bulk decide |
+| POST | `/v1/leave/requests/:id/cancel` | Cancel |
+| POST | `/v1/leave/requests/:id/comments` | Comment |
+| PATCH | `/v1/leave/requests/:id/hr-note` | HR note |
+| POST | `/v1/leave/balances/adjust` | Adjust balance |
+| PATCH | `/v1/leave/types/:id` | Update leave type |
+| PATCH | `/v1/leave/policies/:id` | Update policy |
+| POST | `/v1/leave/accrual` | Run accrual |
+
+## Hiring
+
+Persisted JSON module (`jobs` + `candidates` arrays). Requires hiring module role.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/hiring` | `{ hiring }` snapshot |
+| PUT | `/v1/hiring` | Replace snapshot (`{ jobs, candidates }` or `{ snapshot: { … } }`) |
+
+## Compensation
+
+Persisted JSON module (`records` required; `requests` optional). Requires compensation module role.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/compensation` | `{ compensation }` snapshot |
+| PUT | `/v1/compensation` | Replace snapshot (`{ records, … }` or `{ snapshot: { … } }`) |
+
 ## KPIs
 
 | Method | Path |

@@ -2,19 +2,11 @@ import type { ReactNode } from "react";
 import { AlertCircle, Palmtree, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 export function LeaveLoadingSkeleton() {
-  return (
-    <div className="space-y-4" aria-busy="true" aria-label="Loading leave">
-      <div className="h-20 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-24 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-        ))}
-      </div>
-      <div className="h-72 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-    </div>
-  );
+  return <PageSkeleton dense />;
 }
 
 export function LeaveErrorState({
@@ -30,14 +22,13 @@ export function LeaveErrorState({
         <div className="flex gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
           <div>
-            <p className="font-medium">Couldn’t load leave</p>
+            <p className="font-medium">{t("Couldn’t load leave")}</p>
             <p className="text-sm text-muted-foreground">{message}</p>
           </div>
         </div>
         <Button onClick={onRetry} variant="outline" size="sm">
           <RefreshCw className="h-4 w-4" />
-          Try again
-        </Button>
+          {t("Try again")}</Button>
       </CardContent>
     </Card>
   );

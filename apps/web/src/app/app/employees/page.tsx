@@ -1,16 +1,19 @@
 "use client";
 
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Plus, Search, X } from "lucide-react";
+import { Plus, Search, Settings2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAvatar } from "@/components/user-avatar";
+import { OrgSetupPanel } from "@/components/employees/org-setup-panel";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { cn } from "@/lib/utils";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
 import {
   DEFAULT_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
@@ -29,6 +32,7 @@ import {
   type ParsedEmployeeRow,
   type SystemModuleRole,
 } from "@hr/shared";
+import { t } from "@/i18n";
 
 type Site = {
   id: string;
@@ -64,6 +68,7 @@ type Employee = {
   emergencyContactPhone: string | null;
   branchId: string | null;
   siteId: string | null;
+  managerId: string | null;
   geofenceLat: number | null;
   geofenceLng: number | null;
   geofenceRadiusMeters: number | null;
@@ -108,8 +113,7 @@ function JobRolePicker({
   if (roles.length === 0) {
     return (
       <p className="text-xs text-muted-foreground">
-        Create job roles in the Job roles section, then assign them here.
-      </p>
+        {t("Create job roles in the Job roles section, then assign them here.")}</p>
     );
   }
   return (
@@ -245,7 +249,7 @@ function ProfileFieldGrid({
         }
       >
         <Label>
-          {field.key === "role" ? "Access" : field.label}
+          {field.key === "role" ? t("Access") : field.label}
           {field.required ? " *" : ""}
         </Label>
         {field.key === "role" ? (
@@ -254,8 +258,8 @@ function ProfileFieldGrid({
             value={draft.role || "employee"}
             onChange={(e) => onChange("role", e.target.value)}
           >
-            <option value="employee">Employee</option>
-            <option value="tenant_admin">Admin</option>
+            <option value="employee">{t("Employee")}</option>
+            <option value="tenant_admin">{t("Admin")}</option>
           </select>
         ) : (
           <Input
@@ -282,6 +286,46 @@ function downloadTemplate() {
   const a = document.createElement("a");
   a.href = url;
   a.download = "employee-import-template.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value: string) {
+  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
+  return value;
+}
+
+function downloadRosterCsv(
+  rows: Array<{
+    name: string;
+    email: string;
+    phone: string | null;
+    jobTitle: string | null;
+    status: string;
+    branch: string;
+  }>,
+) {
+  const header = ["name", "email", "phone", "jobTitle", "status", "branch"];
+  const lines = [
+    header.join(","),
+    ...rows.map((r) =>
+      [
+        csvEscape(r.name),
+        csvEscape(r.email),
+        csvEscape(r.phone ?? ""),
+        csvEscape(r.jobTitle ?? ""),
+        csvEscape(r.status),
+        csvEscape(r.branch),
+      ].join(","),
+    ),
+  ];
+  const blob = new Blob([lines.join("\n")], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "employees-roster.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -347,7 +391,7 @@ function Modal({
             </div>
             <DialogPrimitive.Close className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
               <X className="h-4 w-4" />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">{t("Close")}</span>
             </DialogPrimitive.Close>
           </div>
           <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
@@ -358,7 +402,9 @@ function Modal({
 }
 
 export default function EmployeesPage() {
+  const redesign = useUiRedesign();
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [rosterReady, setRosterReady] = useState(false);
   const [org, setOrg] = useState<Branch[]>([]);
   const [jobRoles, setJobRoles] = useState<JobRole[]>([]);
   const [createJobRoleIds, setCreateJobRoleIds] = useState<string[]>([]);
@@ -367,22 +413,15 @@ export default function EmployeesPage() {
     [],
   );
   const [editSystemRoles, setEditSystemRoles] = useState<SystemModuleRole[]>([]);
-  const [jobRoleName, setJobRoleName] = useState("");
-  const [pendingJobRole, setPendingJobRole] = useState<JobRole | null>(null);
-  const [jobRoleBusy, setJobRoleBusy] = useState(false);
   const [q, setQ] = useState("");
   const [form, setForm] = useState<EmployeeDraft>(emptyEmployeeDraft);
   const [branchId, setBranchId] = useState("");
+  const [createManagerId, setCreateManagerId] = useState("");
   const [csvText, setCsvText] = useState("");
   const [reviewRows, setReviewRows] = useState<ParsedEmployeeRow[] | null>(
     null,
   );
   const [csvFileName, setCsvFileName] = useState<string | null>(null);
-  const [branchName, setBranchName] = useState("");
-  const [branchCode, setBranchCode] = useState("");
-  const [siteName, setSiteName] = useState("");
-  const [siteCode, setSiteCode] = useState("");
-  const [siteBranchId, setSiteBranchId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [createdCreds, setCreatedCreds] = useState<CreatedImport[]>([]);
@@ -399,10 +438,9 @@ export default function EmployeesPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EmployeeDraft>(emptyEmployeeDraft);
   const [editBranchId, setEditBranchId] = useState("");
+  const [editManagerId, setEditManagerId] = useState("");
   const [editStatus, setEditStatus] = useState<"active" | "inactive">("active");
   const [editSaving, setEditSaving] = useState(false);
-  const [pendingBranch, setPendingBranch] = useState<Branch | null>(null);
-  const [branchBusy, setBranchBusy] = useState(false);
 
   const editing = employees.find((e) => e.id === editId) ?? null;
   const dialogError = addOpen || editId ? error : null;
@@ -425,18 +463,27 @@ export default function EmployeesPage() {
     );
     setOrg(branchData.branches);
     setJobRoles(roleData.jobRoles);
-    if (!siteBranchId && branchData.branches[0]) {
-      setSiteBranchId(branchData.branches[0].id);
-    }
+    setRosterReady(true);
   }
 
   useEffect(() => {
-    load().catch((e) => setError(e.message));
+    load()
+      .catch((e) => setError(e.message))
+      .finally(() => setRosterReady(true));
   }, []);
 
   function branchNameOf(id: string | null) {
     if (!id) return "Unassigned";
     return org.find((b) => b.id === id)?.name ?? "—";
+  }
+
+  function managerNameOf(id: string | null | undefined) {
+    if (!id) return "—";
+    return employees.find((e) => e.id === id)?.name ?? "—";
+  }
+
+  function managerOptions(excludeId?: string | null) {
+    return employees.filter((e) => e.id !== excludeId && e.status !== "inactive");
   }
 
   function setFormField(key: EmployeeCsvFieldKey, value: string) {
@@ -447,6 +494,7 @@ export default function EmployeesPage() {
     setEditId(null);
     setAddMode(mode);
     setAddOpen(true);
+    setCreateManagerId("");
     setError(null);
   }
 
@@ -455,6 +503,7 @@ export default function EmployeesPage() {
     setEditId(emp.id);
     setEditDraft(employeeToDraft(emp));
     setEditBranchId(emp.branchId ?? "");
+    setEditManagerId(emp.managerId ?? "");
     setEditStatus(emp.status === "inactive" ? "inactive" : "active");
     setEditJobRoleIds((emp.jobRoles ?? []).map((r) => r.id));
     setEditSystemRoles(emp.systemModuleRoles ?? []);
@@ -485,7 +534,7 @@ export default function EmployeesPage() {
       return { ok: true, lat: null, lng: null, radius: null };
     }
     if (!latS || !lngS || !radS) {
-      return { ok: false, message: "Enter latitude, longitude, and radius" };
+      return { ok: false, message: t("Enter latitude, longitude, and radius") };
     }
     const lat = Number(latS);
     const lng = Number(lngS);
@@ -495,18 +544,18 @@ export default function EmployeesPage() {
       !Number.isFinite(lng) ||
       !Number.isFinite(radius)
     ) {
-      return { ok: false, message: "Enter valid lat, lng, and radius" };
+      return { ok: false, message: t("Enter valid lat, lng, and radius") };
     }
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       return {
         ok: false,
-        message: "Latitude must be -90…90 and longitude -180…180",
+        message: t("Latitude must be -90…90 and longitude -180…180"),
       };
     }
     if (lat === 0 && lng === 0) {
       return {
         ok: false,
-        message: "Set a real center (0, 0 is not a valid work zone)",
+        message: t("Set a real center (0, 0 is not a valid work zone)"),
       };
     }
     if (
@@ -561,6 +610,7 @@ export default function EmployeesPage() {
           emergencyContactName: payload.emergencyContactName,
           emergencyContactPhone: payload.emergencyContactPhone,
           branchId: editBranchId || null,
+          managerId: editManagerId || null,
           status: editStatus,
           jobRoleIds: editJobRoleIds,
           systemModuleRoles:
@@ -634,6 +684,7 @@ export default function EmployeesPage() {
           ...payload,
           branchCode: undefined,
           branchId: branchId || null,
+          managerId: createManagerId || null,
           jobRoleIds: createJobRoleIds,
           systemModuleRoles:
             payload.role === "tenant_admin" ? [] : createSystemRoles,
@@ -641,6 +692,7 @@ export default function EmployeesPage() {
       });
       setForm(emptyEmployeeDraft());
       setBranchId("");
+      setCreateManagerId("");
       setCreateJobRoleIds([]);
       setCreateSystemRoles([]);
       setAddOpen(false);
@@ -756,106 +808,55 @@ export default function EmployeesPage() {
     }
   }
 
-  async function createBranch(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await api("/v1/branches", {
-        method: "POST",
-        body: JSON.stringify({ name: branchName, code: branchCode }),
-      });
-      setBranchName("");
-      setBranchCode("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
-    }
-  }
-
-  async function removeBranch() {
-    const branch = pendingBranch;
-    if (!branch) return;
-    setError(null);
-    setBranchBusy(true);
-    try {
-      await api(`/v1/branches/${branch.id}`, { method: "DELETE" });
-      if (siteBranchId === branch.id) setSiteBranchId("");
-      if (branchId === branch.id) setBranchId("");
-      setPendingBranch(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove branch");
-    } finally {
-      setBranchBusy(false);
-    }
-  }
-
-  async function createSite(e: FormEvent) {
-    e.preventDefault();
-    try {
-      await api("/v1/sites", {
-        method: "POST",
-        body: JSON.stringify({
-          branchId: siteBranchId,
-          name: siteName,
-          code: siteCode,
-        }),
-      });
-      setSiteName("");
-      setSiteCode("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed");
-    }
-  }
-
-  async function createJobRole(e: FormEvent) {
-    e.preventDefault();
-    const name = jobRoleName.trim();
-    if (!name) return;
-    setError(null);
-    try {
-      await api("/v1/job-roles", {
-        method: "POST",
-        body: JSON.stringify({ name }),
-      });
-      setJobRoleName("");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create job role");
-    }
-  }
-
-  async function removeJobRole() {
-    const role = pendingJobRole;
-    if (!role) return;
-    setError(null);
-    setJobRoleBusy(true);
-    try {
-      await api(`/v1/job-roles/${role.id}`, { method: "DELETE" });
-      setCreateJobRoleIds((ids) => ids.filter((id) => id !== role.id));
-      setEditJobRoleIds((ids) => ids.filter((id) => id !== role.id));
-      setPendingJobRole(null);
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to remove job role");
-    } finally {
-      setJobRoleBusy(false);
-    }
-  }
-
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Employees")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Roster, access, and work zones — one table, less clutter.
+            {redesign
+              ? t("Roster first. Job roles and branches live under Org setup.")
+              : t("Roster, access, and work zones — one table, less clutter.")}
           </p>
         </div>
-        <Button onClick={() => openAdd("one")}>
-          <Plus className="h-4 w-4" />
-          Add employee
-        </Button>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {redesign ? (
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/app/settings/org">
+                <Settings2 className="h-4 w-4" />
+                {t("Org setup")}</Link>
+            </Button>
+          ) : null}
+          {redesign ? (
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => openAdd("csv")}
+            >
+              {t("Import CSV")}</Button>
+          ) : null}
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={!rosterReady || employees.length === 0}
+            onClick={() =>
+              downloadRosterCsv(
+                employees.map((emp) => ({
+                  name: emp.name,
+                  email: emp.email,
+                  phone: emp.phone,
+                  jobTitle: emp.jobTitle,
+                  status: emp.status,
+                  branch: branchNameOf(emp.branchId),
+                })),
+              )
+            }
+          >
+            {t("Export CSV")}</Button>
+          <Button className="w-full sm:w-auto" onClick={() => openAdd("one")}>
+            <Plus className="h-4 w-4" />
+            {t("Add employee")}</Button>
+        </div>
       </div>
 
       {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
@@ -863,12 +864,11 @@ export default function EmployeesPage() {
       {createdCreds.length > 0 ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Temporary passwords</CardTitle>
+            <CardTitle className="text-base">{t("Temporary passwords")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1 text-sm">
             <p className="text-muted-foreground">
-              Share these once. Employees should change them after first sign-in.
-            </p>
+              {t("Share these once. Employees should change them after first sign-in.")}</p>
             {createdCreds.map((c) => (
               <p key={c.id}>
                 <span className="font-medium">{c.name}</span> ({c.email}):{" "}
@@ -885,63 +885,71 @@ export default function EmployeesPage() {
         <CardHeader className="pb-3">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <CardTitle className="text-base">Roster</CardTitle>
+              <CardTitle className="text-base">{t("Roster")}</CardTitle>
               <p className="text-xs text-muted-foreground">
-                {employees.length}{" "}
-                {employees.length === 1 ? "person" : "people"}
+                {!rosterReady
+                  ? t("Loading…")
+                  : `${employees.length} ${employees.length === 1 ? "person" : "people"}`}
               </p>
             </div>
-            <div className="flex gap-2">
-              <div className="relative">
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+              <div className="relative min-w-0 flex-1 sm:w-64">
                 <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  className="h-9 w-64 pl-8"
-                  placeholder="Search name, email, phone…"
+                  className="h-9 w-full pl-8"
+                  placeholder={t("Search name, email, phone…")}
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void load(q);
                   }}
+                  disabled={!rosterReady}
                 />
               </div>
-              <Button size="sm" variant="outline" onClick={() => load(q)}>
-                Search
-              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => load(q)}
+                disabled={!rosterReady}
+              >
+                {t("Search")}</Button>
             </div>
           </div>
         </CardHeader>
         <CardContent className="overflow-x-auto px-0 pb-0">
-          {employees.length === 0 ? (
+          {!rosterReady ? (
+            <div className="px-4 pb-6 pt-2">
+              <PageSkeleton dense />
+            </div>
+          ) : employees.length === 0 ? (
             <div className="px-4 pb-6 pt-2 text-center">
-              <p className="text-sm font-medium">No employees yet</p>
+              <p className="text-sm font-medium">{t("No employees yet")}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Add one person or import a CSV to build the roster.
-              </p>
+                {t("Add one person or import a CSV to build the roster.")}</p>
               <div className="mt-4 flex justify-center gap-2">
                 <Button size="sm" onClick={() => openAdd("one")}>
-                  Add employee
-                </Button>
+                  {t("Add employee")}</Button>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => openAdd("csv")}
                 >
-                  Import CSV
-                </Button>
+                  {t("Import CSV")}</Button>
               </div>
             </div>
           ) : (
-            <table className="w-full min-w-[720px] text-left text-sm">
+            <table className="w-full min-w-[820px] text-left text-sm">
               <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2.5 font-medium">Employee</th>
-                  <th className="px-3 py-2.5 font-medium">Title</th>
-                  <th className="px-3 py-2.5 font-medium">Roles</th>
-                  <th className="px-3 py-2.5 font-medium">Branch</th>
-                  <th className="px-3 py-2.5 font-medium">Access</th>
-                  <th className="px-3 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium">{t("Employee")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Title")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Roles")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Branch")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Manager")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Access")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Status")}</th>
                   <th className="px-4 py-2.5 font-medium">
-                    <span className="sr-only">Actions</span>
+                    <span className="sr-only">{t("Actions")}</span>
                   </th>
                 </tr>
               </thead>
@@ -999,6 +1007,9 @@ export default function EmployeesPage() {
                       <td className="px-3 py-3 text-muted-foreground">
                         {branchNameOf(emp.branchId)}
                       </td>
+                      <td className="px-3 py-3 text-muted-foreground">
+                        {managerNameOf(emp.managerId)}
+                      </td>
                       <td className="px-3 py-3">
                         {ROLE_LABEL[emp.role] ?? emp.role}
                       </td>
@@ -1007,8 +1018,7 @@ export default function EmployeesPage() {
                           <StatusPill status={emp.status} />
                           {!profileComplete(emp) ? (
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
-                              Incomplete
-                            </span>
+                              {t("Incomplete")}</span>
                           ) : null}
                         </div>
                       </td>
@@ -1023,14 +1033,13 @@ export default function EmployeesPage() {
                             variant="outline"
                             onClick={() => openEditor(emp)}
                           >
-                            {profileComplete(emp) ? "Edit" : "Complete"}
+                            {profileComplete(emp) ? t("Edit") : t("Complete")}
                           </Button>
                           <a
                             href={`/app/analytics/employees/${emp.id}`}
                             className="inline-flex h-8 items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
                           >
-                            Analytics
-                          </a>
+                            {t("Analytics")}</a>
                         </div>
                       </td>
                     </tr>
@@ -1042,143 +1051,9 @@ export default function EmployeesPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <details className="rounded-lg border bg-card">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-            Job roles
-            <span className="ml-2 font-normal text-muted-foreground">
-              {jobRoles.length}
-            </span>
-          </summary>
-          <div className="space-y-4 border-t px-4 py-4">
-            <p className="text-sm text-muted-foreground">
-              Functions people perform (sales, driver, coordinator). Separate
-              from Admin or Employee access.
-            </p>
-            <ul className="space-y-2 text-sm">
-              {jobRoles.map((role) => (
-                <li
-                  key={role.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                >
-                  <div>
-                    <span className="font-medium">{role.name}</span>
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {role.employeeCount ?? 0} assigned
-                    </span>
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPendingJobRole(role)}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-              {jobRoles.length === 0 ? (
-                <li className="text-muted-foreground">No job roles yet.</li>
-              ) : null}
-            </ul>
-            <form className="flex gap-2" onSubmit={createJobRole}>
-              <Input
-                placeholder="Role name (Sales, Driver…)"
-                value={jobRoleName}
-                onChange={(e) => setJobRoleName(e.target.value)}
-                required
-              />
-              <Button type="submit">Add</Button>
-            </form>
-          </div>
-        </details>
-        <details className="rounded-lg border bg-card">
-          <summary className="cursor-pointer px-4 py-3 text-sm font-semibold">
-            Branches & sites
-            <span className="ml-2 font-normal text-muted-foreground">
-              {org.length}
-            </span>
-          </summary>
-          <div className="space-y-4 border-t px-4 py-4">
-            <ul className="space-y-2 text-sm">
-              {org.map((b) => (
-                <li
-                  key={b.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2"
-                >
-                  <div>
-                    <span className="font-medium">{b.name}</span>{" "}
-                    <span className="text-muted-foreground">({b.code})</span>
-                    {b.sites.length ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        — {b.sites.map((s) => s.name).join(", ")}
-                      </span>
-                    ) : null}
-                  </div>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setPendingBranch(b)}
-                  >
-                    Remove
-                  </Button>
-                </li>
-              ))}
-              {org.length === 0 ? (
-                <li className="text-muted-foreground">No branches yet.</li>
-              ) : null}
-            </ul>
-            <form className="grid gap-2 sm:grid-cols-3" onSubmit={createBranch}>
-              <Input
-                placeholder="Branch name"
-                value={branchName}
-                onChange={(e) => setBranchName(e.target.value)}
-                required
-              />
-              <Input
-                placeholder="Code (cairo)"
-                value={branchCode}
-                onChange={(e) => setBranchCode(e.target.value)}
-                required
-              />
-              <Button type="submit">Add branch</Button>
-            </form>
-            <form className="grid gap-2 sm:grid-cols-4" onSubmit={createSite}>
-              <select
-                className={selectClass}
-                value={siteBranchId}
-                onChange={(e) => setSiteBranchId(e.target.value)}
-                required
-              >
-                <option value="">Branch</option>
-                {org.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-              <Input
-                placeholder="Site name"
-                value={siteName}
-                onChange={(e) => setSiteName(e.target.value)}
-                required
-              />
-              <Input
-                placeholder="Code"
-                value={siteCode}
-                onChange={(e) => setSiteCode(e.target.value)}
-                required
-              />
-              <Button type="submit" variant="secondary">
-                Add site
-              </Button>
-            </form>
-          </div>
-        </details>
-      </div>
+      {!redesign ? (
+        <OrgSetupPanel layout="details" onChanged={() => void load()} />
+      ) : null}
 
       <Modal
         open={addOpen}
@@ -1188,7 +1063,7 @@ export default function EmployeesPage() {
           if (open) setError(null);
         }}
         wide
-        title="Add employee"
+        title={t("Add employee")}
         description="Create one person, or import a roster from CSV."
       >
         <div className="mb-4 inline-flex rounded-lg bg-secondary p-1 text-sm">
@@ -1202,8 +1077,7 @@ export default function EmployeesPage() {
             )}
             onClick={() => setAddMode("one")}
           >
-            One person
-          </button>
+            {t("One person")}</button>
           <button
             type="button"
             className={cn(
@@ -1214,8 +1088,7 @@ export default function EmployeesPage() {
             )}
             onClick={() => setAddMode("csv")}
           >
-            Import CSV
-          </button>
+            {t("Import CSV")}</button>
         </div>
         {dialogError && addOpen ? (
           <p className="mb-3 text-sm text-destructive">{dialogError}</p>
@@ -1228,13 +1101,13 @@ export default function EmployeesPage() {
           >
             <ProfileFieldGrid draft={form} onChange={setFormField} />
             <div className="space-y-1">
-              <Label>Branch</Label>
+              <Label>{t("Branch")}</Label>
               <select
                 className={selectClass}
                 value={branchId}
                 onChange={(e) => setBranchId(e.target.value)}
               >
-                <option value="">Unassigned</option>
+                <option value="">{t("Unassigned")}</option>
                 {org.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -1242,11 +1115,25 @@ export default function EmployeesPage() {
                 ))}
               </select>
             </div>
+            <div className="space-y-1">
+              <Label>{t("Manager")}</Label>
+              <select
+                className={selectClass}
+                value={createManagerId}
+                onChange={(e) => setCreateManagerId(e.target.value)}
+              >
+                <option value="">{t("No manager")}</option>
+                {managerOptions().map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="space-y-1 md:col-span-2">
-              <Label>Job roles</Label>
+              <Label>{t("Job roles")}</Label>
               <p className="text-xs text-muted-foreground">
-                Optional. Pick every function this person covers.
-              </p>
+                {t("Optional. Pick every function this person covers.")}</p>
               <JobRolePicker
                 roles={jobRoles}
                 selectedIds={createJobRoleIds}
@@ -1254,11 +1141,9 @@ export default function EmployeesPage() {
               />
             </div>
             <div className="space-y-1 md:col-span-2">
-              <Label>System control roles</Label>
+              <Label>{t("System control roles")}</Label>
               <p className="text-xs text-muted-foreground">
-                Optional. Let this employee control specific modules without
-                making them a full admin.
-              </p>
+                {t("Optional. Let this employee control specific modules without making them a full admin.")}</p>
               <SystemModuleRolePicker
                 selected={
                   form.role === "tenant_admin" ? [] : createSystemRoles
@@ -1274,32 +1159,25 @@ export default function EmployeesPage() {
                 disabled={saving}
                 onClick={() => setAddOpen(false)}
               >
-                Cancel
-              </Button>
+                {t("Cancel")}</Button>
               <Button type="submit" disabled={saving}>
-                {saving ? "Creating…" : "Create employee"}
+                {saving ? t("Creating…") : t("Create employee")}
               </Button>
             </div>
           </form>
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Required columns: name, email, phone, role (employee or
-              tenant_admin), jobTitle, nationalId, dateOfBirth, address,
-              hireDate. Optional: emergencyContactName, emergencyContactPhone,
-              branchCode.
-            </p>
+              {t("Required columns: name, email, phone, role (employee or tenant_admin), jobTitle, nationalId, dateOfBirth, address, hireDate. Optional: emergencyContactName, emergencyContactPhone, branchCode.")}</p>
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
                 variant="outline"
                 onClick={downloadTemplate}
               >
-                Download template
-              </Button>
+                {t("Download template")}</Button>
               <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent">
-                Upload CSV
-                <input
+                {t("Upload CSV")}<input
                   type="file"
                   accept=".csv,text/csv"
                   className="hidden"
@@ -1318,13 +1196,13 @@ export default function EmployeesPage() {
             </div>
             {csvFileName ? (
               <p className="text-xs text-muted-foreground">
-                File: {csvFileName}
+                {t("File:")}{csvFileName}
               </p>
             ) : null}
             <textarea
               className="min-h-24 w-full rounded-md border border-input bg-background p-3 text-sm"
               value={csvText}
-              placeholder="Paste CSV here, or upload a file…"
+              placeholder={t("Paste CSV here, or upload a file…")}
               onChange={(e) => {
                 const text = e.target.value;
                 setCsvText(text);
@@ -1341,16 +1219,11 @@ export default function EmployeesPage() {
               <div className="space-y-3">
                 {incompleteCount > 0 ? (
                   <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                    {incompleteCount} of {reviewRows.length} row
-                    {reviewRows.length === 1 ? "" : "s"}{" "}
-                    {incompleteCount === 1 ? "is" : "are"} missing required
-                    information.
-                  </p>
+                    {incompleteCount} of {reviewRows.length} {t("row")}{reviewRows.length === 1 ? "" : "s"}{" "}
+                    {incompleteCount === 1 ? "is" : "are"} {t("missing required information.")}</p>
                 ) : (
                   <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                    All {reviewRows.length} row
-                    {reviewRows.length === 1 ? "" : "s"} look complete.
-                  </p>
+                    {t("All")}{reviewRows.length} {t("row")}{reviewRows.length === 1 ? "" : "s"} {t("look complete.")}</p>
                 )}
                 <div className="space-y-3">
                   {reviewRows.map((row, index) => {
@@ -1366,7 +1239,7 @@ export default function EmployeesPage() {
                       >
                         <div className="mb-2 flex items-center justify-between gap-2">
                           <p className="text-sm font-medium">
-                            Row {row.line}
+                            {t("Row")}{row.line}
                             {row.data.name ? ` · ${row.data.name}` : ""}
                           </p>
                           <Button
@@ -1381,8 +1254,7 @@ export default function EmployeesPage() {
                               )
                             }
                           >
-                            Remove
-                          </Button>
+                            {t("Remove")}</Button>
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2">
                           {EMPLOYEE_FIELD_DEFS.map((field) => {
@@ -1394,7 +1266,7 @@ export default function EmployeesPage() {
                               <div key={field.key} className="space-y-1">
                                 <Label className="text-xs">
                                   {field.key === "role"
-                                    ? "Access"
+                                    ? t("Access")
                                     : field.label}
                                   {field.required ? " *" : ""}
                                 </Label>
@@ -1414,8 +1286,8 @@ export default function EmployeesPage() {
                                       )
                                     }
                                   >
-                                    <option value="employee">Employee</option>
-                                    <option value="tenant_admin">Admin</option>
+                                    <option value="employee">{t("Employee")}</option>
+                                    <option value="tenant_admin">{t("Admin")}</option>
                                   </select>
                                 ) : (
                                   <Input
@@ -1455,8 +1327,7 @@ export default function EmployeesPage() {
                     disabled={importing}
                     onClick={() => setAddOpen(false)}
                   >
-                    Cancel
-                  </Button>
+                    {t("Cancel")}</Button>
                   <Button
                     type="button"
                     disabled={
@@ -1465,9 +1336,9 @@ export default function EmployeesPage() {
                     onClick={() => void importReviewed()}
                   >
                     {importing
-                      ? "Adding…"
+                      ? t("Adding…")
                       : incompleteCount > 0
-                        ? "Fill missing info to continue"
+                        ? t("Fill missing info to continue")
                         : `Add ${reviewRows.length} employee${reviewRows.length === 1 ? "" : "s"}`}
                   </Button>
                 </div>
@@ -1479,8 +1350,7 @@ export default function EmployeesPage() {
                   variant="outline"
                   onClick={() => setAddOpen(false)}
                 >
-                  Cancel
-                </Button>
+                  {t("Cancel")}</Button>
               </div>
             )}
           </div>
@@ -1509,19 +1379,18 @@ export default function EmployeesPage() {
             ) : null}
             {!isEmployeeDraftComplete(editDraft) ? (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                Fill the highlighted fields to complete this profile.
-              </p>
+                {t("Fill the highlighted fields to complete this profile.")}</p>
             ) : null}
             <div className="grid gap-3 md:grid-cols-2">
               <ProfileFieldGrid draft={editDraft} onChange={setEditField} />
               <div className="space-y-1">
-                <Label>Branch</Label>
+                <Label>{t("Branch")}</Label>
                 <select
                   className={selectClass}
                   value={editBranchId}
                   onChange={(e) => setEditBranchId(e.target.value)}
                 >
-                  <option value="">Unassigned</option>
+                  <option value="">{t("Unassigned")}</option>
                   {org.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
@@ -1530,7 +1399,22 @@ export default function EmployeesPage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label>Status</Label>
+                <Label>{t("Manager")}</Label>
+                <select
+                  className={selectClass}
+                  value={editManagerId}
+                  onChange={(e) => setEditManagerId(e.target.value)}
+                >
+                  <option value="">{t("No manager")}</option>
+                  {managerOptions(editId).map((e) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Status")}</Label>
                 <select
                   className={selectClass}
                   value={editStatus}
@@ -1540,12 +1424,12 @@ export default function EmployeesPage() {
                     )
                   }
                 >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
+                  <option value="active">{t("Active")}</option>
+                  <option value="inactive">{t("Inactive")}</option>
                 </select>
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>Job roles</Label>
+                <Label>{t("Job roles")}</Label>
                 <JobRolePicker
                   roles={jobRoles}
                   selectedIds={editJobRoleIds}
@@ -1553,7 +1437,7 @@ export default function EmployeesPage() {
                 />
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>System control roles</Label>
+                <Label>{t("System control roles")}</Label>
                 <SystemModuleRolePicker
                   selected={
                     editDraft.role === "tenant_admin" ? [] : editSystemRoles
@@ -1564,14 +1448,12 @@ export default function EmployeesPage() {
               </div>
             </div>
             <div className="rounded-lg border bg-secondary/30 p-3">
-              <p className="mb-2 text-sm font-medium">Work zone</p>
+              <p className="mb-2 text-sm font-medium">{t("Work zone")}</p>
               <p className="mb-3 text-xs text-muted-foreground">
-                Clock-in/out must happen inside this radius. Leave blank for no
-                zone.
-              </p>
+                {t("Clock-in/out must happen inside this radius. Leave blank for no zone.")}</p>
               <div className="grid gap-2 sm:grid-cols-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Latitude</Label>
+                  <Label className="text-xs">{t("Latitude")}</Label>
                   <Input
                     value={zoneLat}
                     onChange={(e) => setZoneLat(e.target.value)}
@@ -1579,7 +1461,7 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Longitude</Label>
+                  <Label className="text-xs">{t("Longitude")}</Label>
                   <Input
                     value={zoneLng}
                     onChange={(e) => setZoneLng(e.target.value)}
@@ -1587,7 +1469,7 @@ export default function EmployeesPage() {
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Radius (m)</Label>
+                  <Label className="text-xs">{t("Radius (m)")}</Label>
                   <Input
                     type="number"
                     min={MIN_GEOFENCE_RADIUS_METERS}
@@ -1606,7 +1488,7 @@ export default function EmployeesPage() {
                   disabled={zoneBusy || editSaving}
                   onClick={() => void clearZone(editing.id)}
                 >
-                  {zoneBusy ? "Clearing…" : "Clear zone"}
+                  {zoneBusy ? t("Clearing…") : t("Clear zone")}
                 </Button>
               ) : null}
             </div>
@@ -1617,52 +1499,23 @@ export default function EmployeesPage() {
                 disabled={editSaving}
                 onClick={closeEditor}
               >
-                Cancel
-              </Button>
+                {t("Cancel")}</Button>
               <Button
                 type="button"
                 disabled={editSaving}
                 onClick={() => void saveEditor(editing.id)}
               >
                 {editSaving
-                  ? "Saving…"
+                  ? t("Saving…")
                   : profileComplete(editing)
-                    ? "Save changes"
-                    : "Save and complete"}
+                    ? t("Save changes")
+                    : t("Save and complete")}
               </Button>
             </div>
           </div>
         ) : null}
       </Modal>
 
-      <ConfirmDialog
-        open={Boolean(pendingBranch)}
-        title={pendingBranch ? `Remove branch “${pendingBranch.name}”?` : "Remove branch?"}
-        description="Sites under it will be deleted and employees will be unassigned."
-        confirmLabel="Remove"
-        variant="destructive"
-        busy={branchBusy}
-        onConfirm={removeBranch}
-        onOpenChange={(next) => {
-          if (!next && !branchBusy) setPendingBranch(null);
-        }}
-      />
-      <ConfirmDialog
-        open={Boolean(pendingJobRole)}
-        title={
-          pendingJobRole
-            ? `Remove job role “${pendingJobRole.name}”?`
-            : "Remove job role?"
-        }
-        description="People who had this role will keep their other roles. Access (Admin or Employee) is not affected."
-        confirmLabel="Remove"
-        variant="destructive"
-        busy={jobRoleBusy}
-        onConfirm={removeJobRole}
-        onOpenChange={(next) => {
-          if (!next && !jobRoleBusy) setPendingJobRole(null);
-        }}
-      />
     </div>
   );
 }

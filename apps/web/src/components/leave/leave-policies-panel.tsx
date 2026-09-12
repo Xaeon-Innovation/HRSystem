@@ -13,6 +13,7 @@ import type {
   LeaveType,
   WeekendRule,
 } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeavePoliciesPanel({
   types,
@@ -66,17 +67,16 @@ function PolicyRules({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Policy rules</CardTitle>
+        <CardTitle className="text-base">{t("Policy rules")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Notice, probation, weekends, holidays, staffing, and approval routing.
-        </p>
+          {t("Notice, probation, weekends, holidays, staffing, and approval routing.")}</p>
       </CardHeader>
       <CardContent className="space-y-4">
         {policies.map((p) => (
           <div key={p.id} className="rounded-xl border p-3">
             <p className="font-medium">{typeName(p.leaveTypeId)}</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Min notice (days)">
+              <Field label={t("Min notice (days)")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -84,7 +84,7 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { minNoticeDays: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Probation lockout (days)">
+              <Field label={t("Probation lockout (days)")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -92,7 +92,7 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { probationLockoutDays: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Team overlap limit">
+              <Field label={t("Team overlap limit")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -100,18 +100,18 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { staffingLimit: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Weekends">
+              <Field label={t("Weekends")}>
                 <select
                   className={SELECT_CLASS}
                   value={p.weekendRule}
                   onChange={(e) => onChange(p.id, { weekendRule: e.target.value as WeekendRule })}
                 >
-                  <option value="sat_sun">Sat–Sun off</option>
-                  <option value="fri_sat">Fri–Sat off</option>
-                  <option value="none">Count weekends</option>
+                  <option value="sat_sun">{t("Sat–Sun off")}</option>
+                  <option value="fri_sat">{t("Fri–Sat off")}</option>
+                  <option value="none">{t("Count weekends")}</option>
                 </select>
               </Field>
-              <Field label="Long-leave threshold">
+              <Field label={t("Long-leave threshold")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -119,7 +119,7 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { longLeaveDaysThreshold: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Reminder (hours)">
+              <Field label={t("Reminder (hours)")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -127,7 +127,7 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { reminderHours: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Escalate after (hours)">
+              <Field label={t("Escalate after (hours)")}>
                 <Input
                   type="number"
                   className="h-9"
@@ -135,7 +135,7 @@ function PolicyRules({
                   onChange={(e) => onChange(p.id, { escalationHours: Number(e.target.value) })}
                 />
               </Field>
-              <Field label="Backup approver">
+              <Field label={t("Backup approver")}>
                 <Input
                   className="h-9"
                   value={p.backupApproverName ?? ""}
@@ -145,44 +145,44 @@ function PolicyRules({
             </div>
             <div className="mt-3 flex flex-wrap gap-3 text-sm">
               <Check
-                label="Allow negative balance"
+                label={t("Allow negative balance")}
                 checked={p.negativeAllowed}
                 onChange={(v) => onChange(p.id, { negativeAllowed: v })}
               />
               <Check
-                label="Count public holidays"
+                label={t("Count public holidays")}
                 checked={p.countHolidays}
                 onChange={(v) => onChange(p.id, { countHolidays: v })}
               />
               <Check
-                label="Manager approves first"
+                label={t("Manager approves first")}
                 checked={p.managerFirst}
                 onChange={(v) => onChange(p.id, { managerFirst: v })}
               />
               <Check
-                label="Multi-level for long leave"
+                label={t("Multi-level for long leave")}
                 checked={p.multiLevelEnabled}
                 onChange={(v) => onChange(p.id, { multiLevelEnabled: v })}
               />
               <Check
-                label="Reserve pending days"
+                label={t("Reserve pending days")}
                 checked={p.reservePendingDays}
                 onChange={(v) => onChange(p.id, { reservePendingDays: v })}
               />
               <Check
-                label="Delegation / backup"
+                label={t("Delegation / backup")}
                 checked={p.delegationEnabled}
                 onChange={(v) => onChange(p.id, { delegationEnabled: v })}
               />
             </div>
             {p.blackoutDates.length > 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Blackout: {p.blackoutDates.map((b) => `${b.label} (${b.startDate}–${b.endDate})`).join(" · ")}
+                {t("Blackout:")}{p.blackoutDates.map((b) => `${b.label} (${b.startDate}–${b.endDate})`).join(" · ")}
               </p>
             ) : null}
             {p.scope.department || p.scope.branchId || p.scope.role ? (
               <p className="mt-1 text-xs text-muted-foreground">
-                Scoped to {[p.scope.department, p.scope.branchId, p.scope.role].filter(Boolean).join(" · ")}
+                {t("Scoped to")}{[p.scope.department, p.scope.branchId, p.scope.role].filter(Boolean).join(" · ")}
               </p>
             ) : null}
           </div>

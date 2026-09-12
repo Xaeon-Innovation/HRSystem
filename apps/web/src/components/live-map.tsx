@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   Marker,
@@ -19,6 +19,7 @@ import {
 } from "@hr/shared";
 import { mediaUrl } from "@/lib/api";
 import "leaflet/dist/leaflet.css";
+import { t } from "@/i18n";
 
 export type LiveLoc = {
   employeeId: string;
@@ -51,7 +52,7 @@ const OSM_ATTRIBUTION =
 const ESRI_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://www.esri.com/">Esri</a>';
 
-// Keyless tile providers only — CARTO basemaps now watermark "API key required".
+// Keyless tile CDNs only — CARTO watermarks "API key required"; OSM.fr/hot is slow.
 const TILE_LAYERS: Record<
   MapTileStyle,
   {
@@ -64,11 +65,10 @@ const TILE_LAYERS: Record<
   }
 > = {
   voyager: {
-    url: "https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png",
-    attribution: OSM_ATTRIBUTION,
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    attribution: ESRI_ATTRIBUTION,
     maxZoom: MAP_MAX_ZOOM,
     maxNativeZoom: 19,
-    subdomains: "abc",
   },
   positron: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}",
@@ -77,10 +77,11 @@ const TILE_LAYERS: Record<
     maxNativeZoom: 16,
   },
   osm: {
-    url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    url: "https://{s}.tile.openstreetmap.de/{z}/{x}/{y}.png",
     attribution: OSM_ATTRIBUTION,
     maxZoom: MAP_MAX_ZOOM,
     maxNativeZoom: 19,
+    subdomains: "abc",
   },
   dark: {
     url: "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
@@ -206,22 +207,68 @@ function FitBounds({
   singleZoom?: number;
 }) {
   const map = useMap();
+  const didFit = useRef(false);
   const key =
     focusKey ??
     positions.map((p) => `${p[0].toFixed(5)},${p[1].toFixed(5)}`).join("|");
 
   useEffect(() => {
     if (positions.length === 0) return;
+    const first = !didFit.current;
+    didFit.current = true;
     if (positions.length === 1) {
-      map.setView(positions[0]!, singleZoom, { animate: true, duration: 0.55 });
+      if (first) {
+        map.setView(positions[0]!, singleZoom, { animate: false });
+      } else {
+        map.flyTo(positions[0]!, singleZoom, {
+          duration: 0.4,
+          easeLinearity: 0.28,
+        });
+      }
       return;
     }
-    map.fitBounds(L.latLngBounds(positions), {
-      padding: [48, 48],
-      animate: true,
-      duration: 0.55,
-    });
+    const bounds = L.latLngBounds(positions);
+    if (first) {
+      map.fitBounds(bounds, { padding: [48, 48], animate: false });
+    } else {
+      map.flyToBounds(bounds, {
+        padding: [48, 48],
+        duration: 0.4,
+        easeLinearity: 0.28,
+      });
+    }
   }, [map, key, singleZoom]);
+  return null;
+}
+
+function TilesReadyGate({ onReady }: { onReady: () => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    let settled = false;
+    const settle = () => {
+      if (settled) return;
+      settled = true;
+      onReady();
+    };
+    map.whenReady(() => {
+      map.once("load", settle);
+      map.eachLayer((layer) => {
+        if (layer instanceof L.TileLayer) {
+          layer.once("load", settle);
+          // Cached tiles can already be complete when we subscribe.
+          const el = (layer as L.TileLayer & { _loading?: boolean })._loading;
+          if (el === false) settle();
+        }
+      });
+    });
+    const fallback = window.setTimeout(settle, 1800);
+    return () => {
+      settled = true;
+      window.clearTimeout(fallback);
+    };
+  }, [map, onReady]);
+
   return null;
 }
 
@@ -252,13 +299,14 @@ function MapClickPicker({
 
 const zoneCenterIcon = L.divIcon({
   className: "lm-icon",
-  html: `<div class="lm-zone-center" aria-hidden="true"><span></span></div>`,
+  html: '<div class="lm-zone-center" aria-hidden="true"><span></span></div>',
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 });
 
 export default function LiveMapView({
   center,
+  zoom = 12,
   locations,
   historyPoints,
   focusPoint,
@@ -271,6 +319,7 @@ export default function LiveMapView({
   onPickCenter,
 }: {
   center: { lat: number; lng: number };
+  zoom?: number;
   locations: LiveLoc[];
   historyPoints?: HistoryPoint[];
   focusPoint?: HistoryPoint | null;
@@ -289,6 +338,8 @@ export default function LiveMapView({
   onPickCenter?: (lat: number, lng: number) => void;
 }) {
   const tile = TILE_LAYERS[appearance.tileStyle] ?? TILE_LAYERS.voyager;
+  const [tilesReady, setTilesReady] = useState(false);
+  const onTilesReady = useCallback(() => setTilesReady(true), []);
 
   const trailPositions = useMemo(() => {
     if (!historyPoints?.length) return [] as Array<[number, number]>;
@@ -321,6 +372,13 @@ export default function LiveMapView({
     return points;
   }, [mode, locations, trailPositions, draftGeofence, selectedId]);
 
+  const iconSignature = locations
+    .map(
+      (l) =>
+        `${l.employeeId}:${l.isClockedIn !== false}:${l.avatarUrl ?? ""}:${l.name}`,
+    )
+    .join("|");
+
   const liveIcons = useMemo(() => {
     const map = new Map<string, L.DivIcon>();
     for (const l of locations) {
@@ -335,7 +393,9 @@ export default function LiveMapView({
       );
     }
     return map;
-  }, [locations, appearance, selectedId]);
+    // locations is read when iconSignature / appearance / selectedId change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [iconSignature, appearance, selectedId]);
 
   const focusMarkerIcon = useMemo(
     () =>
@@ -361,25 +421,32 @@ export default function LiveMapView({
   ].join(":");
 
   return (
-    <MapContainer
-      key={appearance.tileStyle}
-      center={[center.lat, center.lng]}
-      zoom={12}
-      minZoom={MAP_MIN_ZOOM}
-      maxZoom={MAP_MAX_ZOOM}
-      zoomControl={false}
-      className="lm-map"
-      style={{ height: "100%", width: "100%" }}
-    >
+    <div className="relative h-full w-full">
+      <MapContainer
+        center={[center.lat, center.lng]}
+        zoom={zoom}
+        minZoom={MAP_MIN_ZOOM}
+        maxZoom={MAP_MAX_ZOOM}
+        zoomControl={false}
+        preferCanvas
+        className="lm-map"
+        style={{ height: "100%", width: "100%" }}
+      >
       <TileLayer
+        key={tile.url}
         attribution={tile.attribution}
         url={tile.url}
         maxZoom={tile.maxZoom}
         maxNativeZoom={tile.maxNativeZoom}
         subdomains={tile.subdomains ?? "abc"}
+        keepBuffer={6}
+        updateWhenZooming={false}
+        updateWhenIdle
+        crossOrigin="anonymous"
       />
       <ZoomControl position="bottomright" />
       <MapClickPicker enabled={pickCenterEnabled} onPick={onPickCenter} />
+      <TilesReadyGate onReady={onTilesReady} />
       <FitBounds
         positions={fitPositions}
         focusKey={focusKey}
@@ -395,7 +462,7 @@ export default function LiveMapView({
         >
           <Popup className="lm-popup">
             <div className="lm-popup-body">
-              <p className="lm-popup-name">Zone center</p>
+              <p className="lm-popup-name">{t("Zone center")}</p>
               <p className="lm-popup-updated">
                 {draftGeofence.lat.toFixed(5)}, {draftGeofence.lng.toFixed(5)}
               </p>
@@ -472,17 +539,15 @@ export default function LiveMapView({
                         }
                       >
                         {l.isClockedIn === false
-                          ? "Last seen · clocked out"
-                          : "On shift"}
+                          ? t("Last seen · clocked out")
+                          : t("On shift")}
                       </p>
                       {zoneRadius != null ? (
                         <p className="lm-popup-updated">
-                          Zone · {zoneRadius}m radius
-                        </p>
+                          {t("Zone ·")}{zoneRadius}{t("m radius")}</p>
                       ) : null}
                       <p className="lm-popup-updated">
-                        Updated {l.secondsSinceUpdate ?? 0}s ago
-                      </p>
+                        {t("Updated")}{l.secondsSinceUpdate ?? 0}{t("s ago")}</p>
                     </div>
                   </Popup>
                 </Marker>
@@ -509,14 +574,19 @@ export default function LiveMapView({
         >
           <Popup className="lm-popup">
             <div className="lm-popup-body">
-              <p className="lm-popup-name">Trail position</p>
+              <p className="lm-popup-name">{t("Trail position")}</p>
               <p className="lm-popup-updated">
-                Recorded {new Date(focusPoint.recordedAt).toLocaleString()}
+                {t("Recorded")}{new Date(focusPoint.recordedAt).toLocaleString()}
               </p>
             </div>
           </Popup>
         </Marker>
       ) : null}
     </MapContainer>
+      <div
+        className={`lm-tiles-veil${tilesReady ? " lm-tiles-veil--hide" : ""}`}
+        aria-hidden
+      />
+    </div>
   );
 }

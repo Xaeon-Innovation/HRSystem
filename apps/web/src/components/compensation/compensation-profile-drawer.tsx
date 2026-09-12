@@ -34,6 +34,7 @@ import { isDeduction } from "@/lib/compensation/calc";
 import type { CompProfile } from "@/lib/compensation/types";
 import type { CompensationStore } from "@/lib/compensation/store";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function CompensationProfileDrawer({
   profile,
@@ -80,13 +81,11 @@ export function CompensationProfileDrawer({
             <BandBadge position={band.position} />
             {canPropose ? (
               <Button size="sm" className="ml-auto" onClick={() => onPropose(employee.id)}>
-                Propose change
-              </Button>
+                {t("Propose change")}</Button>
             ) : null}
             {canEditRate && onSetHourly ? (
               <Button size="sm" variant="outline" onClick={() => onSetHourly(employee.id)}>
-                Set hourly rate
-              </Button>
+                {t("Set hourly rate")}</Button>
             ) : null}
           </div>
 
@@ -115,9 +114,9 @@ export function CompensationProfileDrawer({
           </dl>
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold">Performance link</h4>
+            <h4 className="text-sm font-semibold">{t("Performance link")}</h4>
             <p className="text-sm text-muted-foreground">
-              Latest KPI {employee.latestKpiScore ?? "—"} · Last appraisal{" "}
+              {t("Latest KPI")}{employee.latestKpiScore ?? "—"} {t("· Last appraisal")}{" "}
               {appraisalLabel(employee.lastAppraisalResult)}
               {employee.lastAppraisalDate ? ` (${formatDate(employee.lastAppraisalDate)})` : ""}
             </p>
@@ -126,12 +125,12 @@ export function CompensationProfileDrawer({
           {band.band ? (
             <section className="space-y-2">
               <h4 className="text-sm font-semibold">
-                Salary band {band.band.grade}
+                {t("Salary band")}{band.band.grade}
               </h4>
               <p className="text-xs text-muted-foreground">
-                Min {formatMoney(band.band.min, band.band.currency)} · Mid{" "}
-                {formatMoney(band.band.midpoint, band.band.currency)} · Max{" "}
-                {formatMoney(band.band.max, band.band.currency)} · Compa-ratio{" "}
+                {t("Min")}{formatMoney(band.band.min, band.band.currency)} {t("· Mid")}{" "}
+                {formatMoney(band.band.midpoint, band.band.currency)} {t("· Max")}{" "}
+                {formatMoney(band.band.max, band.band.currency)} {t("· Compa-ratio")}{" "}
                 {formatCompa(band.compaRatio)}
               </p>
               <div className="relative h-2 rounded-full bg-secondary">
@@ -158,26 +157,24 @@ export function CompensationProfileDrawer({
 
           {record.payStructure === "hourly" || profile.hours ? (
             <section className="space-y-2">
-              <h4 className="text-sm font-semibold">Hours from clock in / out</h4>
+              <h4 className="text-sm font-semibold">{t("Hours from clock in / out")}</h4>
               {profile.hours && profile.hours.shiftCount > 0 ? (
                 <>
                   <dl className="grid grid-cols-3 gap-2 text-sm">
-                    <Fact label="Worked" value={formatHours(profile.hours.totalHours)} />
-                    <Fact label="Regular" value={formatHours(profile.hours.regularHours)} />
-                    <Fact label="Overtime" value={formatHours(profile.hours.overtimeHours)} />
+                    <Fact label={t("Worked")} value={formatHours(profile.hours.totalHours)} />
+                    <Fact label={t("Regular")} value={formatHours(profile.hours.regularHours)} />
+                    <Fact label={t("Overtime")} value={formatHours(profile.hours.overtimeHours)} />
                   </dl>
                   {profile.hours.openShiftCount > 0 ? (
                     <p className="text-xs text-amber-800">
-                      {profile.hours.openShiftCount} open shift
-                      {profile.hours.openShiftCount === 1 ? "" : "s"} counted through now.
-                    </p>
+                      {profile.hours.openShiftCount} {t("open shift")}{profile.hours.openShiftCount === 1 ? "" : "s"} {t("counted through now.")}</p>
                   ) : null}
                   <ul className="max-h-48 divide-y overflow-y-auto rounded-lg border text-sm">
                     {profile.hours.shifts.slice(0, 14).map((s, i) => (
                       <li key={`${s.clockInAt}-${i}`} className="flex justify-between px-3 py-1.5">
                         <span className="text-muted-foreground">
                           {formatDate(s.clockInAt.slice(0, 10))}
-                          {s.open ? " · open" : ""}
+                          {s.open ? t(" · open") : ""}
                         </span>
                         <span className="tabular-nums">{formatHours(s.hours)}</span>
                       </li>
@@ -186,17 +183,15 @@ export function CompensationProfileDrawer({
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No clock records in this payroll cycle yet. Pay will stay at zero until they
-                  clock in and out.
-                </p>
+                  {t("No clock records in this payroll cycle yet. Pay will stay at zero until they clock in and out.")}</p>
               )}
             </section>
           ) : null}
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold">Components</h4>
+            <h4 className="text-sm font-semibold">{t("Components")}</h4>
             {profile.components.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No extra line items.</p>
+              <p className="text-sm text-muted-foreground">{t("No extra line items.")}</p>
             ) : (
               <ul className="divide-y rounded-lg border">
                 {profile.components.map((c) => (
@@ -222,9 +217,9 @@ export function CompensationProfileDrawer({
           </section>
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold">Salary history</h4>
+            <h4 className="text-sm font-semibold">{t("Salary history")}</h4>
             {profile.history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No history.</p>
+              <p className="text-sm text-muted-foreground">{t("No history.")}</p>
             ) : (
               <ol className="space-y-2">
                 {profile.history.map((h) => (
@@ -246,7 +241,7 @@ export function CompensationProfileDrawer({
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">
                       {h.reason}
-                      {h.reviewCycleName ? ` · ${h.reviewCycleName}` : ""} · Submitted{" "}
+                      {h.reviewCycleName ? ` · ${h.reviewCycleName}` : ""} {t("· Submitted")}{" "}
                       {h.submittedByName}
                       {h.approvedByName ? ` · Approved ${h.approvedByName}` : ""}
                     </p>
@@ -257,9 +252,9 @@ export function CompensationProfileDrawer({
           </section>
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold">Variable pay</h4>
+            <h4 className="text-sm font-semibold">{t("Variable pay")}</h4>
             {profile.variable.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No bonuses or commissions on file.</p>
+              <p className="text-sm text-muted-foreground">{t("No bonuses or commissions on file.")}</p>
             ) : (
               <ul className="space-y-2">
                 {profile.variable.map((v) => (
@@ -268,7 +263,7 @@ export function CompensationProfileDrawer({
                     className="flex items-center justify-between rounded-lg border px-3 py-2 text-sm"
                   >
                     <span>
-                      {v.kind === "bonus" ? "Bonus" : "Commission"} ·{" "}
+                      {v.kind === "bonus" ? t("Bonus") : t("Commission")} ·{" "}
                       {formatMoney(v.amount, v.currency)}
                       {v.kpiLinked ? ` · KPI ${v.kpiScore ?? "—"}` : ""}
                     </span>
@@ -281,13 +276,13 @@ export function CompensationProfileDrawer({
 
           {record.notes ? (
             <section>
-              <h4 className="text-sm font-semibold">Notes</h4>
+              <h4 className="text-sm font-semibold">{t("Notes")}</h4>
               <p className="mt-1 text-sm text-muted-foreground">{record.notes}</p>
             </section>
           ) : null}
 
           <section className="space-y-2">
-            <h4 className="text-sm font-semibold">Audit trail</h4>
+            <h4 className="text-sm font-semibold">{t("Audit trail")}</h4>
             <CompensationAuditTimeline events={store.audit(employee.id)} />
           </section>
         </SheetBody>

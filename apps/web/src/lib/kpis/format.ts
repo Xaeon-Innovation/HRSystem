@@ -1,11 +1,12 @@
 import type { KpiStatus, KpiTrend, KpiUnit, ReviewCycle } from "./types";
+import { t, intlDateOptions, intlLocale, intlNumberOptions } from "@/i18n";
 
 export function formatNumber(value: number | null | undefined, digits = 1): string {
   if (value == null || !Number.isFinite(value)) return "—";
-  return new Intl.NumberFormat(undefined, {
+  return new Intl.NumberFormat(intlLocale(), intlNumberOptions({
     maximumFractionDigits: digits,
     minimumFractionDigits: Number.isInteger(value) ? 0 : Math.min(digits, 1),
-  }).format(value);
+  })).format(value);
 }
 
 export function formatPercent(value: number | null | undefined, digits = 0): string {
@@ -22,15 +23,15 @@ export function formatKpiValue(
     case "percent":
       return formatPercent(value, value >= 10 ? 0 : 1);
     case "currency":
-      return new Intl.NumberFormat(undefined, {
+      return new Intl.NumberFormat(intlLocale(), intlNumberOptions({
         style: "currency",
         currency: "USD",
         maximumFractionDigits: 0,
-      }).format(value);
+      })).format(value);
     case "minutes":
-      return `${formatNumber(value, 0)} min`;
+      return t("{n} min", { n: formatNumber(value, 0) });
     case "hours":
-      return `${formatNumber(value, 1)} h`;
+      return t("{n} h", { n: formatNumber(value, 1) });
     case "score":
       return formatNumber(value, 1);
     case "ratio":
@@ -44,49 +45,48 @@ export function formatDate(value: string | null | undefined): string {
   if (!value) return "—";
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+  return d.toLocaleDateString(
+    intlLocale(),
+    intlDateOptions({ month: "short", day: "numeric", year: "numeric" }),
+  );
 }
 
 export function statusLabel(status: KpiStatus): string {
   switch (status) {
     case "on_track":
-      return "On track";
+      return t("On track");
     case "at_risk":
-      return "Close to target";
+      return t("Close to target");
     case "below_target":
-      return "Below target";
+      return t("Below target");
     case "exceeded":
-      return "Above target";
+      return t("Above target");
     default:
-      return "Needs a result";
+      return t("Needs a result");
   }
 }
 
 export function trendLabel(trend: KpiTrend): string {
   switch (trend) {
     case "up":
-      return "Improving";
+      return t("Improving");
     case "down":
-      return "Declining";
+      return t("Declining");
     case "flat":
-      return "Stable";
+      return t("Stable");
     default:
-      return "New";
+      return t("New");
   }
 }
 
 export function cycleLabel(cycle: ReviewCycle): string {
   switch (cycle) {
     case "quarterly":
-      return "Quarterly";
+      return t("Quarterly");
     case "yearly":
-      return "Yearly";
+      return t("Yearly");
     default:
-      return "Monthly";
+      return t("Monthly");
   }
 }
 

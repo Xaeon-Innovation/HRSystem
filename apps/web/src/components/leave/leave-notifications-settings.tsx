@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LeaveNotificationSetting } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeaveNotificationsSettings({
   settings,
@@ -13,19 +14,18 @@ export function LeaveNotificationsSettings({
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Notifications & reminders</CardTitle>
+        <CardTitle className="text-base">{t("Notifications & reminders")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Structure for submit, decide, remind, escalate, cancel, and balance updates. Delivery can plug into the existing alerts service later.
-        </p>
+          {t("Structure for submit, decide, remind, escalate, cancel, and balance updates. Delivery can plug into the existing alerts service later.")}</p>
       </CardHeader>
       <CardContent className="overflow-x-auto px-0">
         <table className="w-full min-w-[560px] text-sm">
           <thead>
             <tr className="border-y bg-secondary/50 text-left text-xs text-muted-foreground">
-              <th className="px-4 py-2">Event</th>
-              <th className="px-3 py-2">Employee</th>
-              <th className="px-3 py-2">Manager</th>
-              <th className="px-3 py-2">Admin</th>
+              <th className="px-4 py-2">{t("Event")}</th>
+              <th className="px-3 py-2">{t("Employee")}</th>
+              <th className="px-3 py-2">{t("Manager")}</th>
+              <th className="px-3 py-2">{t("Admin")}</th>
             </tr>
           </thead>
           <tbody>

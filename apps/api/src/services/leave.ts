@@ -1,5 +1,5 @@
-import { and, eq, or, sql } from "drizzle-orm";
-import { branches, employees, leaveStates, users } from "@hr/db";
+import { and, eq, gte, or, sql } from "drizzle-orm";
+import { branches, employees, leaveStates, notifications, tenants, users } from "@hr/db";
 import {
   LeaveStore,
   emptyLeaveSnapshot,
@@ -8,6 +8,8 @@ import {
   persistableLeaveState,
   type JwtPayload,
   type LeaveActor,
+  type LeaveNotificationEvent,
+  type LeaveNotificationSetting,
   type LeavePersistedState,
   type LeaveRequest,
   type LeaveRequestDraft,
@@ -35,6 +37,16 @@ function actorFrom(user: JwtPayload, name: string): LeaveActor {
   };
 }
 
+function systemLeaveActor(): LeaveActor {
+  return {
+    id: "system",
+    name: "System",
+    role: "tenant_admin",
+    employeeId: null,
+    systemModuleRoles: ["leaves"],
+  };
+}
+
 function isPersistedState(value: unknown): value is LeavePersistedState {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
@@ -56,6 +68,16 @@ function mergePersisted(raw: unknown): LeavePersistedState {
   };
 }
 
+function leaveNotifyEnabled(
+  settings: LeaveNotificationSetting[] | undefined,
+  event: LeaveNotificationEvent,
+  audience: "employee" | "manager" | "admin",
+) {
+  const row = settings?.find((s) => s.event === event);
+  if (!row) return true;
+  return Boolean(row[audience]);
+}
+
 async function loadDirectory(app: App, tenantId: string) {
   const empRows = await app.db
     .select({
@@ -67,6 +89,7 @@ async function loadDirectory(app: App, tenantId: string) {
       status: employees.status,
       hireDate: employees.hireDate,
       branchId: employees.branchId,
+      managerId: employees.managerId,
     })
     .from(employees)
     .innerJoin(users, eq(users.id, employees.userId))
@@ -155,7 +178,7 @@ export function visibleSnapshot(
   const id = actor.employeeId;
   return {
     ...snap,
-    requests: snap.requests.filter((r) => r.employeeId === id),
+    requests: store.requests(undefined, actor),
     balances: snap.balances.filter((b) => b.employeeId === id),
     transactions: snap.transactions.filter((t) => t.employeeId === id),
   };
@@ -167,6 +190,127 @@ export async function leaveActorFor(
 ): Promise<LeaveActor> {
   const name = await userName(app, user.sub, "User");
   return actorFrom(user, name);
+}
+
+/** Post monthly accruals for one tenant (job + /accrual route). */
+export async function runLeaveAccrual(app: App, tenantId: string) {
+  const actor = systemLeaveActor();
+  const store = await loadLeaveStore(app, tenantId, actor);
+  const posted = store.runMonthlyAccrual(actor);
+  await saveLeaveStore(app, tenantId, store);
+  return posted;
+}
+
+async function remindAlreadySentToday(
+  app: App,
+  tenantId: string,
+  requestId: string,
+) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const rows = await app.db.query.notifications.findMany({
+    where: and(
+      eq(notifications.tenantId, tenantId),
+      eq(notifications.eventKey, "leave_request_reminder"),
+      gte(notifications.createdAt, start),
+    ),
+    columns: { metadata: true },
+    limit: 200,
+  });
+  return rows.some((r) => r.metadata?.requestId === requestId);
+}
+
+/**
+ * Nudge managers/admins for pending leave older than 3 days.
+ * Once per calendar day per request (skip if already notified today).
+ */
+export async function runLeaveReminders(app: App, tenantId: string) {
+  const actor = systemLeaveActor();
+  const store = await loadLeaveStore(app, tenantId, actor);
+  const settings = store.notifications();
+  const now = new Date();
+  const pendingOlder = store.inboxAlerts().filter(({ request }) => {
+    if (request.status !== "pending" || !request.submittedAt) return false;
+    const submitted = new Date(request.submittedAt);
+    const ageDays =
+      (now.getTime() - submitted.getTime()) / (24 * 60 * 60 * 1000);
+    // Pending > 3 days; once-per-day via remindAlreadySentToday (day gate).
+    return ageDays >= 3;
+  });
+
+  let sent = 0;
+  for (const { request } of pendingOlder) {
+    if (await remindAlreadySentToday(app, tenantId, request.id)) continue;
+    const body = `${request.employeeName}'s ${request.leaveTypeName} request (${request.startDate} – ${request.endDate}) is still pending.`;
+    const metadata = { requestId: request.id, employeeId: request.employeeId };
+
+    if (leaveNotifyEnabled(settings, "pending_reminder", "admin")) {
+      await notifyTenantAdmins(app, tenantId, {
+        title: "Leave approval reminder",
+        body,
+        eventKey: "leave_request_reminder",
+        metadata,
+      });
+    }
+
+    if (
+      leaveNotifyEnabled(settings, "pending_reminder", "manager") &&
+      request.managerId
+    ) {
+      const manager = await app.db.query.employees.findFirst({
+        where: and(
+          eq(employees.id, request.managerId),
+          eq(employees.tenantId, tenantId),
+        ),
+        columns: { userId: true },
+      });
+      if (manager) {
+        await createNotification(app, {
+          tenantId,
+          userId: manager.userId,
+          type: "alert",
+          title: "Leave approval reminder",
+          body,
+          eventKey: "leave_request_reminder",
+          category: "leave",
+          metadata,
+        });
+      }
+    }
+    sent += 1;
+  }
+  return sent;
+}
+
+export async function runLeaveJobsForAllTenants(
+  app: App,
+  opts: { runAccrual: boolean; runReminders: boolean },
+) {
+  const allTenants = await app.db.query.tenants.findMany({
+    where: eq(tenants.status, "active"),
+  });
+  for (const tenant of allTenants) {
+    if (opts.runAccrual) {
+      try {
+        const posted = await runLeaveAccrual(app, tenant.id);
+        if (posted) {
+          app.log.info({ tenantId: tenant.id, posted }, "leave accrual posted");
+        }
+      } catch (err) {
+        app.log.error({ err, tenantId: tenant.id }, "leave accrual failed");
+      }
+    }
+    if (opts.runReminders) {
+      try {
+        const sent = await runLeaveReminders(app, tenant.id);
+        if (sent) {
+          app.log.info({ tenantId: tenant.id, sent }, "leave reminders sent");
+        }
+      } catch (err) {
+        app.log.error({ err, tenantId: tenant.id }, "leave reminders failed");
+      }
+    }
+  }
 }
 
 async function notifyTenantAdmins(
@@ -242,12 +386,70 @@ export async function notifyLeaveSubmitted(
   actor: LeaveActor,
 ) {
   if (request.status !== "pending") return;
-  await notifyTenantAdmins(app, tenantId, {
-    title: "New leave request",
-    body: `${request.employeeName} requested ${request.requestedDays} day(s) of ${request.leaveTypeName} (${request.startDate} – ${request.endDate}).`,
+  const store = await loadLeaveStore(app, tenantId, actor);
+  const settings = store.notifications();
+  const body = `${request.employeeName} requested ${request.requestedDays} day(s) of ${request.leaveTypeName} (${request.startDate} – ${request.endDate}).`;
+  const metadata = { requestId: request.id, employeeId: request.employeeId };
+
+  const notified = new Set<string>();
+  if (leaveNotifyEnabled(settings, "request_submitted", "admin")) {
+    const admins = await app.db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        and(
+          eq(users.tenantId, tenantId),
+          or(
+            eq(users.role, "tenant_admin"),
+            sql`${users.systemModuleRoles} @> ${JSON.stringify(["leaves"])}::jsonb`,
+          ),
+        ),
+      );
+    for (const admin of admins) {
+      if (admin.id === actor.id) continue;
+      await createNotification(app, {
+        tenantId,
+        userId: admin.id,
+        type: "alert",
+        title: "New leave request",
+        body,
+        eventKey: "leave_request_submitted",
+        category: "leave",
+        metadata,
+      });
+      notified.add(admin.id);
+    }
+  }
+
+  if (!leaveNotifyEnabled(settings, "request_submitted", "manager")) return;
+
+  const requester = await app.db.query.employees.findFirst({
+    where: and(
+      eq(employees.id, request.employeeId),
+      eq(employees.tenantId, tenantId),
+    ),
+    columns: { managerId: true },
+  });
+  if (!requester?.managerId) return;
+  const manager = await app.db.query.employees.findFirst({
+    where: and(
+      eq(employees.id, requester.managerId),
+      eq(employees.tenantId, tenantId),
+    ),
+    columns: { userId: true },
+  });
+  if (!manager || manager.userId === actor.id || notified.has(manager.userId)) {
+    return;
+  }
+  await createNotification(app, {
+    tenantId,
+    userId: manager.userId,
+    type: "alert",
+    title: "Team leave request",
+    body,
     eventKey: "leave_request_submitted",
-    metadata: { requestId: request.id, employeeId: request.employeeId },
-    exceptUserId: actor.id,
+    category: "leave",
+    metadata,
   });
 }
 
@@ -256,7 +458,12 @@ export async function notifyLeaveDecision(
   tenantId: string,
   request: LeaveRequest,
 ) {
+  const actor = systemLeaveActor();
+  const store = await loadLeaveStore(app, tenantId, actor);
+  const settings = store.notifications();
+
   if (request.status === "approved") {
+    if (!leaveNotifyEnabled(settings, "request_approved", "employee")) return;
     await notifyEmployeeUser(app, tenantId, request.employeeId, {
       title: "Leave approved",
       body: `Your ${request.leaveTypeName} from ${request.startDate} to ${request.endDate} was approved.`,
@@ -266,6 +473,7 @@ export async function notifyLeaveDecision(
     return;
   }
   if (request.status === "rejected") {
+    if (!leaveNotifyEnabled(settings, "request_rejected", "employee")) return;
     await notifyEmployeeUser(app, tenantId, request.employeeId, {
       title: "Leave rejected",
       body: request.rejectionReason

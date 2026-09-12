@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import type { HistoryPoint, LiveLoc, MapAppearance } from "@/components/live-map";
+import { MapPaneFallback } from "@/components/map-pane-fallback";
+import { estimateMapZoom, filterLiveLocations } from "@/lib/map-view";
+import "leaflet/dist/leaflet.css";
 import {
   DEFAULT_GEOFENCE_RADIUS_METERS,
   DEFAULT_MAP_APPEARANCE,
@@ -20,8 +23,21 @@ import {
   type MapThemeId,
 } from "@hr/shared";
 import { Building2, MapPin, Palette, RotateCcw, Search, Settings2 } from "lucide-react";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { t } from "@/i18n";
 
-const LiveMap = dynamic(() => import("@/components/live-map"), { ssr: false });
+const LiveMap = dynamic(() => import("@/components/live-map"), {
+  ssr: false,
+  loading: () => <MapPaneFallback />,
+});
 
 type Presence = "all" | "on_shift" | "last_seen";
 
@@ -38,15 +54,15 @@ type Session = {
 };
 
 const TILE_LABELS: Record<(typeof MAP_TILE_STYLES)[number], string> = {
-  voyager: "Voyager (colorful)",
-  positron: "Positron (light)",
+  voyager: t("Voyager (colorful)"),
+  positron: t("Positron (light)"),
   osm: "OpenStreetMap",
   dark: "Dark",
 };
 
 const MARKER_LABELS: Record<(typeof MAP_MARKER_STYLES)[number], string> = {
   pulse: "Pulse",
-  soft: "Soft blob",
+  soft: t("Soft blob"),
   pin: "Pin",
 };
 
@@ -110,6 +126,7 @@ function localRangeToIso(date: string, startTime: string, endTime: string) {
 }
 
 export default function MapPage() {
+  const redesign = useUiRedesign();
   const [tab, setTab] = useState<"live" | "history">("live");
   const [locations, setLocations] = useState<LiveLoc[]>([]);
   const [q, setQ] = useState("");
@@ -117,6 +134,9 @@ export default function MapPage() {
   const [mode, setMode] = useState<"ws" | "poll">("ws");
   const [error, setError] = useState<string | null>(null);
   const [selectedLiveId, setSelectedLiveId] = useState<string | null>(null);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [liveReady, setLiveReady] = useState(false);
+  const [mapBooted, setMapBooted] = useState(false);
 
   const [appearance, setAppearance] = useState<MapAppearance>(
     DEFAULT_MAP_APPEARANCE,
@@ -150,24 +170,45 @@ export default function MapPage() {
   const [historyBusy, setHistoryBusy] = useState(false);
 
   useEffect(() => {
+    void import("@/components/live-map");
+  }, []);
+
+  useEffect(() => {
     void api<{ map: MapAppearance }>("/v1/admin/map-settings")
       .then((data) => {
         setAppearance(data.map);
         setDraftAppearance(data.map);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => setSettingsReady(true));
   }, []);
 
-  const poll = useCallback(async () => {
+  useEffect(() => {
+    if (mapBooted) return;
+    if (!settingsReady) return;
+    if (tab === "live" && !liveReady) return;
+    setMapBooted(true);
+  }, [mapBooted, settingsReady, liveReady, tab]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setSettingsReady(true);
+      setLiveReady(true);
+    }, 600);
+    return () => window.clearTimeout(t);
+  }, []);
+
+  const poll = useCallback(async (opts?: { skipCache?: boolean }) => {
     const params = new URLSearchParams();
-    if (q) params.set("q", q);
     params.set("presence", presence);
     const qs = params.toString();
     const data = await api<{ locations: LiveLoc[] }>(
       `/v1/admin/live-map?${qs}`,
+      { skipCache: opts?.skipCache ?? true },
     );
     setLocations(data.locations);
-  }, [q, presence]);
+    setLiveReady(true);
+  }, [presence]);
 
   useEffect(() => {
     if (tab !== "live") return;
@@ -180,13 +221,16 @@ export default function MapPage() {
     const startPoll = () => {
       if (cancelled) return;
       setMode("poll");
-      void poll().catch((e) => setError(e.message));
+      void poll({ skipCache: true }).catch((e) => setError(e.message));
       pollTimer = setInterval(() => {
-        void poll().catch(() => undefined);
+        void poll({ skipCache: true }).catch(() => undefined);
       }, 5000);
     };
 
-    void poll().catch((e) => setError(e.message));
+    void poll({ skipCache: false }).catch((e) => {
+      setLiveReady(true);
+      setError(e.message);
+    });
 
     const { access } = getTokens();
     if (!access) {
@@ -271,7 +315,7 @@ export default function MapPage() {
       if (pollTimer) clearInterval(pollTimer);
       if (fallbackTimer) clearTimeout(fallbackTimer);
     };
-  }, [tab, q, presence, poll]);
+  }, [tab, presence, poll]);
 
   useEffect(() => {
     if (tab !== "history") return;
@@ -303,6 +347,7 @@ export default function MapPage() {
     }
     void api<{ sessions: Session[] }>(
       `/v1/admin/location-sessions?employeeId=${encodeURIComponent(employeeId)}&date=${encodeURIComponent(date)}`,
+      { skipCache: true },
     )
       .then((data) => setSessions(data.sessions))
       .catch(() => setSessions([]));
@@ -334,6 +379,7 @@ export default function MapPage() {
         employee: { name: string };
       }>(
         `/v1/admin/location-history?employeeId=${encodeURIComponent(employeeId)}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`,
+        { skipCache: true },
       );
       setHistoryPoints(data.points);
       setScrubIndex(data.points.length ? data.points.length - 1 : 0);
@@ -403,11 +449,18 @@ export default function MapPage() {
     }
   }, [selectedLiveId]);
 
+  const searchedLocations = useMemo(
+    () => filterLiveLocations(locations, q),
+    [locations, q],
+  );
+
   const visibleLocations = useMemo(() => {
     if (tab !== "live") return [];
-    if (!selectedLiveId) return locations;
-    return locations.filter((l) => l.employeeId === selectedLiveId);
-  }, [tab, locations, selectedLiveId]);
+    if (selectedLiveId) {
+      return locations.filter((l) => l.employeeId === selectedLiveId);
+    }
+    return searchedLocations;
+  }, [tab, locations, searchedLocations, selectedLiveId]);
 
   const center = useMemo(() => {
     if (tab === "history" && focusPoint) {
@@ -416,11 +469,25 @@ export default function MapPage() {
     if (visibleLocations.length) {
       return { lat: visibleLocations[0]!.lat, lng: visibleLocations[0]!.lng };
     }
+    if (searchedLocations.length) {
+      return { lat: searchedLocations[0]!.lat, lng: searchedLocations[0]!.lng };
+    }
     if (locations.length) {
       return { lat: locations[0]!.lat, lng: locations[0]!.lng };
     }
     return { lat: 30.0444, lng: 31.2357 };
-  }, [tab, focusPoint, visibleLocations, locations]);
+  }, [tab, focusPoint, visibleLocations, searchedLocations, locations]);
+
+  const mapZoom = useMemo(() => {
+    if (tab === "history") {
+      return estimateMapZoom(
+        historyPoints.map((p) => [p.lat, p.lng] as [number, number]),
+      );
+    }
+    return estimateMapZoom(
+      visibleLocations.map((l) => [l.lat, l.lng] as [number, number]),
+    );
+  }, [tab, historyPoints, visibleLocations]);
 
   const mapFocusKey = useMemo(() => {
     if (tab === "live" && selectedLiveId) {
@@ -430,10 +497,10 @@ export default function MapPage() {
         : `live:${selectedLiveId}`;
     }
     if (tab === "live") {
-      return `all:${locations.map((l) => l.employeeId).join(",")}`;
+      return `all:${searchedLocations.map((l) => l.employeeId).join(",")}`;
     }
     return `hist:${historyPoints.length}:${focusPoint?.recordedAt ?? ""}`;
-  }, [tab, selectedLiveId, visibleLocations, locations, historyPoints.length, focusPoint]);
+  }, [tab, selectedLiveId, visibleLocations, searchedLocations, historyPoints.length, focusPoint]);
 
   const liveAppearance = customizeOpen ? draftAppearance : appearance;
 
@@ -628,6 +695,7 @@ export default function MapPage() {
       }
       const data = await api<{ places: PlaceHit[] }>(
         `/v1/admin/places/search?${params.toString()}`,
+        { skipCache: true },
       );
       setPlaceHits(data.places);
       if (!data.places.length) {
@@ -663,33 +731,33 @@ export default function MapPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold">Live map</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Live map")}</h1>
           <p className="text-sm text-muted-foreground">
             {tab === "live"
-              ? `Mode: ${mode === "ws" ? "realtime" : "REST polling fallback"}`
-              : "Review saved locations by employee and time"}
+              ? `Mode: ${mode === "ws" ? "realtime" : t("REST polling fallback")}`
+              : t("Review saved locations by employee and time")}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant={customizeOpen ? "default" : "outline"}
             size="sm"
+            className="w-full sm:w-auto"
             onClick={() => {
               setDraftAppearance(appearance);
               setCustomizeOpen((o) => !o);
             }}
           >
             <Palette className="h-4 w-4" />
-            Customize
-          </Button>
-          <div className="inline-flex rounded-md border bg-card p-1">
+            {t("Customize")}</Button>
+          <div className="inline-flex w-full rounded-md border bg-card p-1 sm:w-auto">
             <button
               type="button"
               className={cn(
-                "rounded px-3 py-1.5 text-sm",
+                "flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1.5",
                 tab === "live" ? "bg-primary text-primary-foreground" : "",
               )}
               onClick={() => {
@@ -697,12 +765,11 @@ export default function MapPage() {
                 setTab("live");
               }}
             >
-              Live
-            </button>
+              {t("Live")}</button>
             <button
               type="button"
               className={cn(
-                "rounded px-3 py-1.5 text-sm",
+                "flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1.5",
                 tab === "history" ? "bg-primary text-primary-foreground" : "",
               )}
               onClick={() => {
@@ -710,20 +777,210 @@ export default function MapPage() {
                 setTab("history");
               }}
             >
-              History
-            </button>
+              {t("History")}</button>
           </div>
         </div>
       </div>
 
-      {customizeOpen ? (
+      {customizeOpen && redesign ? (
+        <Sheet
+          open={customizeOpen}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDraftAppearance(appearance);
+              setCustomizeOpen(false);
+            }
+          }}
+        >
+          <SheetContent className="flex w-full flex-col sm:max-w-lg">
+            <SheetHeader>
+              <SheetTitle>{t("Map appearance")}</SheetTitle>
+              <SheetDescription>
+                {t("Pick a theme to preview, then save for your organization.")}</SheetDescription>
+            </SheetHeader>
+            <SheetBody className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                {MAP_THEMES.map((theme) => {
+                  const selected = draftAppearance.themeId === theme.id;
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() => applyTheme(theme.id)}
+                      className={cn(
+                        "rounded-xl border p-3 text-left transition-all",
+                        selected
+                          ? "border-primary bg-primary/5 ring-2 ring-primary/30"
+                          : "border-border bg-card hover:border-primary/40",
+                      )}
+                    >
+                      <div
+                        className="mb-2 h-12 overflow-hidden rounded-lg border border-black/5"
+                        style={{
+                          background: TILE_SWATCH[theme.appearance.tileStyle],
+                        }}
+                      />
+                      <p className="text-sm font-semibold">{theme.name}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {theme.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+              {draftAppearance.themeId === "custom" ? (
+                <p className="text-xs text-muted-foreground">
+                  {t("Custom theme — advanced options below override the presets.")}</p>
+              ) : null}
+              <details className="rounded-lg border bg-card p-3">
+                <summary className="cursor-pointer text-sm font-medium">
+                  {t("Advanced options")}</summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("Map style")}</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={draftAppearance.tileStyle}
+                      onChange={(e) =>
+                        patchAppearance({
+                          tileStyle: e.target
+                            .value as MapAppearance["tileStyle"],
+                        })
+                      }
+                    >
+                      {MAP_TILE_STYLES.map((style) => (
+                        <option key={style} value={style}>
+                          {TILE_LABELS[style]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("Marker style")}</Label>
+                    <select
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      value={draftAppearance.markerStyle}
+                      onChange={(e) =>
+                        patchAppearance({
+                          markerStyle: e.target
+                            .value as MapAppearance["markerStyle"],
+                        })
+                      }
+                    >
+                      {MAP_MARKER_STYLES.map((style) => (
+                        <option key={style} value={style}>
+                          {MARKER_LABELS[style]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex items-end gap-2 pb-1 sm:col-span-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-input"
+                        checked={draftAppearance.showInitials}
+                        onChange={(e) =>
+                          patchAppearance({ showInitials: e.target.checked })
+                        }
+                      />
+                      {t("Show initials on markers")}</label>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("On-shift color")}</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        value={draftAppearance.onShiftColor}
+                        onChange={(e) =>
+                          patchAppearance({ onShiftColor: e.target.value })
+                        }
+                      />
+                      <Input
+                        value={draftAppearance.onShiftColor}
+                        onChange={(e) =>
+                          patchAppearance({ onShiftColor: e.target.value })
+                        }
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">{t("Last-seen color")}</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        value={draftAppearance.lastSeenColor}
+                        onChange={(e) =>
+                          patchAppearance({ lastSeenColor: e.target.value })
+                        }
+                      />
+                      <Input
+                        value={draftAppearance.lastSeenColor}
+                        onChange={(e) =>
+                          patchAppearance({ lastSeenColor: e.target.value })
+                        }
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <Label className="text-xs">{t("History trail color")}</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        value={draftAppearance.trailColor}
+                        onChange={(e) =>
+                          patchAppearance({ trailColor: e.target.value })
+                        }
+                      />
+                      <Input
+                        value={draftAppearance.trailColor}
+                        onChange={(e) =>
+                          patchAppearance({ trailColor: e.target.value })
+                        }
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </details>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  className="w-full"
+                  disabled={settingsBusy}
+                  onClick={() => void saveAppearance()}
+                >
+                  {settingsBusy ? t("Saving…") : t("Save for organization")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={resetAppearanceDraft}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  {t("Reset defaults")}</Button>
+                {settingsSaved ? (
+                  <p className="text-center text-sm text-teal-700 dark:text-teal-400">
+                    {t("Saved")}</p>
+                ) : null}
+              </div>
+            </SheetBody>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+
+      {customizeOpen && !redesign ? (
         <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Settings2 className="h-4 w-4 text-primary" />
-            Map themes
-            <span className="font-normal text-muted-foreground">
-              · pick a theme to preview · save to keep for your organization
-            </span>
+            {t("Map themes")}<span className="font-normal text-muted-foreground">
+              {t("· pick a theme to preview · save to keep for your organization")}</span>
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -771,17 +1028,15 @@ export default function MapPage() {
 
           {draftAppearance.themeId === "custom" ? (
             <p className="text-xs text-muted-foreground">
-              Custom theme — advanced options below override the presets.
-            </p>
+              {t("Custom theme — advanced options below override the presets.")}</p>
           ) : null}
 
           <details className="rounded-lg border bg-card p-3">
             <summary className="cursor-pointer text-sm font-medium">
-              Advanced options
-            </summary>
+              {t("Advanced options")}</summary>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-1">
-                <Label className="text-xs">Map style</Label>
+                <Label className="text-xs">{t("Map style")}</Label>
                 <select
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={draftAppearance.tileStyle}
@@ -800,7 +1055,7 @@ export default function MapPage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Marker style</Label>
+                <Label className="text-xs">{t("Marker style")}</Label>
                 <select
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={draftAppearance.markerStyle}
@@ -828,11 +1083,10 @@ export default function MapPage() {
                       patchAppearance({ showInitials: e.target.checked })
                     }
                   />
-                  Show initials on markers
-                </label>
+                  {t("Show initials on markers")}</label>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">On-shift color</Label>
+                <Label className="text-xs">{t("On-shift color")}</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -852,7 +1106,7 @@ export default function MapPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Last-seen color</Label>
+                <Label className="text-xs">{t("Last-seen color")}</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -872,7 +1126,7 @@ export default function MapPage() {
                 </div>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">History trail color</Label>
+                <Label className="text-xs">{t("History trail color")}</Label>
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
@@ -900,7 +1154,7 @@ export default function MapPage() {
               disabled={settingsBusy}
               onClick={() => void saveAppearance()}
             >
-              {settingsBusy ? "Saving…" : "Save for organization"}
+              {settingsBusy ? t("Saving…") : t("Save for organization")}
             </Button>
             <Button
               type="button"
@@ -908,8 +1162,7 @@ export default function MapPage() {
               onClick={resetAppearanceDraft}
             >
               <RotateCcw className="h-4 w-4" />
-              Reset defaults
-            </Button>
+              {t("Reset defaults")}</Button>
             <Button
               type="button"
               variant="ghost"
@@ -918,63 +1171,64 @@ export default function MapPage() {
                 setCustomizeOpen(false);
               }}
             >
-              Close
-            </Button>
+              {t("Close")}</Button>
             {settingsSaved ? (
               <span className="self-center text-sm text-teal-700">
-                Saved
-              </span>
+                {t("Saved")}</span>
             ) : null}
           </div>
         </div>
       ) : null}
 
       {tab === "live" ? (
-        <div className="flex flex-wrap items-end gap-2">
-          <div>
-            <Label className="text-xs">Filter</Label>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="min-w-0 w-full sm:w-auto">
+            <Label className="text-xs">{t("Filter")}</Label>
             <Input
-              placeholder="Name or title…"
+              placeholder={t("Name or title…")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="w-40"
+              className="w-full sm:w-40"
             />
           </div>
-          <div>
-            <Label className="text-xs">Presence</Label>
+          <div className="min-w-0 w-full sm:w-auto">
+            <Label className="text-xs">{t("Presence")}</Label>
             <select
-              className="flex h-10 w-36 rounded-md border border-input bg-background px-3 text-sm"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-36"
               value={presence}
               onChange={(e) => setPresence(e.target.value as Presence)}
             >
-              <option value="all">All</option>
-              <option value="on_shift">On shift</option>
-              <option value="last_seen">Last seen</option>
+              <option value="all">{t("All")}</option>
+              <option value="on_shift">{t("On shift")}</option>
+              <option value="last_seen">{t("Last seen")}</option>
             </select>
           </div>
-          <Button variant="outline" onClick={() => void poll()}>
-            Refresh
-          </Button>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => void poll()}
+          >
+            {t("Refresh")}</Button>
           {selectedLiveId ? (
             <Button
               variant="outline"
+              className="w-full sm:w-auto"
               onClick={() => setSelectedLiveId(null)}
             >
-              Show all
-            </Button>
+              {t("Show all")}</Button>
           ) : null}
         </div>
       ) : (
         <div className="space-y-3 rounded-lg border bg-card p-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="min-w-[12rem] flex-1">
-              <Label className="text-xs">Employee</Label>
+              <Label className="text-xs">{t("Employee")}</Label>
               <select
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
               >
-                <option value="">Select…</option>
+                <option value="">{t("Select…")}</option>
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.name}
@@ -984,7 +1238,7 @@ export default function MapPage() {
               </select>
             </div>
             <div>
-              <Label className="text-xs">Day</Label>
+              <Label className="text-xs">{t("Day")}</Label>
               <Input
                 type="date"
                 value={date}
@@ -993,7 +1247,7 @@ export default function MapPage() {
               />
             </div>
             <div>
-              <Label className="text-xs">From</Label>
+              <Label className="text-xs">{t("From")}</Label>
               <Input
                 type="time"
                 value={startTime}
@@ -1002,7 +1256,7 @@ export default function MapPage() {
               />
             </div>
             <div>
-              <Label className="text-xs">To</Label>
+              <Label className="text-xs">{t("To")}</Label>
               <Input
                 type="time"
                 value={endTime}
@@ -1014,14 +1268,13 @@ export default function MapPage() {
               disabled={historyBusy}
               onClick={() => void loadHistory()}
             >
-              {historyBusy ? "Loading…" : "Show"}
+              {historyBusy ? t("Loading…") : t("Show")}
             </Button>
           </div>
           {sessions.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               <span className="text-xs text-muted-foreground self-center">
-                Shifts:
-              </span>
+                {t("Shifts:")}</span>
               {sessions.map((s) => {
                 const label = `${toLocalTimeInput(new Date(s.clockInAt))}–${
                   s.clockOutAt
@@ -1042,8 +1295,7 @@ export default function MapPage() {
             </div>
           ) : employeeId ? (
             <p className="text-xs text-muted-foreground">
-              No clock sessions on this day — use a custom time range.
-            </p>
+              {t("No clock sessions on this day — use a custom time range.")}</p>
           ) : null}
           {historyMeta ? (
             <p className="text-sm text-muted-foreground">{historyMeta}</p>
@@ -1051,7 +1303,7 @@ export default function MapPage() {
           {historyPoints.length > 0 ? (
             <div className="space-y-1">
               <Label className="text-xs">
-                Scrub time · recorded{" "}
+                {t("Scrub time · recorded")}{" "}
                 {focusPoint
                   ? new Date(focusPoint.recordedAt).toLocaleString()
                   : "—"}
@@ -1072,20 +1324,25 @@ export default function MapPage() {
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="h-[60vh] overflow-hidden rounded-2xl border shadow-sm ring-1 ring-black/5">
-        <LiveMap
-          center={center}
-          locations={tab === "live" ? visibleLocations : []}
-          historyPoints={tab === "history" ? historyPoints : undefined}
-          focusPoint={tab === "history" ? focusPoint : null}
-          mode={tab}
-          focusKey={mapFocusKey}
-          appearance={liveAppearance}
-          selectedId={selectedLiveId}
-          draftGeofence={tab === "live" ? draftGeofence : null}
-          pickCenterEnabled={tab === "live" && !!selectedLiveId && pickOnMap}
-          onPickCenter={onPickCenter}
-        />
+      <div className="relative h-[60vh] overflow-hidden rounded-2xl border shadow-sm ring-1 ring-black/5">
+        {mapBooted ? (
+          <LiveMap
+            center={center}
+            zoom={mapZoom}
+            locations={tab === "live" ? visibleLocations : []}
+            historyPoints={tab === "history" ? historyPoints : undefined}
+            focusPoint={tab === "history" ? focusPoint : null}
+            mode={tab}
+            focusKey={mapFocusKey}
+            appearance={liveAppearance}
+            selectedId={selectedLiveId}
+            draftGeofence={tab === "live" ? draftGeofence : null}
+            pickCenterEnabled={tab === "live" && !!selectedLiveId && pickOnMap}
+            onPickCenter={onPickCenter}
+          />
+        ) : (
+          <MapPaneFallback />
+        )}
       </div>
 
       {tab === "live" && selectedLive ? (
@@ -1093,25 +1350,24 @@ export default function MapPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium">
               <MapPin className="h-4 w-4 text-primary" />
-              Work zone · {selectedLive.name}
+              {t("Work zone ·")}{selectedLive.name}
             </div>
             <p className="text-xs text-muted-foreground">
-              Search a place, click the map, or use live position
-            </p>
+              {t("Search a place, click the map, or use live position")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs">Find a place</Label>
+            <Label className="text-xs">{t("Find a place")}</Label>
             <div className="flex flex-wrap gap-2">
               <div className="relative min-w-[14rem] flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="pl-9"
-                  placeholder="Hospital, school, building name…"
+                  placeholder={t("Hospital, school, building name…")}
                   value={placeQuery}
                   onChange={(e) => setPlaceQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
+                    if (e.key === t("Enter")) {
                       e.preventDefault();
                       void searchPlaces();
                     }
@@ -1124,7 +1380,7 @@ export default function MapPage() {
                 disabled={placeBusy}
                 onClick={() => void searchPlaces()}
               >
-                {placeBusy ? "Searching…" : "Search"}
+                {placeBusy ? t("Searching…") : t("Search")}
               </Button>
               <Button
                 type="button"
@@ -1132,7 +1388,7 @@ export default function MapPage() {
                 onClick={() => setPickOnMap((v) => !v)}
               >
                 <Building2 className="h-4 w-4" />
-                {pickOnMap ? "Click map…" : "Pick on map"}
+                {pickOnMap ? t("Click map…") : t("Pick on map")}
               </Button>
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -1173,7 +1429,7 @@ export default function MapPage() {
             ) : null}
             {zoneLabel ? (
               <p className="text-xs text-muted-foreground">
-                Center · <span className="font-medium text-foreground">{zoneLabel}</span>
+                {t("Center ·")}<span className="font-medium text-foreground">{zoneLabel}</span>
                 {zoneLat != null && zoneLng != null
                   ? ` · ${zoneLat.toFixed(5)}, ${zoneLng.toFixed(5)}`
                   : null}
@@ -1181,17 +1437,14 @@ export default function MapPage() {
             ) : null}
             {pickOnMap ? (
               <p className="text-xs text-amber-700">
-                Click anywhere on the map to set the zone center.
-              </p>
+                {t("Click anywhere on the map to set the zone center.")}</p>
             ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1 sm:col-span-2">
               <Label className="text-xs">
-                Radius · {zoneRadius}m (
-                {(zoneRadius / 1000).toFixed(zoneRadius >= 1000 ? 2 : 3)} km)
-              </Label>
+                {t("Radius ·")}{zoneRadius}{t("m (")}{(zoneRadius / 1000).toFixed(zoneRadius >= 1000 ? 2 : 3)} {t("km)")}</Label>
               <input
                 type="range"
                 className="w-full"
@@ -1211,7 +1464,7 @@ export default function MapPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Center lat</Label>
+              <Label className="text-xs">{t("Center lat")}</Label>
               <Input
                 type="number"
                 step="0.0001"
@@ -1220,12 +1473,12 @@ export default function MapPage() {
                   setZoneLat(
                     e.target.value === "" ? null : Number(e.target.value),
                   );
-                  setZoneLabel("Custom coordinates");
+                  setZoneLabel(t("Custom coordinates"));
                 }}
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Center lng</Label>
+              <Label className="text-xs">{t("Center lng")}</Label>
               <Input
                 type="number"
                 step="0.0001"
@@ -1234,7 +1487,7 @@ export default function MapPage() {
                   setZoneLng(
                     e.target.value === "" ? null : Number(e.target.value),
                   );
-                  setZoneLabel("Custom coordinates");
+                  setZoneLabel(t("Custom coordinates"));
                 }}
               />
             </div>
@@ -1245,7 +1498,7 @@ export default function MapPage() {
               disabled={zoneBusy || zoneLat == null || zoneLng == null}
               onClick={() => void saveZone()}
             >
-              {zoneBusy ? "Saving…" : "Save zone"}
+              {zoneBusy ? t("Saving…") : t("Save zone")}
             </Button>
             <Button
               type="button"
@@ -1253,8 +1506,7 @@ export default function MapPage() {
               disabled={!selectedLive}
               onClick={useCurrentAsCenter}
             >
-              Use live position as center
-            </Button>
+              {t("Use live position as center")}</Button>
             {selectedLive.geofenceRadiusMeters != null ? (
               <Button
                 type="button"
@@ -1262,8 +1514,7 @@ export default function MapPage() {
                 disabled={zoneBusy}
                 onClick={() => void clearZone()}
               >
-                Clear zone
-              </Button>
+                {t("Clear zone")}</Button>
             ) : null}
           </div>
         </div>
@@ -1271,7 +1522,7 @@ export default function MapPage() {
 
       {tab === "live" ? (
         <ul className="space-y-2 text-sm">
-          {locations.map((l) => {
+          {searchedLocations.map((l) => {
             const selected = selectedLiveId === l.employeeId;
             return (
               <li key={l.employeeId}>
@@ -1304,25 +1555,24 @@ export default function MapPage() {
                   </span>{" "}
                   · {l.jobTitle ?? l.role} ·{" "}
                   {l.isClockedIn === false ? (
-                    <span className="text-muted-foreground">Last seen</span>
+                    <span className="text-muted-foreground">{t("Last seen")}</span>
                   ) : (
-                    <span className="text-teal-800">On shift</span>
+                    <span className="text-teal-800">{t("On shift")}</span>
                   )}{" "}
-                  · updated {l.secondsSinceUpdate ?? 0}s ago
-                  {l.geofenceRadiusMeters != null ? (
+                  {t("· updated")}{l.secondsSinceUpdate ?? 0}{t("s ago")}{l.geofenceRadiusMeters != null ? (
                     <span className="ml-2 text-xs text-muted-foreground">
-                      · zone {l.geofenceRadiusMeters}m
+                      {t("· zone")}{l.geofenceRadiusMeters}m
                     </span>
                   ) : null}
                   {selected ? (
-                    <span className="ml-2 text-xs text-primary">· focused</span>
+                    <span className="ml-2 text-xs text-primary">{t("· focused")}</span>
                   ) : null}
                 </button>
               </li>
             );
           })}
-          {!locations.length ? (
-            <li className="text-muted-foreground">No locations to show.</li>
+          {!searchedLocations.length ? (
+            <li className="text-muted-foreground">{t("No locations to show.")}</li>
           ) : null}
         </ul>
       ) : null}

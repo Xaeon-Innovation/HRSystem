@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatHours, formatMoney } from "@/lib/compensation/format";
 import { cn } from "@/lib/utils";
 import type { PayslipBreakdown } from "@/lib/compensation/types";
+import { t } from "@/i18n";
 
 export function CompensationPayslipPreview({
   breakdown,
@@ -11,23 +12,23 @@ export function CompensationPayslipPreview({
   compact?: boolean;
 }) {
   const rows = [
-    { label: "Gross pay", value: breakdown.gross, emphasize: true },
-    { label: "Base pay", value: breakdown.base },
-    { label: "Allowances", value: breakdown.allowances },
-    { label: "Incentives", value: breakdown.incentives },
-    { label: "Overtime", value: breakdown.overtime },
-    { label: "Deductions", value: -breakdown.deductions },
-    { label: "Net payable", value: breakdown.net, emphasize: true },
+    { label: t("Gross pay"), value: breakdown.gross, emphasize: true },
+    { label: t("Base pay"), value: breakdown.base },
+    { label: t("Allowances"), value: breakdown.allowances },
+    { label: t("Incentives"), value: breakdown.incentives },
+    { label: t("Overtime"), value: breakdown.overtime },
+    { label: t("Deductions"), value: -breakdown.deductions },
+    { label: t("Net payable"), value: breakdown.net, emphasize: true },
   ];
 
   return (
     <Card className={cn(!compact && "border-primary/15 bg-gradient-to-br from-card to-accent/20")}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">Payslip-ready breakdown</CardTitle>
+        <CardTitle className="text-base">{t("Payslip-ready breakdown")}</CardTitle>
         <p className="text-xs text-muted-foreground">
           {breakdown.hourlyRate != null
             ? `Hourly: ${formatHours(breakdown.workedHours)} clocked · ${formatHours(breakdown.regularHours)} regular · ${formatHours(breakdown.overtimeHours)} OT at 1.5×. Tax/insurance are placeholders.`
-            : "Structured for a future payroll engine. Tax and insurance are placeholders, not statutory calculations."}
+            : t("Structured for a future payroll engine. Tax and insurance are placeholders, not statutory calculations.")}
         </p>
       </CardHeader>
       <CardContent className="space-y-3">

@@ -287,6 +287,15 @@ export type LeaveConflict = {
   employeeIds?: string[];
 };
 
+export type LeaveAttachment = {
+  id: string;
+  name: string;
+  mime: string;
+  size: number;
+  /** Base64 data URL for in-app download (capped at upload time). */
+  dataUrl: string;
+};
+
 export type LeaveRequest = {
   id: string;
   employeeId: string;
@@ -306,8 +315,11 @@ export type LeaveRequest = {
   urgency: LeaveUrgency;
   status: LeaveRequestStatus;
   reason: string;
+  /** @deprecated Prefer `attachments`; kept for older snapshots. */
   attachmentName: string | null;
+  /** @deprecated Prefer `attachments[].dataUrl`; kept for older snapshots. */
   attachmentUrl: string | null;
+  attachments: LeaveAttachment[];
   submittedAt: string | null;
   approvedAt: string | null;
   rejectedAt: string | null;
@@ -384,7 +396,9 @@ export type LeaveRequestDraft = {
   reason: string;
   handoverNotes: string;
   coverageEmployeeId: string | null;
+  /** @deprecated Prefer `attachments`. */
   attachmentName: string | null;
+  attachments?: LeaveAttachment[];
   asDraft: boolean;
 };
 

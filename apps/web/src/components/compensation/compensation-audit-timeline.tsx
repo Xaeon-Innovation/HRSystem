@@ -1,5 +1,6 @@
 import { formatDateTime } from "@/lib/compensation/format";
 import type { CompAuditEvent } from "@/lib/compensation/types";
+import { t } from "@/i18n";
 
 const ACTION_LABEL: Record<CompAuditEvent["action"], string> = {
   created: "Created",
@@ -10,17 +11,17 @@ const ACTION_LABEL: Record<CompAuditEvent["action"], string> = {
   returned: "Returned",
   frozen: "Frozen",
   unfrozen: "Unfrozen",
-  component_added: "Component added",
-  component_ended: "Component ended",
-  variable_submitted: "Variable pay submitted",
-  variable_approved: "Variable pay approved",
+  component_added: t("Component added"),
+  component_ended: t("Component ended"),
+  variable_submitted: t("Variable pay submitted"),
+  variable_approved: t("Variable pay approved"),
   commented: "Comment",
 };
 
 export function CompensationAuditTimeline({ events }: { events: CompAuditEvent[] }) {
   const rows = [...events].sort((a, b) => b.at.localeCompare(a.at));
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No activity yet.</p>;
+    return <p className="text-sm text-muted-foreground">{t("No activity yet.")}</p>;
   }
   return (
     <ol className="space-y-3">

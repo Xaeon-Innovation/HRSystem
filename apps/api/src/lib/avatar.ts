@@ -3,9 +3,11 @@ export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const USER_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function isUserId(value: string): boolean {
+export function isUuid(value: string): boolean {
   return USER_ID_RE.test(value);
 }
+
+export const isUserId = isUuid;
 
 export function decodeBase64Image(input: string): Buffer {
   const trimmed = input.trim();
@@ -63,17 +65,34 @@ export function avatarPublicPath(userId: string, versionMs: number): string {
   return `/v1/uploads/avatars/${userId}?v=${versionMs}`;
 }
 
-export function avatarUrlFor(
-  userId: string,
-  avatarMime: string | null | undefined,
-  updatedAt?: Date | string | null,
-): string | null {
-  if (!avatarMime) return null;
+function versionMs(updatedAt?: Date | string | null): number {
   const ms =
     updatedAt instanceof Date
       ? updatedAt.getTime()
       : updatedAt
         ? new Date(updatedAt).getTime()
         : Date.now();
-  return avatarPublicPath(userId, Number.isFinite(ms) ? ms : Date.now());
+  return Number.isFinite(ms) ? ms : Date.now();
+}
+
+export function avatarUrlFor(
+  userId: string,
+  avatarMime: string | null | undefined,
+  updatedAt?: Date | string | null,
+): string | null {
+  if (!avatarMime) return null;
+  return avatarPublicPath(userId, versionMs(updatedAt));
+}
+
+export function logoPublicPath(tenantId: string, version: number): string {
+  return `/v1/uploads/logos/${tenantId}?v=${version}`;
+}
+
+export function logoUrlFor(
+  tenantId: string,
+  logoMime: string | null | undefined,
+  updatedAt?: Date | string | null,
+): string | null {
+  if (!logoMime) return null;
+  return logoPublicPath(tenantId, versionMs(updatedAt));
 }

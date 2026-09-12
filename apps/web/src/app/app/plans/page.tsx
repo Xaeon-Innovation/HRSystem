@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type Plan = {
   id: string;
@@ -73,10 +74,9 @@ export default function PlansPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Plans</h1>
+        <h1 className="text-2xl font-semibold">{t("Plans")}</h1>
         <p className="text-sm text-muted-foreground">
-          Subscription catalog (Paymob sync optional)
-        </p>
+          {t("Subscription catalog (Paymob sync optional)")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
@@ -89,9 +89,8 @@ export default function PlansPage() {
                   <span className="text-xs text-muted-foreground">({p.code})</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {(p.amountCents / 100).toFixed(2)} {p.currency} / {p.intervalDays}d
-                  · seats {p.seatLimit ?? "∞"}
-                  {p.paymobPlanId ? ` · Paymob #${p.paymobPlanId}` : " · not synced"}
+                  {(p.amountCents / 100).toFixed(2)} {p.currency} / {p.intervalDays}{t("d · seats")}{p.seatLimit ?? "∞"}
+                  {p.paymobPlanId ? ` · Paymob #${p.paymobPlanId}` : t(" · not synced")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -108,7 +107,7 @@ export default function PlansPage() {
                     }).then(load)
                   }
                 >
-                  {p.active ? "Deactivate" : "Activate"}
+                  {p.active ? t("Deactivate") : t("Activate")}
                 </Button>
                 {!p.paymobPlanId && p.amountCents > 0 ? (
                   <Button
@@ -123,8 +122,7 @@ export default function PlansPage() {
                         .catch((e) => setError(e.message))
                     }
                   >
-                    Sync Paymob
-                  </Button>
+                    {t("Sync Paymob")}</Button>
                 ) : null}
               </div>
             </CardContent>
@@ -134,19 +132,19 @@ export default function PlansPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Create plan</CardTitle>
+          <CardTitle className="text-base">{t("Create plan")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-2" onSubmit={create}>
             {(
               [
-                ["code", "Code"],
-                ["name", "Name"],
-                ["description", "Description"],
-                ["amountCents", "Amount (cents)"],
-                ["currency", "Currency"],
-                ["intervalDays", "Interval days"],
-                ["seatLimit", "Seat limit"],
+                ["code", t("Code")],
+                ["name", t("Name")],
+                ["description", t("Description")],
+                ["amountCents", t("Amount (cents)")],
+                ["currency", t("Currency")],
+                ["intervalDays", t("Interval days")],
+                ["seatLimit", t("Seat limit")],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="space-y-1">
@@ -177,10 +175,9 @@ export default function PlansPage() {
                   setForm((f) => ({ ...f, syncPaymob: e.target.checked }))
                 }
               />
-              Sync to Paymob on create
-            </label>
+              {t("Sync to Paymob on create")}</label>
             <div className="md:col-span-2">
-              <Button type="submit">Create plan</Button>
+              <Button type="submit">{t("Create plan")}</Button>
             </div>
           </form>
         </CardContent>

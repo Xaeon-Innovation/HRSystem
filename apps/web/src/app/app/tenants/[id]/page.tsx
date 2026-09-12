@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 type TenantDetail = {
   tenant: {
@@ -110,14 +112,13 @@ export default function TenantDetailPage() {
   }
 
   if (error) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       <div>
         <Link href="/app/tenants" className="text-sm text-muted-foreground hover:underline">
-          ← Tenants
-        </Link>
+          {t("← Tenants")}</Link>
         <h1 className="text-2xl font-semibold">{data.tenant.name}</h1>
         <p className="text-sm text-muted-foreground">
           {data.tenant.slug} · {data.tenant.status}
@@ -127,10 +128,10 @@ export default function TenantDetailPage() {
       <div className="grid gap-3 md:grid-cols-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Plan</CardTitle>
+            <CardTitle className="text-base">{t("Plan")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            {data.plan?.name ?? "None"}{" "}
+            {data.plan?.name ?? t("None")}{" "}
             <span className="text-muted-foreground">
               ({data.subscription?.status ?? "n/a"})
             </span>
@@ -138,16 +139,16 @@ export default function TenantDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Seats</CardTitle>
+            <CardTitle className="text-base">{t("Seats")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             {data.seatsUsed}
-            {data.seatLimit != null ? ` / ${data.seatLimit}` : " / unlimited"}
+            {data.seatLimit != null ? ` / ${data.seatLimit}` : t(" / unlimited")}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Period end</CardTitle>
+            <CardTitle className="text-base">{t("Period end")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             {data.subscription?.currentPeriodEnd
@@ -157,7 +158,7 @@ export default function TenantDetailPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Integrations</CardTitle>
+            <CardTitle className="text-base">{t("Integrations")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             {data.integrationHealth
@@ -173,17 +174,17 @@ export default function TenantDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Settings</CardTitle>
+          <CardTitle className="text-base">{t("Settings")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-2" onSubmit={saveSettings}>
             {(
               [
-                ["brandingName", "Branding name"],
-                ["timezone", "Timezone"],
-                ["pingIntervalSec", "Ping interval (sec)"],
-                ["locationRetentionDays", "Location retention (days)"],
-                ["missedClockOutHours", "Missed clock-out (hours)"],
+                ["brandingName", t("Branding name")],
+                ["timezone", t("Timezone")],
+                ["pingIntervalSec", t("Ping interval (sec)")],
+                ["locationRetentionDays", t("Location retention (days)")],
+                ["missedClockOutHours", t("Missed clock-out (hours)")],
               ] as const
             ).map(([key, label]) => (
               <div key={key} className="space-y-1">
@@ -203,14 +204,14 @@ export default function TenantDetailPage() {
               </div>
             ))}
             <div className="md:col-span-2">
-              <Button type="submit">Save settings</Button>
+              <Button type="submit">{t("Save settings")}</Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
       <div>
-        <h2 className="mb-2 text-lg font-medium">Recent audits</h2>
+        <h2 className="mb-2 text-lg font-medium">{t("Recent audits")}</h2>
         <div className="space-y-2">
           {audits.map((a) => (
             <Card key={a.id}>
@@ -224,7 +225,7 @@ export default function TenantDetailPage() {
             </Card>
           ))}
           {audits.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No audits yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No audits yet.")}</p>
           ) : null}
         </div>
       </div>

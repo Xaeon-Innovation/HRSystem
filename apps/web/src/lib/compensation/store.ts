@@ -78,6 +78,28 @@ export type Snapshot = {
   period: typeof CURRENT_PERIOD;
 };
 
+/** Server-persisted pay domain — employees & clock hours are hydrated live. */
+export type CompensationPersistedSnapshot = Omit<
+  Snapshot,
+  "employees" | "clockShifts"
+>;
+
+export function persistableCompensationState(
+  data: Snapshot,
+): CompensationPersistedSnapshot {
+  return {
+    records: data.records,
+    components: data.components,
+    history: data.history,
+    requests: data.requests,
+    variable: data.variable,
+    bands: data.bands,
+    adjustments: data.adjustments,
+    audit: data.audit,
+    period: data.period,
+  };
+}
+
 function applyClockHoursToSnapshot(data: Snapshot, asOf?: string) {
   const byEmp = groupShiftsByEmployee(data.clockShifts);
   for (const [employeeId, shifts] of byEmp) {
@@ -128,14 +150,34 @@ function emptySnapshot(): Snapshot {
   return data;
 }
 
+/** Fresh tenant: bands + period only; pay records come from setup / hydrate. */
+export function emptyServerSnapshot(): Snapshot {
+  return {
+    employees: [],
+    records: [],
+    components: [],
+    history: [],
+    requests: [],
+    variable: [],
+    bands: structuredClone(SALARY_BANDS),
+    adjustments: [],
+    clockShifts: [],
+    audit: [],
+    period: structuredClone(CURRENT_PERIOD),
+  };
+}
+
 function loadSnapshot(): Snapshot {
-  if (typeof window === "undefined") return emptySnapshot();
+  if (typeof window === "undefined") return emptyServerSnapshot();
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptySnapshot();
+    if (!raw) return emptyServerSnapshot();
     const parsed = JSON.parse(raw) as Snapshot;
-    if (!parsed.records || !parsed.employees) return emptySnapshot();
-    if (!parsed.clockShifts) parsed.clockShifts = structuredClone(MOCK_CLOCK_SHIFTS);
+    if (!parsed.records) return emptyServerSnapshot();
+    if (!parsed.employees) parsed.employees = [];
+    if (!parsed.clockShifts) parsed.clockShifts = [];
+    if (!parsed.bands?.length) parsed.bands = structuredClone(SALARY_BANDS);
+    if (!parsed.period) parsed.period = structuredClone(CURRENT_PERIOD);
     for (const adj of parsed.adjustments ?? []) {
       adj.regularHours ??= 0;
       adj.workedHours ??= 0;
@@ -144,7 +186,7 @@ function loadSnapshot(): Snapshot {
     applyClockHoursToSnapshot(parsed);
     return parsed;
   } catch {
-    return emptySnapshot();
+    return emptyServerSnapshot();
   }
 }
 
@@ -157,6 +199,11 @@ function saveSnapshot(data: Snapshot) {
   }
 }
 
+type RemotePersistHandler = (
+  snapshot: CompensationPersistedSnapshot,
+  expectedVersion: number,
+) => void;
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -168,13 +215,71 @@ function actorIsManager(data: Snapshot, actor: CompActor): boolean {
 
 export class CompensationStore {
   private data: Snapshot;
+  private remotePersist: RemotePersistHandler | null = null;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private suppressRemote = false;
+  private version = 1;
 
   constructor(seed?: Snapshot) {
     this.data = seed ?? loadSnapshot();
   }
 
+  setRemotePersist(handler: RemotePersistHandler | null) {
+    this.remotePersist = handler;
+  }
+
+  getVersion() {
+    return this.version;
+  }
+
+  setVersion(version: number) {
+    this.version = version;
+  }
+
+  /** Replace pay domain from GET /v1/compensation (does not push back). */
+  replaceFromServer(
+    input: Partial<CompensationPersistedSnapshot> & {
+      records?: CompensationRecord[];
+      version?: number;
+    },
+  ) {
+    this.suppressRemote = true;
+    const base = emptyServerSnapshot();
+    this.data = {
+      ...base,
+      employees: [],
+      clockShifts: [],
+      records: (input.records as CompensationRecord[] | undefined) ?? [],
+      components: (input.components as CompComponent[] | undefined) ?? [],
+      history: (input.history as SalaryHistoryEntry[] | undefined) ?? [],
+      requests: (input.requests as ChangeRequest[] | undefined) ?? [],
+      variable: (input.variable as VariablePay[] | undefined) ?? [],
+      bands:
+        (input.bands as SalaryBand[] | undefined)?.length
+          ? (input.bands as SalaryBand[])
+          : base.bands,
+      adjustments: (input.adjustments as PeriodAdjustment[] | undefined) ?? [],
+      audit: (input.audit as CompAuditEvent[] | undefined) ?? [],
+      period:
+        (input.period as typeof CURRENT_PERIOD | undefined) ?? base.period,
+    };
+    if (typeof input.version === "number") this.version = input.version;
+    for (const adj of this.data.adjustments) {
+      adj.regularHours ??= 0;
+      adj.workedHours ??= 0;
+      adj.openShifts ??= 0;
+    }
+    saveSnapshot(this.data);
+    this.suppressRemote = false;
+  }
+
   private persist() {
     saveSnapshot(this.data);
+    if (this.suppressRemote || !this.remotePersist) return;
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      this.remotePersist?.(persistableCompensationState(this.data), this.version);
+    }, 350);
   }
 
   snapshot(): Snapshot {
@@ -254,7 +359,8 @@ export class CompensationStore {
       }
     }
 
-    this.persist();
+    // Directory is always reloaded from employees APIs — cache locally only.
+    saveSnapshot(this.data);
   }
 
   private visibleEmployeeIds(actor: CompActor): Set<string> | null {

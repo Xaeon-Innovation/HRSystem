@@ -11,6 +11,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { formatDays } from "@/lib/hiring/format";
 import type { RecruitmentMetricSummary } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function HiringOverviewCards({ summary }: { summary: RecruitmentMetricSummary }) {
   const bottleneck = summary.stageCounts
@@ -19,49 +20,49 @@ export function HiringOverviewCards({ summary }: { summary: RecruitmentMetricSum
 
   const cards = [
     {
-      label: "Open positions",
+      label: t("Open positions"),
       value: String(summary.openPositions),
       hint: `${summary.openingsHeadcount} seat${summary.openingsHeadcount === 1 ? "" : "s"} to fill`,
       icon: Briefcase,
     },
     {
-      label: "In pipeline",
+      label: t("In pipeline"),
       value: String(summary.candidatesInPipeline),
-      hint: "Active candidates",
+      hint: t("Active candidates"),
       icon: Users,
     },
     {
-      label: "Interviews today",
+      label: t("Interviews today"),
       value: String(summary.interviewsToday),
-      hint: "Scheduled on the calendar",
+      hint: t("Scheduled on the calendar"),
       icon: CalendarClock,
     },
     {
-      label: "Offers pending",
+      label: t("Offers pending"),
       value: String(summary.offersPending),
-      hint: "Sent or awaiting approval",
+      hint: t("Sent or awaiting approval"),
       icon: FileSignature,
     },
     {
-      label: "Hires this month",
+      label: t("Hires this month"),
       value: String(summary.hiresThisMonth),
-      hint: "Marked hired",
+      hint: t("Marked hired"),
       icon: UserCheck,
     },
     {
-      label: "Time to hire",
+      label: t("Time to hire"),
       value: formatDays(summary.avgTimeToHireDays),
-      hint: "Entry → offer accepted",
+      hint: t("Entry → offer accepted"),
       icon: Timer,
     },
     {
-      label: "Time to fill",
+      label: t("Time to fill"),
       value: formatDays(summary.avgTimeToFillDays),
-      hint: "Req open → offer accepted",
+      hint: t("Req open → offer accepted"),
       icon: Clock3,
     },
     {
-      label: "Stage bottlenecks",
+      label: t("Stage bottlenecks"),
       value: String(summary.bottleneckCount),
       hint: bottleneck
         ? `Slowest: ${bottleneck.label} (${formatDays(bottleneck.avgDays)})`

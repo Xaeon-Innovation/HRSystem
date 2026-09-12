@@ -4,27 +4,34 @@ import { useEffect, useMemo, useState } from "react";
 import { api, getUser } from "@/lib/api";
 import { userHasModule } from "@/lib/permissions";
 import { KpiFiltersBar } from "@/components/kpis/kpi-filters";
-import { KpiSummaryCards } from "@/components/kpis/kpi-summary-cards";
+import {
+  KpiSummaryCards,
+  type KpiDrillFocus,
+} from "@/components/kpis/kpi-summary-cards";
 import { KpiCharts } from "@/components/kpis/kpi-charts";
 import { KpiMetricList } from "@/components/kpis/kpi-metric-list";
 import { KpiTable } from "@/components/kpis/kpi-table";
 import { KpiDetailDrawer } from "@/components/kpis/kpi-detail-drawer";
 import { KpiTemplateDialog } from "@/components/kpis/kpi-template-dialog";
+import { KpiPeopleQueue } from "@/components/kpis/kpi-people-queue";
+import { KpiPersonScorecard } from "@/components/kpis/kpi-person-scorecard";
+import { KpiBenchmarks } from "@/components/kpis/kpi-benchmarks";
 import {
-  IncompleteBanner,
   KpiEmptyState,
   KpiErrorState,
   KpiLoadingSkeleton,
 } from "@/components/kpis/kpi-states";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
 import { adaptSummary, computeBenchmarks, filterKpis } from "@/lib/kpis/adapt";
 import { buildAlerts } from "@/lib/kpis/alerts";
 import { downloadCsv, kpisToCsv } from "@/lib/kpis/export";
+import { buildPeopleQueue } from "@/lib/kpis/people";
 import { defaultPeriod, periodFromRange } from "@/lib/kpis/period";
 import { buildDashboardSummary, scoreByCategory, scoreKpis } from "@/lib/kpis/scoring";
 import { templateById } from "@/lib/kpis/templates";
-import { cn } from "@/lib/utils";
 import type {
   ApiKpiDefinition,
   ApiSummaryItem,
@@ -34,8 +41,10 @@ import type {
   RoleTemplateId,
   ReviewCycle,
 } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 export function KpiDashboard() {
+  const redesign = useUiRedesign();
   const user = typeof window !== "undefined" ? getUser() : null;
   const isAdmin = userHasModule(user, "kpis");
   const initial = defaultPeriod("monthly");
@@ -60,7 +69,13 @@ export function KpiDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [personId, setPersonId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [view, setView] = useState(redesign ? "people" : "metrics");
+  const [drillFocus, setDrillFocus] = useState<KpiDrillFocus | "">("");
+  const [actualsBusy, setActualsBusy] = useState(false);
+  const [actualsMsg, setActualsMsg] = useState<string | null>(null);
 
   async function load() {
     setError(null);
@@ -101,6 +116,29 @@ export function KpiDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  async function pullAttendanceActuals() {
+    setActualsBusy(true);
+    setActualsMsg(null);
+    try {
+      const res = await api<{ created: number; skipped: number }>(
+        "/v1/kpis/auto-actuals",
+        { method: "POST", body: "{}" },
+      );
+      setActualsMsg(
+        `Pulled ${res.created} attendance actual${res.created === 1 ? "" : "s"}${
+          res.skipped ? ` (${res.skipped} skipped)` : ""
+        }.`,
+      );
+      await load();
+    } catch (e) {
+      setActualsMsg(
+        e instanceof Error ? e.message : "Could not pull attendance actuals",
+      );
+    } finally {
+      setActualsBusy(false);
+    }
+  }
+
   function patchFilters(patch: Partial<KpiFilters>) {
     setFilters((prev) => {
       const next = { ...prev, ...patch };
@@ -129,11 +167,43 @@ export function KpiDashboard() {
   );
 
   const scored = useMemo(() => scoreKpis(filtered), [filtered]);
+  const drillFiltered = useMemo(() => {
+    if (!drillFocus) return scored;
+    if (drillFocus === "attention") {
+      return scored.filter(
+        (k) =>
+          k.status === "below_target" ||
+          k.status === "at_risk" ||
+          k.status === "missing" ||
+          k.incomplete,
+      );
+    }
+    if (drillFocus === "on_track") {
+      return scored.filter(
+        (k) => k.status === "on_track" || k.status === "exceeded",
+      );
+    }
+    return scored.filter((k) => k.status === "missing" || k.incomplete);
+  }, [scored, drillFocus]);
+
   const tableRows = useMemo(
-    () => (filters.status ? scored.filter((k) => k.status === filters.status) : scored),
-    [scored, filters.status],
+    () =>
+      filters.status
+        ? drillFiltered.filter((k) => k.status === filters.status)
+        : drillFiltered,
+    [drillFiltered, filters.status],
   );
-  const categories = useMemo(() => scoreByCategory(scored), [scored]);
+
+  const people = useMemo(
+    () => buildPeopleQueue(scored, employees, drillFocus),
+    [scored, employees, drillFocus],
+  );
+
+  const selectedPerson = useMemo(
+    () => people.find((p) => p.employeeId === personId) ?? null,
+    [people, personId],
+  );
+
   const alerts = useMemo(() => buildAlerts(scored), [scored]);
   const benchmarks = useMemo(
     () =>
@@ -156,7 +226,8 @@ export function KpiDashboard() {
           rank: benchmarks.rank,
           cohortSize: benchmarks.cohortSize,
         },
-        alerts.filter((a) => a.kind === "below_target" || a.kind === "missing_data").length,
+        alerts.filter((a) => a.kind === "below_target" || a.kind === "missing_data")
+          .length,
       ),
     [scored, benchmarks, alerts],
   );
@@ -171,6 +242,14 @@ export function KpiDashboard() {
     noTemplateForEmployee ||
     (summary.length === 0 && definitions.length === 0) ||
     (!hasAssignments && summary.length === 0);
+
+  const pendingAckIds = useMemo(
+    () =>
+      scored
+        .filter((m) => m.latestScoreId && !m.acknowledgedAt && !m.incomplete)
+        .map((m) => m.latestScoreId!),
+    [scored],
+  );
 
   function alreadyAssigned(kpiId: string, employeeId: string) {
     return summary.some(
@@ -265,12 +344,12 @@ export function KpiDashboard() {
         existing.kpis.push(created.kpi);
       }
       if (employeeId && kpiId) {
-        const alreadyAssigned = summary.some(
+        const already = summary.some(
           (row) =>
             row.assignment.employeeId === employeeId &&
             row.kpi?.name.toLowerCase() === kpi.title.toLowerCase(),
         );
-        if (!alreadyAssigned) {
+        if (!already) {
           await api("/v1/kpis/assign", {
             method: "POST",
             body: JSON.stringify({ kpiId, employeeId }),
@@ -294,8 +373,20 @@ export function KpiDashboard() {
     await load();
   }
 
+  async function acknowledgeScores(scoreIds: string[]) {
+    if (scoreIds.length === 0) return;
+    await api("/v1/kpis/scores/acknowledge", {
+      method: "POST",
+      body: JSON.stringify({ scoreIds }),
+    });
+    await load();
+  }
+
   function exportCsv() {
-    downloadCsv(`kpi-performance-${filters.from}-${filters.to}.csv`, kpisToCsv(tableRows));
+    downloadCsv(
+      `kpi-performance-${filters.from}-${filters.to}.csv`,
+      kpisToCsv(tableRows),
+    );
   }
 
   if (loading) return <KpiLoadingSkeleton />;
@@ -312,108 +403,270 @@ export function KpiDashboard() {
       />
     );
 
-  const topAlerts = alerts.filter(
-    (a) => a.kind === "below_target" || a.kind === "missing_data",
-  ).slice(0, 4);
+  function toggleDrill(focus: KpiDrillFocus) {
+    setDrillFocus((prev) => (prev === focus ? "" : focus));
+    if (redesign) setView("people");
+    else setView("metrics");
+  }
+
+  const drillLabel =
+    drillFocus === "attention"
+      ? "Need a look"
+      : drillFocus === "on_track"
+        ? "Hit target"
+        : drillFocus === "missing"
+          ? "Incomplete"
+          : null;
+
+  const employeeSelf = !isAdmin;
 
   return (
     <div className="space-y-5">
-      <KpiFiltersBar
-        filters={filters}
-        onChange={patchFilters}
-        employees={isAdmin ? employees : employees.filter((e) => e.id === user?.employeeId)}
-        branches={branches}
-        isAdmin={isAdmin}
-        onExport={exportCsv}
-        onEditTemplate={() => setTemplateOpen(true)}
-      />
+      {redesign ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-xl">
+            <h1 className="text-2xl font-semibold tracking-tight">
+              {employeeSelf ? t("My performance") : t("Performance")}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {employeeSelf
+                ? t("Your overall score, what needs attention, and your metrics.")
+                : t("Team pulse first — open a person to coach. Metrics and insights are one tap away.")}
+            </p>
+          </div>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => setFiltersOpen((o) => !o)}
+            >
+              {filtersOpen ? t("Hide filters") : t("Filters")}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={exportCsv}
+            >
+              {t("Export")}</Button>
+            {isAdmin ? (
+              <Button
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => setTemplateOpen(true)}
+              >
+                {t("Set up KPIs")}</Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {!redesign || filtersOpen ? (
+        <KpiFiltersBar
+          filters={filters}
+          onChange={patchFilters}
+          employees={
+            isAdmin
+              ? employees
+              : employees.filter((e) => e.id === user?.employeeId)
+          }
+          branches={branches}
+          isAdmin={isAdmin}
+          onExport={exportCsv}
+          onEditTemplate={() => setTemplateOpen(true)}
+          hideHeader={redesign}
+        />
+      ) : null}
 
       {showEmpty ? (
         <KpiEmptyState
-          title={isAdmin ? "No one has KPIs yet" : "No KPIs assigned to you"}
+          title={isAdmin ? t("No one has KPIs yet") : t("No KPIs assigned to you")}
           description={
             isAdmin
-              ? "Set targets for a person, then enter how they actually did."
-              : "When your manager assigns targets, they will show up here."
+              ? t("Assign a job pack to someone, then enter results each period.")
+              : t("When your manager assigns targets, they will show up here.")
           }
           steps={
             isAdmin
               ? [
-                  "Choose a person.",
-                  "Assign a job pack, or add/assign any custom metric.",
-                  "Open a metric and enter the result for this period.",
+                  t("Open Set up KPIs."),
+                  t("Pick a person and apply a job pack (or add a custom metric)."),
+                  t("Enter results from their scorecard or a metric detail."),
                 ]
               : undefined
           }
           action={
             isAdmin ? (
-              <Button onClick={() => setTemplateOpen(true)}>Set up KPIs</Button>
+              <Button onClick={() => setTemplateOpen(true)}>{t("Set up KPIs")}</Button>
             ) : undefined
           }
         />
       ) : !hasAssignments ? (
         <KpiEmptyState
-          title="Nothing matches these filters"
-          description="Try Everyone, or clear More filters."
+          title={t("Nothing matches these filters")}
+          description={t("Try Everyone, or clear More filters.")}
         />
       ) : (
         <>
           <KpiSummaryCards
             summary={dashSummary}
-            teamAverage={benchmarks.teamAverage}
+            teamAverage={isAdmin ? benchmarks.teamAverage : null}
             hasActuals={hasActuals}
+            periodLabel={period.label}
+            activeFocus={redesign ? drillFocus : undefined}
+            onDrill={redesign ? toggleDrill : undefined}
           />
-          <IncompleteBanner count={dashSummary.incompleteCount} />
 
-          {topAlerts.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {topAlerts.map((alert) => (
-                <button
-                  key={alert.id}
-                  type="button"
-                  onClick={() => alert.kpiId && setSelectedId(alert.kpiId)}
-                  className={cn(
-                    "rounded-full px-3 py-1 text-xs font-medium ring-1",
-                    alert.severity === "high"
-                      ? "bg-rose-50 text-rose-800 ring-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:ring-rose-800"
-                      : "bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:ring-amber-800",
-                  )}
-                >
-                  {alert.title}
-                </button>
-              ))}
+          {redesign && drillLabel ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                {t("Showing:")}{drillLabel} ({people.length} {t("people)")}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8"
+                onClick={() => setDrillFocus("")}
+              >
+                {t("Clear")}</Button>
             </div>
           ) : null}
 
-          <Tabs defaultValue="metrics">
-            <TabsList className="max-w-md">
-              <TabsTrigger value="metrics">Metrics</TabsTrigger>
-              <TabsTrigger value="chart">Chart</TabsTrigger>
-              <TabsTrigger value="table">Table</TabsTrigger>
-            </TabsList>
-            <TabsContent value="metrics" className="mt-4">
-              <KpiMetricList items={scored} isAdmin={isAdmin} onOpen={setSelectedId} />
-            </TabsContent>
-            <TabsContent value="chart" className="mt-4">
-              <KpiCharts
-                items={scored}
-                categories={categories}
-                onSelect={setSelectedId}
-                simple
+          {employeeSelf && pendingAckIds.length > 0 ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-accent/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm">
+                <span className="font-medium">{pendingAckIds.length}</span> {t("new result")}{pendingAckIds.length === 1 ? "" : "s"} {t("waiting for your acknowledgement.")}</p>
+              <Button
+                size="sm"
+                className="w-full sm:w-auto"
+                onClick={() => void acknowledgeScores(pendingAckIds)}
+              >
+                {t("Got it — acknowledge all")}</Button>
+            </div>
+          ) : null}
+
+          {redesign ? (
+            <Tabs value={view} onValueChange={setView}>
+              <PrimaryTabBar
+                value={view}
+                onValueChange={setView}
+                primaryCount={3}
+                tabs={[
+                  {
+                    value: "people",
+                    label: employeeSelf ? t("Me") : t("People"),
+                    badge: people.length,
+                  },
+                  {
+                    value: "metrics",
+                    label: t("Metrics"),
+                    badge: drillFiltered.length,
+                  },
+                  { value: "insights", label: t("Insights") },
+                ]}
               />
-            </TabsContent>
-            <TabsContent value="table" className="mt-4">
-              <KpiTable
-                items={tableRows}
-                search={filters.search}
-                onSearch={(search) => patchFilters({ search })}
-                status={filters.status}
-                onStatus={(status) => patchFilters({ status })}
-                onOpen={setSelectedId}
-                showEmployee={!filters.employeeId && isAdmin}
-              />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="people" className="mt-4">
+                {employeeSelf && people[0] ? (
+                  <div className="space-y-3">
+                    <KpiPeopleQueue
+                      people={people}
+                      selectedId={personId}
+                      onSelect={(id) => setPersonId(id)}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {t("Open your row for Target / Result detail, ack, and CMS Goals (if linked).")}</p>
+                  </div>
+                ) : (
+                  <KpiPeopleQueue
+                    people={people}
+                    selectedId={personId}
+                    onSelect={(id) => setPersonId(id)}
+                  />
+                )}
+              </TabsContent>
+              <TabsContent value="metrics" className="mt-4">
+                {drillFiltered.length === 0 && drillFocus ? (
+                  <p className="text-sm text-muted-foreground">
+                    {t("Nothing in this slice. Clear the filter or adjust Filters.")}</p>
+                ) : (
+                  <KpiMetricList
+                    items={drillFiltered}
+                    isAdmin={isAdmin}
+                    onOpen={setSelectedId}
+                  />
+                )}
+              </TabsContent>
+              <TabsContent value="insights" className="mt-4 space-y-4">
+                {isAdmin ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Fill attendance-like KPI scores from this month&apos;s
+                      clock-ins when missing.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      disabled={actualsBusy}
+                      onClick={() => void pullAttendanceActuals()}
+                    >
+                      {actualsBusy
+                        ? t("Pulling…")
+                        : t("Pull attendance actuals")}
+                    </Button>
+                  </div>
+                ) : null}
+                {actualsMsg ? (
+                  <p className="text-sm text-muted-foreground">{actualsMsg}</p>
+                ) : null}
+                <KpiCharts
+                  items={drillFiltered}
+                  categories={scoreByCategory(drillFiltered)}
+                  onSelect={setSelectedId}
+                />
+                <KpiBenchmarks
+                  overall={dashSummary.overallPerformanceScore}
+                  benchmarks={benchmarks}
+                />
+              </TabsContent>
+            </Tabs>
+          ) : (
+            <Tabs value={view} onValueChange={setView}>
+              <TabsList className="max-w-md">
+                <TabsTrigger value="metrics">{t("Metrics")}</TabsTrigger>
+                <TabsTrigger value="chart">{t("Chart")}</TabsTrigger>
+                <TabsTrigger value="table">{t("Table")}</TabsTrigger>
+              </TabsList>
+              <TabsContent value="metrics" className="mt-4">
+                <KpiMetricList
+                  items={drillFiltered}
+                  isAdmin={isAdmin}
+                  onOpen={setSelectedId}
+                />
+              </TabsContent>
+              <TabsContent value="chart" className="mt-4">
+                <KpiCharts
+                  items={drillFiltered}
+                  categories={scoreByCategory(drillFiltered)}
+                  onSelect={setSelectedId}
+                  simple
+                />
+              </TabsContent>
+              <TabsContent value="table" className="mt-4">
+                <KpiTable
+                  items={tableRows}
+                  search={filters.search}
+                  onSearch={(search) => patchFilters({ search })}
+                  status={filters.status}
+                  onStatus={(status) => patchFilters({ status })}
+                  onOpen={setSelectedId}
+                  showEmployee={!filters.employeeId && isAdmin}
+                />
+              </TabsContent>
+            </Tabs>
+          )}
         </>
       )}
 
@@ -425,7 +678,31 @@ export function KpiDashboard() {
         }}
         isAdmin={isAdmin}
         onRecordScore={recordScore}
+        onAcknowledge={
+          !isAdmin
+            ? async (scoreId) => acknowledgeScores([scoreId])
+            : undefined
+        }
       />
+
+      {redesign ? (
+        <KpiPersonScorecard
+          person={selectedPerson}
+          open={Boolean(personId)}
+          onOpenChange={(open) => {
+            if (!open) setPersonId(null);
+          }}
+          allItems={allItems}
+          employees={employees}
+          isAdmin={isAdmin}
+          onOpenMetric={(id) => {
+            setSelectedId(id);
+          }}
+          onAcknowledge={
+            !isAdmin ? acknowledgeScores : undefined
+          }
+        />
+      ) : null}
 
       {isAdmin ? (
         <KpiTemplateDialog
@@ -448,6 +725,7 @@ export function KpiDashboard() {
               assignmentId: row.assignment.id,
             }))}
           onApplyTemplate={applyTemplate}
+          onPullActuals={pullAttendanceActuals}
         />
       ) : null}
     </div>

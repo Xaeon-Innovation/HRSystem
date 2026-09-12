@@ -30,6 +30,7 @@ import {
   type CandidateStatus,
   type JobOpening,
 } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function CandidateDatabaseTable({
   candidates,
@@ -74,11 +75,11 @@ export function CandidateDatabaseTable({
   }, [candidates, sort, fits]);
 
   const views: Array<{ id: CandidateFilters["view"]; label: string }> = [
-    { id: "all", label: "All" },
-    { id: "mine", label: "My pipeline" },
-    { id: "needs_feedback", label: "Needs feedback" },
-    { id: "offers", label: "Offers" },
-    { id: "talent_pool", label: "Talent pool" },
+    { id: "all", label: t("All") },
+    { id: "mine", label: t("My pipeline") },
+    { id: "needs_feedback", label: t("Needs feedback") },
+    { id: "offers", label: t("Offers") },
+    { id: "talent_pool", label: t("Talent pool") },
   ];
 
   return (
@@ -101,7 +102,7 @@ export function CandidateDatabaseTable({
       </div>
       <div className="flex flex-wrap gap-2">
         <Input
-          placeholder="Search name, email, skills, tags…"
+          placeholder={t("Search name, email, skills, tags…")}
           value={filters.search}
           onChange={(e) => onChange({ search: e.target.value })}
           className="max-w-sm"
@@ -111,7 +112,7 @@ export function CandidateDatabaseTable({
           value={filters.jobId}
           onChange={(e) => onChange({ jobId: e.target.value })}
         >
-          <option value="">All roles</option>
+          <option value="">{t("All roles")}</option>
           {jobs.map((j) => (
             <option key={j.id} value={j.id}>
               {j.title}
@@ -123,7 +124,7 @@ export function CandidateDatabaseTable({
           value={filters.stage}
           onChange={(e) => onChange({ stage: e.target.value as CandidateStage | "" })}
         >
-          <option value="">All stages</option>
+          <option value="">{t("All stages")}</option>
           {CANDIDATE_STAGES.map((s) => (
             <option key={s} value={s}>
               {stageLabel(s)}
@@ -135,7 +136,7 @@ export function CandidateDatabaseTable({
           value={filters.source}
           onChange={(e) => onChange({ source: e.target.value as CandidateSource | "" })}
         >
-          <option value="">All sources</option>
+          <option value="">{t("All sources")}</option>
           {CANDIDATE_SOURCES.map((s) => (
             <option key={s} value={s}>
               {sourceLabel(s)}
@@ -147,7 +148,7 @@ export function CandidateDatabaseTable({
           value={filters.status}
           onChange={(e) => onChange({ status: e.target.value as CandidateStatus | "" })}
         >
-          <option value="">All statuses</option>
+          <option value="">{t("All statuses")}</option>
           {CANDIDATE_STATUSES.map((s) => (
             <option key={s} value={s}>
               {s.replace("_", " ")}
@@ -159,7 +160,7 @@ export function CandidateDatabaseTable({
           value={filters.tag}
           onChange={(e) => onChange({ tag: e.target.value })}
         >
-          <option value="">All tags</option>
+          <option value="">{t("All tags")}</option>
           {tags.map((t) => (
             <option key={t} value={t}>
               {t}
@@ -171,23 +172,22 @@ export function CandidateDatabaseTable({
           value={sort}
           onChange={(e) => setSort(e.target.value as typeof sort)}
         >
-          <option value="updated">Last activity</option>
-          <option value="name">Name</option>
-          <option value="stage">Stage</option>
-          <option value="rating">Rating</option>
-          <option value="fit">Job-fit score</option>
+          <option value="updated">{t("Last activity")}</option>
+          <option value="name">{t("Name")}</option>
+          <option value="stage">{t("Stage")}</option>
+          <option value="rating">{t("Rating")}</option>
+          <option value="fit">{t("Job-fit score")}</option>
         </select>
       </div>
 
       {rows.length === 0 ? (
         <HiringEmptyState
-          title="No candidates match"
-          description="Add someone to a job or the talent pool, or loosen the filters."
+          title={t("No candidates match")}
+          description={t("Add someone to a job or the talent pool, or loosen the filters.")}
           action={
             canManage ? (
               <Button size="sm" onClick={onAdd}>
-                Add candidate
-              </Button>
+                {t("Add candidate")}</Button>
             ) : null
           }
         />
@@ -196,19 +196,19 @@ export function CandidateDatabaseTable({
           <table className="w-full min-w-[72rem] text-left text-sm">
             <thead className="border-b bg-secondary/50 text-xs uppercase tracking-wide text-muted-foreground">
               <tr>
-                <th className="px-3 py-2 font-medium">Name</th>
-                <th className="px-3 py-2 font-medium">Role</th>
-                <th className="px-3 py-2 font-medium">Stage</th>
-                <th className="px-3 py-2 font-medium">Source</th>
-                <th className="px-3 py-2 font-medium">Contact</th>
-                <th className="px-3 py-2 font-medium">CV</th>
-                <th className="px-3 py-2 font-medium">Exp</th>
-                <th className="px-3 py-2 font-medium">Tags</th>
-                <th className="px-3 py-2 font-medium">Fit</th>
-                <th className="px-3 py-2 font-medium">Rating</th>
-                <th className="px-3 py-2 font-medium">Owner</th>
-                <th className="px-3 py-2 font-medium">Activity</th>
-                <th className="px-3 py-2 font-medium">Status</th>
+                <th className="px-3 py-2 font-medium">{t("Name")}</th>
+                <th className="px-3 py-2 font-medium">{t("Role")}</th>
+                <th className="px-3 py-2 font-medium">{t("Stage")}</th>
+                <th className="px-3 py-2 font-medium">{t("Source")}</th>
+                <th className="px-3 py-2 font-medium">{t("Contact")}</th>
+                <th className="px-3 py-2 font-medium">{t("CV")}</th>
+                <th className="px-3 py-2 font-medium">{t("Exp")}</th>
+                <th className="px-3 py-2 font-medium">{t("Tags")}</th>
+                <th className="px-3 py-2 font-medium">{t("Fit")}</th>
+                <th className="px-3 py-2 font-medium">{t("Rating")}</th>
+                <th className="px-3 py-2 font-medium">{t("Owner")}</th>
+                <th className="px-3 py-2 font-medium">{t("Activity")}</th>
+                <th className="px-3 py-2 font-medium">{t("Status")}</th>
                 <th className="px-3 py-2 font-medium" />
               </tr>
             </thead>
@@ -226,8 +226,7 @@ export function CandidateDatabaseTable({
                         <span className="block font-medium">{c.fullName}</span>
                         {duplicateIds.has(c.id) ? (
                           <span className="text-[10px] font-semibold uppercase text-amber-800">
-                            Possible duplicate
-                          </span>
+                            {t("Possible duplicate")}</span>
                         ) : null}
                       </span>
                     </button>
@@ -246,8 +245,7 @@ export function CandidateDatabaseTable({
                   <td className="px-3 py-2 text-xs">
                     {c.resumeUrl ? (
                       <a href={c.resumeUrl} className="text-primary hover:underline">
-                        Resume
-                      </a>
+                        {t("Resume")}</a>
                     ) : (
                       "—"
                     )}
@@ -285,12 +283,10 @@ export function CandidateDatabaseTable({
                   <td className="px-3 py-2">
                     <div className="flex gap-1">
                       <Button size="sm" variant="ghost" onClick={() => onOpen(c.id)}>
-                        Open
-                      </Button>
+                        {t("Open")}</Button>
                       {canManage ? (
                         <Button size="sm" variant="ghost" onClick={() => onRemove(c.id)}>
-                          Remove
-                        </Button>
+                          {t("Remove")}</Button>
                       ) : null}
                     </div>
                   </td>

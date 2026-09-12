@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type EntityConfig = {
   sourceEntity: string;
@@ -213,14 +214,14 @@ export default function IntegrationDetailPage() {
     return [
       {
         id: "baseUrl",
-        label: "Base URL",
+        label: t("Base URL"),
         done: Boolean(conn.baseUrl),
         tab: "Overview" as Tab,
-        hint: "Set the HTTPS API root on the Endpoints tab and save.",
+        hint: t("Set the HTTPS API root on the Endpoints tab and save."),
       },
       {
         id: "endpoints",
-        label: "Endpoints",
+        label: t("Endpoints"),
         done: endpointsDone,
         tab: "Endpoints" as Tab,
         hint: needsEndpoints
@@ -229,7 +230,7 @@ export default function IntegrationDetailPage() {
       },
       {
         id: "auth",
-        label: "Authentication",
+        label: t("Authentication"),
         done: authDone,
         tab: "Authentication" as Tab,
         hint: conn.authType === "none" && !conn.hasAuth
@@ -238,7 +239,7 @@ export default function IntegrationDetailPage() {
       },
       {
         id: "mappings",
-        label: "Field mappings",
+        label: t("Field mappings"),
         done: mappingsDone && hasIdentityMapping,
         tab: "Mapping" as Tab,
         hint: !mappingsDone
@@ -249,17 +250,17 @@ export default function IntegrationDetailPage() {
       },
       {
         id: "tested",
-        label: "Tested or synced",
+        label: t("Tested or synced"),
         done: syncedOrTested,
         tab: "Overview" as Tab,
-        hint: "Use Test fetch, then Sync now.",
+        hint: t("Use Test fetch, then Sync now."),
       },
       {
         id: "active",
-        label: "Active",
+        label: t("Active"),
         done: conn.status === "active",
         tab: "Overview" as Tab,
-        hint: "Activate when endpoints and mappings look correct.",
+        hint: t("Activate when endpoints and mappings look correct."),
       },
     ];
   }, [conn, mappings.length, hasIdentityMapping, testOk]);
@@ -560,7 +561,7 @@ export default function IntegrationDetailPage() {
   }
 
   if (!conn) {
-    return <p className="text-muted-foreground">{error ?? "Loading…"}</p>;
+    return <p className="text-muted-foreground">{error ?? t("Loading…")}</p>;
   }
 
   const configuredEntities = conn.connectorConfig?.entities ?? [];
@@ -573,12 +574,11 @@ export default function IntegrationDetailPage() {
     <div className="space-y-6">
       <div>
         <Link href="/app/integrations" className="text-sm text-muted-foreground hover:underline">
-          ← Integrations
-        </Link>
+          {t("← Integrations")}</Link>
         <h1 className="text-2xl font-semibold">{conn.name}</h1>
         <p className="text-sm text-muted-foreground">
           {isCmsGoalsPreset
-            ? "Creative Intelligent CMS Goals"
+            ? t("Creative Intelligent CMS Goals")
             : conn.providerType}{" "}
           · {conn.syncMode} · {conn.status}
         </p>
@@ -586,10 +586,8 @@ export default function IntegrationDetailPage() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {isCmsGoalsPreset ? (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-          Connected to CMS Goals — tokens refresh automatically. Use{" "}
-          <strong>Sync now</strong> to pull the latest goals. Open Authentication
-          only if the CMS password changes.
-        </p>
+          {t("Connected to CMS Goals — tokens refresh automatically. Use")}{" "}
+          <strong>{t("Sync now")}</strong> {t("to pull the latest goals. Open Authentication only if the CMS password changes.")}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
@@ -604,18 +602,17 @@ export default function IntegrationDetailPage() {
         ))}
       </div>
 
-      {tab === "Overview" ? (
+      {tab === t("Overview") ? (
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Setup progress</CardTitle>
+              <CardTitle className="text-base">{t("Setup progress")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="font-medium text-foreground">
-                    {progress.doneCount} of {progress.total} complete
-                  </span>
+                    {progress.doneCount} of {progress.total} {t("complete")}</span>
                   <span className="tabular-nums text-muted-foreground">
                     {progress.pct}%
                   </span>
@@ -626,7 +623,7 @@ export default function IntegrationDetailPage() {
                   aria-valuenow={progress.pct}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label="Setup progress"
+                  aria-label={t("Setup progress")}
                 >
                   <div
                     className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
@@ -635,8 +632,7 @@ export default function IntegrationDetailPage() {
                 </div>
                 {progress.allDone ? (
                   <p className="text-sm text-emerald-700">
-                    Setup complete — you can sync and use Analytics.
-                  </p>
+                    {t("Setup complete — you can sync and use Analytics.")}</p>
                 ) : null}
               </div>
               <ul className="space-y-2 text-sm">
@@ -676,7 +672,7 @@ export default function IntegrationDetailPage() {
                         className="shrink-0 self-start sm:self-center"
                         onClick={() => setTab(step.tab)}
                       >
-                        Go to {step.tab}
+                        {t("Go to")}{step.tab}
                       </Button>
                     ) : null}
                   </li>
@@ -684,10 +680,9 @@ export default function IntegrationDetailPage() {
               </ul>
               {deadLetterCount > 0 ? (
                 <p className="text-sm text-destructive">
-                  {deadLetterCount} record(s) could not be processed
-                  {isCmsGoalsPreset
-                    ? ". Open Mapping (advanced) or check that HR employees use the CMS UUID as external ID."
-                    : ". Usually missing field mappings or a mismatched source entity — fix under Mapping, then Replay."}
+                  {deadLetterCount} {t("record(s) could not be processed")}{isCmsGoalsPreset
+                    ? t(". Open Mapping (advanced) or check that HR employees use the CMS UUID as external ID.")
+                    : t(". Usually missing field mappings or a mismatched source entity — fix under Mapping, then Replay.")}
                 </p>
               ) : null}
             </CardContent>
@@ -696,21 +691,19 @@ export default function IntegrationDetailPage() {
           <Card>
             <CardContent className="space-y-3 py-4 text-sm">
               <p>
-                Base URL: {conn.baseUrl ?? "—"}{" "}
+                {t("Base URL:")}{conn.baseUrl ?? "—"}{" "}
                 <button
                   type="button"
                   className="text-xs text-muted-foreground underline hover:text-foreground"
                   onClick={() => setTab("Endpoints")}
                 >
-                  Edit
-                </button>
+                  {t("Edit")}</button>
               </p>
               <div>
-                <p className="font-medium">Configured endpoints</p>
+                <p className="font-medium">{t("Configured endpoints")}</p>
                 {configuredEntities.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    None yet — add paths on the Endpoints tab before Sync.
-                  </p>
+                    {t("None yet — add paths on the Endpoints tab before Sync.")}</p>
                 ) : (
                   <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
                     {configuredEntities.map((ent) => (
@@ -723,30 +716,27 @@ export default function IntegrationDetailPage() {
                 )}
               </div>
               <p>
-                Last sync:{" "}
+                {t("Last sync:")}{" "}
                 {conn.lastSyncAt ? new Date(conn.lastSyncAt).toLocaleString() : "never"}
               </p>
               {conn.lastError ? (
                 <p className="text-destructive">{conn.lastError}</p>
               ) : null}
               <p>
-                Webhook URL:{" "}
+                {t("Webhook URL:")}{" "}
                 <code className="break-all text-xs">{webhookUrl}</code>
               </p>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={testFetch}>Test fetch</Button>
+                <Button onClick={testFetch}>{t("Test fetch")}</Button>
                 <Button variant="secondary" onClick={syncNow}>
-                  Sync now
-                </Button>
+                  {t("Sync now")}</Button>
                 <Button variant="outline" onClick={replay}>
-                  Replay dead letters
-                </Button>
+                  {t("Replay dead letters")}</Button>
                 {conn.status === "active" ? (
                   <Button variant="outline" onClick={() => setStatus("paused")}>
-                    Pause
-                  </Button>
+                    {t("Pause")}</Button>
                 ) : (
-                  <Button onClick={() => setStatus("active")}>Activate</Button>
+                  <Button onClick={() => setStatus("active")}>{t("Activate")}</Button>
                 )}
               </div>
               {testResult ? (
@@ -755,27 +745,27 @@ export default function IntegrationDetailPage() {
                 </pre>
               ) : null}
               <div>
-                <p className="font-medium">Unmatched identity links</p>
+                <p className="font-medium">{t("Unmatched identity links")}</p>
                 <ul className="text-xs text-muted-foreground">
                   {links.employees
                     .filter((l) => !l.employeeId)
                     .map((l) => (
-                      <li key={l.id}>employee key {l.externalEmployeeKey}</li>
+                      <li key={l.id}>{t("employee key")}{l.externalEmployeeKey}</li>
                     ))}
                   {links.branches
                     .filter((l) => !l.branchId)
                     .map((l) => (
-                      <li key={l.id}>branch key {l.externalBranchKey}</li>
+                      <li key={l.id}>{t("branch key")}{l.externalBranchKey}</li>
                     ))}
                   {links.employees.every((l) => l.employeeId) &&
                   links.branches.every((l) => l.branchId) ? (
-                    <li>None</li>
+                    <li>{t("None")}</li>
                   ) : null}
                 </ul>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {isCmsGoalsPreset
-                    ? "Unmatched keys mean HR employees are missing the CMS UUID as external ID."
-                    : "Prefer mapping employee_email so records match HR employees automatically. Unmatched keys will not appear in Analytics."}
+                    ? t("Unmatched keys mean HR employees are missing the CMS UUID as external ID.")
+                    : t("Prefer mapping employee_email so records match HR employees automatically. Unmatched keys will not appear in Analytics.")}
                 </p>
               </div>
             </CardContent>
@@ -783,18 +773,16 @@ export default function IntegrationDetailPage() {
         </div>
       ) : null}
 
-      {tab === "Endpoints" ? (
+      {tab === t("Endpoints") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">API endpoints</CardTitle>
+            <CardTitle className="text-base">{t("API endpoints")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isCmsGoalsPreset && !advancedCustomize ? (
               <div className="space-y-3 text-sm">
                 <p className="text-muted-foreground">
-                  Endpoints are preconfigured for CMS Goals. You normally do not
-                  need to change them.
-                </p>
+                  {t("Endpoints are preconfigured for CMS Goals. You normally do not need to change them.")}</p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   {configuredEntities.map((ent) => (
                     <li key={`${ent.sourceEntity}-${ent.path}`}>
@@ -807,44 +795,39 @@ export default function IntegrationDetailPage() {
                   ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">
-                  Base URL: {conn.baseUrl ?? "—"} · Poll every{" "}
-                  {conn.pollIntervalMinutes ?? 15} minutes
-                </p>
+                  {t("Base URL:")}{conn.baseUrl ?? "—"} {t("· Poll every")}{" "}
+                  {conn.pollIntervalMinutes ?? 15} {t("minutes")}</p>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={() => setAdvancedCustomize(true)}
                 >
-                  Customize (advanced)
-                </Button>
+                  {t("Customize (advanced)")}</Button>
               </div>
             ) : (
             <form className="space-y-4" onSubmit={saveEndpoints}>
               {isCmsGoalsPreset ? (
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm text-amber-700">
-                    Advanced mode — changes can break the CMS Goals sync.
-                  </p>
+                    {t("Advanced mode — changes can break the CMS Goals sync.")}</p>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setAdvancedCustomize(false)}
                   >
-                    Done
-                  </Button>
+                    {t("Done")}</Button>
                 </div>
               ) : null}
               <p className="text-sm text-muted-foreground">
-                Base URL is the API root. Add one row per JSON collection the platform
-                should poll — for example source entity <code>job</code>, path{" "}
-                <code>/api/jobs</code>, and <code>itemsPath</code>{" "}
-                <code>data</code> if the array is nested under{" "}
+                {t("Base URL is the API root. Add one row per JSON collection the platform should poll — for example source entity")}<code>{t("job")}</code>{t(", path")}{" "}
+                <code>/api/jobs</code>{t(", and")}<code>itemsPath</code>{" "}
+                <code>{t("data")}</code> {t("if the array is nested under")}{" "}
                 <code>{`{ "data": [ ... ] }`}</code>.
               </p>
               <div className="space-y-1">
-                <Label>Base URL</Label>
+                <Label>{t("Base URL")}</Label>
                 <Input
                   type="url"
                   value={baseUrl}
@@ -852,25 +835,24 @@ export default function IntegrationDetailPage() {
                   placeholder="https://api.example.com/api/v1"
                 />
                 <p className="text-xs text-muted-foreground">
-                  HTTPS API root only — resource paths below are appended to this.
-                </p>
+                  {t("HTTPS API root only — resource paths below are appended to this.")}</p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
-                  <Label>Sync mode</Label>
+                  <Label>{t("Sync mode")}</Label>
                   <select
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                     value={syncMode}
                     onChange={(e) => setSyncMode(e.target.value)}
                   >
-                    <option value="polling">Polling</option>
-                    <option value="webhook">Webhook</option>
-                    <option value="manual">Manual / CSV</option>
-                    <option value="hybrid">Hybrid</option>
+                    <option value="polling">{t("Polling")}</option>
+                    <option value="webhook">{t("Webhook")}</option>
+                    <option value="manual">{t("Manual / CSV")}</option>
+                    <option value="hybrid">{t("Hybrid")}</option>
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Poll interval (minutes)</Label>
+                  <Label>{t("Poll interval (minutes)")}</Label>
                   <Input
                     type="number"
                     min={5}
@@ -878,7 +860,7 @@ export default function IntegrationDetailPage() {
                     value={pollInterval}
                     onChange={(e) => setPollInterval(e.target.value)}
                   />
-                  <p className="text-xs text-muted-foreground">Minimum 5 minutes.</p>
+                  <p className="text-xs text-muted-foreground">{t("Minimum 5 minutes.")}</p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -888,7 +870,7 @@ export default function IntegrationDetailPage() {
                     className="grid gap-2 rounded-md border border-border p-3 md:grid-cols-2"
                   >
                     <div className="space-y-1">
-                      <Label>Source entity</Label>
+                      <Label>{t("Source entity")}</Label>
                       <Input
                         value={ent.sourceEntity}
                         onChange={(e) =>
@@ -898,12 +880,12 @@ export default function IntegrationDetailPage() {
                             ),
                           )
                         }
-                        placeholder="job"
+                        placeholder={t("job")}
                         required
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Path</Label>
+                      <Label>{t("Path")}</Label>
                       <Input
                         value={ent.path}
                         onChange={(e) =>
@@ -918,7 +900,7 @@ export default function IntegrationDetailPage() {
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>Items path (optional)</Label>
+                      <Label>{t("Items path (optional)")}</Label>
                       <Input
                         value={ent.itemsPath ?? ""}
                         onChange={(e) =>
@@ -928,11 +910,11 @@ export default function IntegrationDetailPage() {
                             ),
                           )
                         }
-                        placeholder="data.items"
+                        placeholder={t("data.items")}
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label>ID field</Label>
+                      <Label>{t("ID field")}</Label>
                       <Input
                         value={ent.idField ?? "id"}
                         onChange={(e) =>
@@ -946,7 +928,7 @@ export default function IntegrationDetailPage() {
                       />
                     </div>
                     <div className="space-y-1 md:col-span-2">
-                      <Label>Event type override (optional)</Label>
+                      <Label>{t("Event type override (optional)")}</Label>
                       <Input
                         value={ent.eventType ?? ""}
                         onChange={(e) =>
@@ -956,7 +938,7 @@ export default function IntegrationDetailPage() {
                             ),
                           )
                         }
-                        placeholder="Defaults to source entity"
+                        placeholder={t("Defaults to source entity")}
                       />
                     </div>
                     <div className="md:col-span-2">
@@ -969,8 +951,7 @@ export default function IntegrationDetailPage() {
                         }
                         disabled={entities.length <= 1}
                       >
-                        Remove row
-                      </Button>
+                        {t("Remove row")}</Button>
                     </div>
                   </div>
                 ))}
@@ -981,10 +962,9 @@ export default function IntegrationDetailPage() {
                   variant="outline"
                   onClick={() => setEntities((rows) => [...rows, emptyEntity()])}
                 >
-                  Add endpoint
-                </Button>
+                  {t("Add endpoint")}</Button>
                 <Button type="submit" disabled={saving}>
-                  {saving ? "Saving…" : "Save endpoints"}
+                  {saving ? t("Saving…") : t("Save endpoints")}
                 </Button>
               </div>
             </form>
@@ -993,117 +973,113 @@ export default function IntegrationDetailPage() {
         </Card>
       ) : null}
 
-      {tab === "Authentication" ? (
+      {tab === t("Authentication") ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {isCmsGoalsPreset ? "CMS service account" : "Secrets"}
+              {isCmsGoalsPreset ? t("CMS service account") : t("Secrets")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {isCmsGoalsPreset ? (
               <form className="grid gap-3" onSubmit={saveCmsCredentials}>
                 <p className="text-sm text-muted-foreground">
-                  Tokens refresh automatically. Update phone/password only if the
-                  CMS service account changes or sync starts failing.
-                </p>
+                  {t("Tokens refresh automatically. Update phone/password only if the CMS service account changes or sync starts failing.")}</p>
                 <div className="space-y-1">
-                  <Label>Phone</Label>
+                  <Label>{t("Phone")}</Label>
                   <Input
                     value={cmsPhone}
                     onChange={(e) => setCmsPhone(e.target.value)}
-                    placeholder="+9715XXXXXXXX"
+                    placeholder={t("+9715XXXXXXXX")}
                     required
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Password</Label>
+                  <Label>{t("Password")}</Label>
                   <Input
                     type="password"
                     value={cmsPassword}
                     onChange={(e) => setCmsPassword(e.target.value)}
-                    placeholder="Enter to update stored password"
+                    placeholder={t("Enter to update stored password")}
                     required
                   />
                 </div>
                 <Button type="submit" disabled={saving}>
-                  {saving ? "Saving…" : "Update CMS login"}
+                  {saving ? t("Saving…") : t("Update CMS login")}
                 </Button>
               </form>
             ) : (
             <form className="grid gap-3" onSubmit={saveAuth}>
               <p className="text-xs text-muted-foreground">
-                Auth stored: {conn.hasAuth ? "yes" : "no"} · Webhook secret:{" "}
-                {conn.hasWebhookSecret ? "yes" : "no"}. Saving credentials does not
-                activate the connection — use Activate on Overview when ready.
-              </p>
+                {t("Auth stored:")}{conn.hasAuth ? "yes" : "no"} {t("· Webhook secret:")}{" "}
+                {conn.hasWebhookSecret ? "yes" : "no"}{t(". Saving credentials does not activate the connection — use Activate on Overview when ready.")}</p>
               <div className="space-y-1">
-                <Label>Auth type</Label>
+                <Label>{t("Auth type")}</Label>
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={authType}
                   onChange={(e) => setAuthType(e.target.value)}
                 >
-                  <option value="none">None (public API)</option>
-                  <option value="api_key">API key</option>
-                  <option value="bearer">Bearer token</option>
-                  <option value="basic">Basic username / password</option>
+                  <option value="none">{t("None (public API)")}</option>
+                  <option value="api_key">{t("API key")}</option>
+                  <option value="bearer">{t("Bearer token")}</option>
+                  <option value="basic">{t("Basic username / password")}</option>
                 </select>
               </div>
               {authType === "api_key" ? (
                 <>
                   <div className="space-y-1">
-                    <Label>API key</Label>
+                    <Label>{t("API key")}</Label>
                     <Input
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="Leave blank to keep existing"
+                      placeholder={t("Leave blank to keep existing")}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>API key header</Label>
+                    <Label>{t("API key header")}</Label>
                     <Input
                       value={apiKeyHeader}
                       onChange={(e) => setApiKeyHeader(e.target.value)}
-                      placeholder="X-API-Key"
+                      placeholder={t("X-API-Key")}
                     />
                   </div>
                 </>
               ) : null}
               {authType === "bearer" ? (
                 <div className="space-y-1">
-                  <Label>Bearer token</Label>
+                  <Label>{t("Bearer token")}</Label>
                   <Input
                     type="password"
                     value={bearerToken}
                     onChange={(e) => setBearerToken(e.target.value)}
-                    placeholder="Leave blank to keep existing"
+                    placeholder={t("Leave blank to keep existing")}
                   />
                 </div>
               ) : null}
               {authType === "basic" ? (
                 <>
                   <div className="space-y-1">
-                    <Label>Username</Label>
+                    <Label>{t("Username")}</Label>
                     <Input
                       value={basicUser}
                       onChange={(e) => setBasicUser(e.target.value)}
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label>Password</Label>
+                    <Label>{t("Password")}</Label>
                     <Input
                       type="password"
                       value={basicPass}
                       onChange={(e) => setBasicPass(e.target.value)}
-                      placeholder="Leave blank to keep existing"
+                      placeholder={t("Leave blank to keep existing")}
                     />
                   </div>
                 </>
               ) : null}
               <div className="space-y-1">
-                <Label>Webhook HMAC secret (optional)</Label>
+                <Label>{t("Webhook HMAC secret (optional)")}</Label>
                 <Input
                   type="password"
                   value={webhookSecret}
@@ -1111,10 +1087,10 @@ export default function IntegrationDetailPage() {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Webhook URL: <code className="break-all">{webhookUrl}</code>
+                {t("Webhook URL:")}<code className="break-all">{webhookUrl}</code>
               </p>
               <Button type="submit" disabled={saving}>
-                {saving ? "Saving…" : "Save authentication"}
+                {saving ? t("Saving…") : t("Save authentication")}
               </Button>
             </form>
             )}
@@ -1122,18 +1098,16 @@ export default function IntegrationDetailPage() {
         </Card>
       ) : null}
 
-      {tab === "Mapping" ? (
+      {tab === t("Mapping") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Field mapping</CardTitle>
+            <CardTitle className="text-base">{t("Field mapping")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {isCmsGoalsPreset && !advancedCustomize ? (
               <div className="space-y-3 text-sm">
                 <p className="text-muted-foreground">
-                  Field mappings are preconfigured for CMS goals → job events.
-                  You normally do not need to change them.
-                </p>
+                  {t("Field mappings are preconfigured for CMS goals → job events. You normally do not need to change them.")}</p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   {mappings.map((m) => (
                     <li key={m.id}>
@@ -1148,8 +1122,7 @@ export default function IntegrationDetailPage() {
                   size="sm"
                   onClick={() => setAdvancedCustomize(true)}
                 >
-                  Customize (advanced)
-                </Button>
+                  {t("Customize (advanced)")}</Button>
               </div>
             ) : (
             <>
@@ -1157,43 +1130,34 @@ export default function IntegrationDetailPage() {
               {isCmsGoalsPreset ? (
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-amber-700">
-                    Advanced mapping editor — incorrect changes can break sync.
-                  </p>
+                    {t("Advanced mapping editor — incorrect changes can break sync.")}</p>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
                     onClick={() => setAdvancedCustomize(false)}
                   >
-                    Done
-                  </Button>
+                    {t("Done")}</Button>
                 </div>
               ) : null}
               <p>
-                <strong className="text-foreground">sourceEntity</strong> must match
-                an Endpoints source entity
-                {sourceEntityOptions.length
+                <strong className="text-foreground">sourceEntity</strong> {t("must match an Endpoints source entity")}{sourceEntityOptions.length
                   ? ` (${sourceEntityOptions.join(", ")})`
-                  : " (configure Endpoints first)"}{" "}
-                or the webhook event type. Mismatches become dead letters.
-              </p>
+                  : t(" (configure Endpoints first)")}{" "}
+                {t("or the webhook event type. Mismatches become dead letters.")}</p>
               <p>
-                Always map an identity field to{" "}
+                {t("Always map an identity field to")}{" "}
                 <code>employee_email</code> or <code>employee_external_key</code>{" "}
-                so Analytics can attribute work to HR employees.
-              </p>
+                {t("so Analytics can attribute work to HR employees.")}</p>
               {!hasIdentityMapping && mappings.length > 0 ? (
                 <p className="text-destructive">
-                  No employee identity mapping yet — analytics will skip unmatched
-                  records.
-                </p>
+                  {t("No employee identity mapping yet — analytics will skip unmatched records.")}</p>
               ) : null}
             </div>
             {mappings.length === 0 ? (
               <p className="rounded-md border border-border bg-muted/40 px-3 py-2 text-sm">
-                Without mappings, synced records become dead letters. Add at least{" "}
-                <code>id → external_record_id</code> and an employee identity field.
-              </p>
+                {t("Without mappings, synced records become dead letters. Add at least")}{" "}
+                <code>{t("id → external_record_id")}</code> {t("and an employee identity field.")}</p>
             ) : (
               <ul className="space-y-2 text-sm">
                 {mappings.map((m) => (
@@ -1211,7 +1175,7 @@ export default function IntegrationDetailPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {m.transformType}
-                        {editingMappingId === m.id ? " · editing below" : ""}
+                        {editingMappingId === m.id ? t(" · editing below") : ""}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-2">
@@ -1222,8 +1186,7 @@ export default function IntegrationDetailPage() {
                         disabled={mappingSaving}
                         onClick={() => startEditMapping(m)}
                       >
-                        Edit
-                      </Button>
+                        {t("Edit")}</Button>
                       <Button
                         type="button"
                         size="sm"
@@ -1231,8 +1194,7 @@ export default function IntegrationDetailPage() {
                         disabled={mappingSaving}
                         onClick={() => removeMapping(m.id)}
                       >
-                        Remove
-                      </Button>
+                        {t("Remove")}</Button>
                     </div>
                   </li>
                 ))}
@@ -1241,8 +1203,7 @@ export default function IntegrationDetailPage() {
             <form className="grid gap-3 md:grid-cols-2" onSubmit={saveMappings}>
               {editingMappingId ? (
                 <p className="md:col-span-2 text-sm text-amber-700">
-                  Editing an existing mapping — save to update it, or cancel.
-                </p>
+                  {t("Editing an existing mapping — save to update it, or cancel.")}</p>
               ) : null}
               {sourceEntityOptions.length > 0 ? (
                 <select
@@ -1260,7 +1221,7 @@ export default function IntegrationDetailPage() {
                 </select>
               ) : (
                 <Input
-                  placeholder="Source entity"
+                  placeholder={t("Source entity")}
                   value={newMap.sourceEntity}
                   onChange={(e) =>
                     setNewMap((s) => ({ ...s, sourceEntity: e.target.value }))
@@ -1268,7 +1229,7 @@ export default function IntegrationDetailPage() {
                 />
               )}
               <Input
-                placeholder="Source field"
+                placeholder={t("Source field")}
                 value={newMap.sourceField}
                 onChange={(e) =>
                   setNewMap((s) => ({ ...s, sourceField: e.target.value }))
@@ -1307,10 +1268,10 @@ export default function IntegrationDetailPage() {
               <div className="flex flex-wrap gap-2 md:col-span-2">
                 <Button type="submit" disabled={mappingSaving}>
                   {mappingSaving
-                    ? "Saving…"
+                    ? t("Saving…")
                     : editingMappingId
-                      ? "Save changes"
-                      : "Add mapping"}
+                      ? t("Save changes")
+                      : t("Add mapping")}
                 </Button>
                 {editingMappingId ? (
                   <Button
@@ -1319,8 +1280,7 @@ export default function IntegrationDetailPage() {
                     disabled={mappingSaving}
                     onClick={cancelEditMapping}
                   >
-                    Cancel
-                  </Button>
+                    {t("Cancel")}</Button>
                 ) : null}
               </div>
             </form>
@@ -1330,10 +1290,10 @@ export default function IntegrationDetailPage() {
         </Card>
       ) : null}
 
-      {tab === "Sync history" ? (
+      {tab === t("Sync history") ? (
         <div className="space-y-2">
           {runs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No sync runs yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No sync runs yet.")}</p>
           ) : null}
           {runs.map((run) => (
             <Card key={run.id}>
@@ -1342,8 +1302,8 @@ export default function IntegrationDetailPage() {
                   {run.triggerType} · {run.status}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {new Date(run.startedAt).toLocaleString()} · received{" "}
-                  {run.recordsReceived} · processed {run.recordsProcessed} · failed{" "}
+                  {new Date(run.startedAt).toLocaleString()} {t("· received")}{" "}
+                  {run.recordsReceived} {t("· processed")}{run.recordsProcessed} {t("· failed")}{" "}
                   {run.recordsFailed}
                 </p>
                 {run.errorSummary ? (
@@ -1355,10 +1315,10 @@ export default function IntegrationDetailPage() {
         </div>
       ) : null}
 
-      {tab === "Raw events" ? (
+      {tab === t("Raw events") ? (
         <div className="space-y-2">
           {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No raw events yet.</p>
+            <p className="text-sm text-muted-foreground">{t("No raw events yet.")}</p>
           ) : null}
           {events.map((ev) => (
             <Card key={ev.id}>
@@ -1378,21 +1338,19 @@ export default function IntegrationDetailPage() {
         </div>
       ) : null}
 
-      {tab === "CSV" ? (
+      {tab === t("CSV") ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">CSV import</CardTitle>
+            <CardTitle className="text-base">{t("CSV import")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Use the same source entity name as your mappings. Import still requires
-              field mappings for that entity.
-            </p>
+              {t("Use the same source entity name as your mappings. Import still requires field mappings for that entity.")}</p>
             <div className="grid gap-3 md:grid-cols-2">
               <Input
                 value={sourceEntity}
                 onChange={(e) => setSourceEntity(e.target.value)}
-                placeholder="Source entity"
+                placeholder={t("Source entity")}
               />
               <select
                 className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -1411,7 +1369,7 @@ export default function IntegrationDetailPage() {
               value={csv}
               onChange={(e) => setCsv(e.target.value)}
             />
-            <Button onClick={importCsv}>Import</Button>
+            <Button onClick={importCsv}>{t("Import")}</Button>
           </CardContent>
         </Card>
       ) : null}

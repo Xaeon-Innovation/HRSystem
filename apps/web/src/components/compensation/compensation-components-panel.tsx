@@ -22,6 +22,7 @@ import {
   type ComponentKind,
 } from "@/lib/compensation/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function CompensationComponentsPanel({
   components,
@@ -81,11 +82,10 @@ export function CompensationComponentsPanel({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground">
-          Recurring earnings and deductions that feed payroll inputs.
-        </p>
+          {t("Recurring earnings and deductions that feed payroll inputs.")}</p>
         {isAdmin ? (
           <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)}>
-            {open ? "Cancel" : "Add line item"}
+            {open ? t("Cancel") : t("Add line item")}
           </Button>
         ) : null}
       </div>
@@ -93,10 +93,10 @@ export function CompensationComponentsPanel({
       {open ? (
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">New earning or deduction</CardTitle>
+            <CardTitle className="text-base">{t("New earning or deduction")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2">
-            <Field label="Employee">
+            <Field label={t("Employee")}>
               <select
                 className={SELECT_CLASS}
                 value={employeeId}
@@ -109,7 +109,7 @@ export function CompensationComponentsPanel({
                 ))}
               </select>
             </Field>
-            <Field label="Kind">
+            <Field label={t("Kind")}>
               <select
                 className={SELECT_CLASS}
                 value={kind}
@@ -122,31 +122,30 @@ export function CompensationComponentsPanel({
                 ))}
               </select>
             </Field>
-            <Field label="Label">
-              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Optional" />
+            <Field label={t("Label")}>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("Optional")} />
             </Field>
-            <Field label="Amount">
+            <Field label={t("Amount")}>
               <Input
                 type="number"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
               />
             </Field>
-            <Field label="Amount type">
+            <Field label={t("Amount type")}>
               <select
                 className={SELECT_CLASS}
                 value={amountType}
                 onChange={(e) => setAmountType(e.target.value as "fixed" | "percent_of_base")}
               >
-                <option value="fixed">Fixed monthly</option>
-                <option value="percent_of_base">% of base</option>
+                <option value="fixed">{t("Fixed monthly")}</option>
+                <option value="percent_of_base">{t("% of base")}</option>
               </select>
             </Field>
             {error ? <p className="text-sm text-destructive sm:col-span-2">{error}</p> : null}
             <div className="sm:col-span-2">
               <Button size="sm" onClick={submit}>
-                Save line
-              </Button>
+                {t("Save line")}</Button>
             </div>
           </CardContent>
         </Card>
@@ -154,7 +153,7 @@ export function CompensationComponentsPanel({
 
       <div className="grid gap-3 lg:grid-cols-2">
         <LineTable
-          title="Allowances & earnings"
+          title={t("Allowances & earnings")}
           rows={earnings}
           nameOf={nameOf}
           onOpen={onOpenEmployee}
@@ -165,7 +164,7 @@ export function CompensationComponentsPanel({
           }}
         />
         <LineTable
-          title="Deductions"
+          title={t("Deductions")}
           rows={deductions}
           nameOf={nameOf}
           onOpen={onOpenEmployee}
@@ -212,7 +211,7 @@ function LineTable({
       <CardContent className="px-0 pb-0">
         {rows.length === 0 ? (
           <div className="px-4 pb-4">
-            <CompEmptyState title="None" description="No line items in this group." />
+            <CompEmptyState title={t("None")} description={t("No line items in this group.")} />
           </div>
         ) : (
           <ul className="divide-y">
@@ -221,7 +220,7 @@ function LineTable({
                 <button type="button" className="min-w-0 text-left" onClick={() => onOpen(row.employeeId)}>
                   <p className="text-sm font-medium">{row.label}</p>
                   <p className="text-xs text-muted-foreground">
-                    {nameOf(row.employeeId)} · {componentKindLabel(row.kind)} · from{" "}
+                    {nameOf(row.employeeId)} · {componentKindLabel(row.kind)} {t("· from")}{" "}
                     {formatDate(row.effectiveFrom)}
                     {row.effectiveTo ? ` – ${formatDate(row.effectiveTo)}` : ""}
                   </p>
@@ -240,8 +239,7 @@ function LineTable({
                   <span className="text-[11px] uppercase text-muted-foreground">{row.status}</span>
                   {isAdmin && row.status === "active" ? (
                     <Button size="sm" variant="ghost" onClick={() => onEnd(row.id)}>
-                      End
-                    </Button>
+                      {t("End")}</Button>
                   ) : null}
                 </div>
               </li>

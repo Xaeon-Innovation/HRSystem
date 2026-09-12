@@ -46,8 +46,11 @@ import {
   type HiringActor,
   type JobStatus,
 } from "@/lib/hiring/types";
-import { getHiringStore } from "@/lib/hiring";
+import { getHiringStore, type HiringSnapshot } from "@/lib/hiring";
 import { StageBadge } from "@/components/hiring/hiring-status-badge";
+import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { t } from "@/i18n";
 
 type EmployeeOption = {
   id: string;
@@ -88,9 +91,11 @@ function isUuid(value: string) {
 
 export function HiringDashboard() {
   const store = getHiringStore();
+  const redesign = useUiRedesign();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState("dashboard");
   const [filters, setFilters] = useState<CandidateFilters>(EMPTY_FILTERS);
@@ -126,7 +131,31 @@ export function HiringDashboard() {
     setError(null);
     const current = getUser();
     const admin = canManageJobs(actorFrom(current));
+
+    store.setRemotePersist((snapshot, expectedVersion) => {
+      void api<{ hiring: HiringSnapshot }>("/v1/hiring", {
+        method: "PUT",
+        body: JSON.stringify({ snapshot, expectedVersion }),
+      })
+        .then((res) => {
+          if (typeof res.hiring.version === "number") {
+            store.setVersion(res.hiring.version);
+          }
+          setSaveError(null);
+        })
+        .catch((e) => {
+          const msg =
+            e instanceof Error ? e.message : "Could not save hiring data";
+          setSaveError(
+            msg.includes("updated elsewhere")
+              ? `${msg} Reload the page to continue.`
+              : msg,
+          );
+        });
+    });
+
     Promise.all([
+      api<{ hiring: HiringSnapshot }>("/v1/hiring"),
       admin
         ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({ employees: [] }))
         : Promise.resolve({ employees: [] as EmployeeOption[] }),
@@ -134,16 +163,33 @@ export function HiringDashboard() {
         ? api<{ branches: BranchOption[] }>("/v1/branches").catch(() => ({ branches: [] }))
         : Promise.resolve({ branches: [] as BranchOption[] }),
     ])
-      .then(([empRes, branchRes]) => {
+      .then(([hiringRes, empRes, branchRes]) => {
+        store.replaceFromServer(hiringRes.hiring);
         store.hydrateDirectory({
-          employees: empRes.employees,
-          branches: branchRes.branches,
+          employees:
+            empRes.employees.length > 0
+              ? empRes.employees
+              : hiringRes.hiring.team.map((t) => ({
+                  id: t.id,
+                  name: t.name,
+                  email: t.email,
+                  jobTitle: t.role,
+                  branchId: t.branchId,
+                })),
+          branches:
+            branchRes.branches.length > 0
+              ? branchRes.branches
+              : hiringRes.hiring.branches,
           current: actorFrom(current),
         });
         refresh();
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load hiring"))
       .finally(() => setLoading(false));
+
+    return () => {
+      store.setRemotePersist(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -267,6 +313,7 @@ export function HiringDashboard() {
     <div className="space-y-5">
       <HiringHeader
         canManage={isAdmin}
+        preview={false}
         onNewJob={() => {
           setEditingJobId(null);
           setJobFormOpen(true);
@@ -277,73 +324,101 @@ export function HiringDashboard() {
       {error ? (
         <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">{error}</p>
       ) : null}
+      {saveError ? (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
+          {t("Couldn’t save to server:")}{saveError}
+        </p>
+      ) : null}
       {createdEmployee ? (
         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-          {createdEmployee} is on the employee roster.{" "}
+          {createdEmployee} {t("is on the employee roster.")}{" "}
           <a href="/app/employees" className="font-medium underline">
-            Open employees
-          </a>
+            {t("Open employees")}</a>
         </p>
       ) : null}
       {alerts.filter((a) => a.severity === "urgent").length > 0 ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          {alerts.filter((a) => a.severity === "urgent").length} urgent hiring alert
-          {alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"} — stuck stages or hire dates.
-        </p>
+          {alerts.filter((a) => a.severity === "urgent").length} {t("urgent hiring alert")}{alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"} {t("— stuck stages or hire dates.")}</p>
       ) : null}
 
       <HiringOverviewCards summary={summary} />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="dashboard" className="flex-none px-3">
-            Dashboard
-          </TabsTrigger>
-          <TabsTrigger value="jobs" className="flex-none px-3">
-            Job openings
-          </TabsTrigger>
-          <TabsTrigger value="pipeline" className="flex-none px-3">
-            Pipeline
-          </TabsTrigger>
-          <TabsTrigger value="candidates" className="flex-none px-3">
-            Candidates
-          </TabsTrigger>
-          <TabsTrigger value="interviews" className="flex-none px-3">
-            Interviews
-            {summary.interviewsToday > 0 ? (
-              <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 text-[10px] font-semibold text-sky-900">
-                {summary.interviewsToday}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="offers" className="flex-none px-3">
-            Offers
-            {summary.offersPending > 0 ? (
-              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
-                {summary.offersPending}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="hired" className="flex-none px-3">
-            Hired
-            {convertible.length > 0 ? (
-              <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-900">
-                {convertible.length}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="best-fit" className="flex-none px-3">
-            Best fit
-            {bestFitDrafts.length > 0 ? (
-              <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 text-[10px] font-semibold text-violet-900">
-                {bestFitDrafts.length}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex-none px-3">
-            Reports
-          </TabsTrigger>
-        </TabsList>
+        {redesign ? (
+          <PrimaryTabBar
+            value={tab}
+            onValueChange={setTab}
+            primaryCount={5}
+            tabs={[
+              { value: "dashboard", label: t("Dashboard") },
+              { value: "jobs", label: t("Job openings") },
+              { value: "pipeline", label: t("Pipeline") },
+              { value: "candidates", label: t("Candidates") },
+              {
+                value: "interviews",
+                label: t("Interviews"),
+                badge: summary.interviewsToday,
+              },
+              {
+                value: "offers",
+                label: t("Offers"),
+                badge: summary.offersPending,
+              },
+              {
+                value: "hired",
+                label: t("Hired"),
+                badge: convertible.length,
+              },
+              {
+                value: "best-fit",
+                label: t("Best fit"),
+                badge: bestFitDrafts.length,
+              },
+              { value: "reports", label: t("Reports") },
+            ]}
+          />
+        ) : (
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="dashboard" className="flex-none px-3">
+              {t("Dashboard")}</TabsTrigger>
+            <TabsTrigger value="jobs" className="flex-none px-3">
+              {t("Job openings")}</TabsTrigger>
+            <TabsTrigger value="pipeline" className="flex-none px-3">
+              {t("Pipeline")}</TabsTrigger>
+            <TabsTrigger value="candidates" className="flex-none px-3">
+              {t("Candidates")}</TabsTrigger>
+            <TabsTrigger value="interviews" className="flex-none px-3">
+              {t("Interviews")}{summary.interviewsToday > 0 ? (
+                <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 text-[10px] font-semibold text-sky-900">
+                  {summary.interviewsToday}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="offers" className="flex-none px-3">
+              {t("Offers")}{summary.offersPending > 0 ? (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
+                  {summary.offersPending}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="hired" className="flex-none px-3">
+              {t("Hired")}{convertible.length > 0 ? (
+                <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-900">
+                  {convertible.length}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="best-fit" className="flex-none px-3">
+              {t("Best fit")}{bestFitDrafts.length > 0 ? (
+                <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 text-[10px] font-semibold text-violet-900">
+                  {bestFitDrafts.length}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="reports" className="flex-none px-3">
+              {t("Reports")}</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="dashboard" className="mt-4">
           <HiringHomePanel
@@ -457,14 +532,13 @@ export function HiringDashboard() {
 
         <TabsContent value="hired" className="mt-4 space-y-4">
           <div>
-            <h2 className="text-sm font-semibold">Ready to convert</h2>
+            <h2 className="text-sm font-semibold">{t("Ready to convert")}</h2>
             <p className="mb-3 text-xs text-muted-foreground">
-              Offer accepted or marked hired, with no employee record yet.
-            </p>
+              {t("Offer accepted or marked hired, with no employee record yet.")}</p>
             {convertible.length === 0 ? (
               <HiringEmptyState
-                title="No hires waiting on conversion"
-                description="When an offer is accepted or a candidate is marked hired, convert them here so they appear on the employee roster."
+                title={t("No hires waiting on conversion")}
+                description={t("When an offer is accepted or a candidate is marked hired, convert them here so they appear on the employee roster.")}
               />
             ) : (
               <div className="space-y-2">
@@ -483,12 +557,10 @@ export function HiringDashboard() {
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => setSelectedCandidateId(c.id)}>
-                        Profile
-                      </Button>
+                        {t("Profile")}</Button>
                       {canConvertToEmployee(actor) ? (
                         <Button size="sm" onClick={() => setConvertId(c.id)}>
-                          Convert to employee
-                        </Button>
+                          {t("Convert to employee")}</Button>
                       ) : null}
                     </div>
                   </div>
@@ -497,10 +569,10 @@ export function HiringDashboard() {
             )}
           </div>
           <div>
-            <h2 className="text-sm font-semibold">Already on the roster</h2>
-            <p className="mb-3 text-xs text-muted-foreground">Hires linked to an employee record.</p>
+            <h2 className="text-sm font-semibold">{t("Already on the roster")}</h2>
+            <p className="mb-3 text-xs text-muted-foreground">{t("Hires linked to an employee record.")}</p>
             {allVisible.filter((c) => c.convertedEmployeeId).length === 0 ? (
-              <p className="text-sm text-muted-foreground">None converted yet.</p>
+              <p className="text-sm text-muted-foreground">{t("None converted yet.")}</p>
             ) : (
               <ul className="space-y-2">
                 {allVisible
@@ -518,8 +590,7 @@ export function HiringDashboard() {
                         </div>
                       </div>
                       <a href="/app/employees" className="text-sm text-primary hover:underline">
-                        Open employees
-                      </a>
+                        {t("Open employees")}</a>
                     </li>
                   ))}
               </ul>
@@ -697,11 +768,9 @@ export function HiringDashboard() {
           <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
           <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-2xl">
             <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-              Reschedule interview
-            </DialogPrimitive.Title>
+              {t("Reschedule interview")}</DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
-              Pick a new date and time. Candidate confirmation resets to pending.
-            </DialogPrimitive.Description>
+              {t("Pick a new date and time. Candidate confirmation resets to pending.")}</DialogPrimitive.Description>
             <Input
               type="datetime-local"
               className="mt-3"
@@ -710,8 +779,7 @@ export function HiringDashboard() {
             />
             <div className="mt-5 flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setRescheduleId(null)}>
-                Cancel
-              </Button>
+                {t("Cancel")}</Button>
               <Button
                 type="button"
                 disabled={!rescheduleAt}
@@ -723,8 +791,7 @@ export function HiringDashboard() {
                   setRescheduleId(null);
                 }}
               >
-                Reschedule
-              </Button>
+                {t("Reschedule")}</Button>
             </div>
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
@@ -799,7 +866,7 @@ function PipelineFilters({
   return (
     <div className="flex flex-wrap gap-2">
       <Input
-        placeholder="Filter pipeline…"
+        placeholder={t("Filter pipeline…")}
         value={filters.search}
         onChange={(e) => onChange({ search: e.target.value })}
         className="max-w-xs"
@@ -809,7 +876,7 @@ function PipelineFilters({
         value={filters.jobId}
         onChange={(e) => onChange({ jobId: e.target.value })}
       >
-        <option value="">All roles</option>
+        <option value="">{t("All roles")}</option>
         {jobs.map((j) => (
           <option key={j.id} value={j.id}>
             {j.title}
@@ -821,7 +888,7 @@ function PipelineFilters({
         value={filters.department}
         onChange={(e) => onChange({ department: e.target.value })}
       >
-        <option value="">All departments</option>
+        <option value="">{t("All departments")}</option>
         {departments.map((d) => (
           <option key={d} value={d}>
             {d}
@@ -833,7 +900,7 @@ function PipelineFilters({
         value={filters.source}
         onChange={(e) => onChange({ source: e.target.value as CandidateSource | "" })}
       >
-        <option value="">All sources</option>
+        <option value="">{t("All sources")}</option>
         {CANDIDATE_SOURCES.map((s) => (
           <option key={s} value={s}>
             {sourceLabel(s)}
@@ -845,7 +912,7 @@ function PipelineFilters({
         value={filters.recruiterId}
         onChange={(e) => onChange({ recruiterId: e.target.value })}
       >
-        <option value="">All recruiters</option>
+        <option value="">{t("All recruiters")}</option>
         {recruiters.map((r) => (
           <option key={r.id} value={r.id}>
             {r.name}
@@ -857,7 +924,7 @@ function PipelineFilters({
         value={filters.stage}
         onChange={(e) => onChange({ stage: e.target.value as CandidateStage | "" })}
       >
-        <option value="">All stages</option>
+        <option value="">{t("All stages")}</option>
         {CANDIDATE_STAGES.map((s) => (
           <option key={s} value={s}>
             {stageLabel(s)}

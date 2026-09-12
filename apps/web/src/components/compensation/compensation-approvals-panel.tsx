@@ -16,6 +16,7 @@ import {
 import { changeDelta } from "@/lib/compensation/calc";
 import type { ChangeRequest, CompActor } from "@/lib/compensation/types";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function CompensationApprovalsPanel({
   requests,
@@ -41,17 +42,15 @@ export function CompensationApprovalsPanel({
     <div className="space-y-4">
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Awaiting decision</CardTitle>
+          <CardTitle className="text-base">{t("Awaiting decision")}</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Approve, reject, or return with a documented reason. Approved changes become
-            date-effective on the compensation record.
-          </p>
+            {t("Approve, reject, or return with a documented reason. Approved changes become date-effective on the compensation record.")}</p>
         </CardHeader>
         <CardContent className="space-y-3">
           {pending.length === 0 ? (
             <CompEmptyState
-              title="Inbox is clear"
-              description="No salary change requests are waiting on HR."
+              title={t("Inbox is clear")}
+              description={t("No salary change requests are waiting on HR.")}
             />
           ) : (
             pending.map((r) => (
@@ -72,20 +71,20 @@ export function CompensationApprovalsPanel({
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Recent decisions</CardTitle>
+          <CardTitle className="text-base">{t("Recent decisions")}</CardTitle>
         </CardHeader>
         <CardContent className="overflow-x-auto px-0 pb-0">
           {others.length === 0 ? (
-            <p className="px-4 pb-4 text-sm text-muted-foreground">No decided requests yet.</p>
+            <p className="px-4 pb-4 text-sm text-muted-foreground">{t("No decided requests yet.")}</p>
           ) : (
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-2 font-medium">Employee</th>
-                  <th className="px-3 py-2 font-medium">Type</th>
-                  <th className="px-3 py-2 font-medium">Amount</th>
-                  <th className="px-3 py-2 font-medium">Status</th>
-                  <th className="px-4 py-2 font-medium">Decided</th>
+                  <th className="px-4 py-2 font-medium">{t("Employee")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Type")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Amount")}</th>
+                  <th className="px-3 py-2 font-medium">{t("Status")}</th>
+                  <th className="px-4 py-2 font-medium">{t("Decided")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,7 +174,7 @@ function RequestCard({
       ) : null}
       {request.reviewCycleName || request.kpiScore != null ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          {request.reviewCycleName ?? "No review cycle"}
+          {request.reviewCycleName ?? t("No review cycle")}
           {request.kpiScore != null ? ` · KPI ${request.kpiScore}` : ""}
         </p>
       ) : null}
@@ -183,29 +182,24 @@ function RequestCard({
         <div className="mt-3 space-y-2">
           <textarea
             className={TEXTAREA_CLASS}
-            placeholder="Decision note (required to reject or return)"
+            placeholder={t("Decision note (required to reject or return)")}
             value={note}
             onChange={(e) => setNote(e.target.value)}
           />
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => onApprove(request.id, note || "Approved")}>
-              Approve
-            </Button>
+            <Button size="sm" onClick={() => onApprove(request.id, note || t("Approved"))}>
+              {t("Approve")}</Button>
             <Button size="sm" variant="outline" onClick={() => onReturn(request.id, note)}>
-              Return for edits
-            </Button>
+              {t("Return for edits")}</Button>
             <Button size="sm" variant="destructive" onClick={() => onReject(request.id, note)}>
-              Reject
-            </Button>
+              {t("Reject")}</Button>
             <Button size="sm" variant="ghost" onClick={() => onSelect(request.id)}>
-              Details
-            </Button>
+              {t("Details")}</Button>
           </div>
         </div>
       ) : (
         <Button size="sm" variant="ghost" className="mt-3" onClick={() => onSelect(request.id)}>
-          View
-        </Button>
+          {t("View")}</Button>
       )}
     </div>
   );

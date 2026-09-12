@@ -31,7 +31,7 @@ module.exports = {
           foreground: "hsl(var(--destructive-foreground))",
         },
         card: {
-          DEFAULT: "hsl(var(--card))",
+          DEFAULT: "hsl(var(--card) / var(--card-alpha))",
           foreground: "hsl(var(--card-foreground))",
         },
       },
@@ -41,7 +41,12 @@ module.exports = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
+        sans: [
+          "var(--font-geist-sans)",
+          "var(--font-arabic)",
+          "system-ui",
+          "sans-serif",
+        ],
       },
     },
   },

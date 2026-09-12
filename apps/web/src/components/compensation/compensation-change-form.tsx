@@ -28,6 +28,7 @@ import {
   TEXTAREA_CLASS,
 } from "@/lib/compensation/format";
 import type { CompensationStore } from "@/lib/compensation/store";
+import { t } from "@/i18n";
 
 export function CompensationChangeForm({
   open,
@@ -111,11 +112,9 @@ export function CompensationChangeForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="max-w-lg">
         <SheetHeader>
-          <SheetTitle>Propose a salary change</SheetTitle>
+          <SheetTitle>{t("Propose a salary change")}</SheetTitle>
           <SheetDescription>
-            Changes are date-effective and go to HR for approval. They are not written to the live
-            record until approved.
-          </SheetDescription>
+            {t("Changes are date-effective and go to HR for approval. They are not written to the live record until approved.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-4">
           <Field label="Employee">
@@ -137,8 +136,8 @@ export function CompensationChangeForm({
           </Field>
           {profile ? (
             <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-muted-foreground">
-              Current {formatMoney(profile.record.baseAmount, profile.record.currency)} · KPI{" "}
-              {profile.employee.latestKpiScore ?? "—"} · Last appraisal{" "}
+              {t("Current")}{formatMoney(profile.record.baseAmount, profile.record.currency)} {t("· KPI")}{" "}
+              {profile.employee.latestKpiScore ?? "—"} {t("· Last appraisal")}{" "}
               {profile.employee.lastAppraisalResult ?? "—"}
             </p>
           ) : null}
@@ -175,7 +174,7 @@ export function CompensationChangeForm({
             <Input
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Short reason code explanation"
+              placeholder={t("Short reason code explanation")}
             />
           </Field>
           <Field label="Justification">
@@ -183,7 +182,7 @@ export function CompensationChangeForm({
               className={TEXTAREA_CLASS}
               value={justification}
               onChange={(e) => setJustification(e.target.value)}
-              placeholder="Context for the approver"
+              placeholder={t("Context for the approver")}
             />
           </Field>
           <label className="flex items-center gap-2 text-sm">
@@ -192,28 +191,25 @@ export function CompensationChangeForm({
               checked={linkPerf}
               onChange={(e) => setLinkPerf(e.target.checked)}
             />
-            Link to performance / review cycle
-          </label>
+            {t("Link to performance / review cycle")}</label>
           {linkPerf ? (
-            <Field label="Review cycle">
+            <Field label={t("Review cycle")}>
               <Input
                 value={reviewCycle}
                 onChange={(e) => setReviewCycle(e.target.value)}
-                placeholder="H1 2026 review"
+                placeholder={t("H1 2026 review")}
               />
             </Field>
           ) : null}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={asDraft} onChange={(e) => setAsDraft(e.target.checked)} />
-            Save as draft (do not submit yet)
-          </label>
+            {t("Save as draft (do not submit yet)")}</label>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={submit}>{asDraft ? "Save draft" : "Submit for approval"}</Button>
+            {t("Cancel")}</Button>
+          <Button onClick={submit}>{asDraft ? t("Save draft") : t("Submit for approval")}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

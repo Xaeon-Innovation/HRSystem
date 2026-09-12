@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { SELECT_CLASS } from "@/lib/hiring/format";
 import type { Candidate, EmployeeConvertDraft, HiringBranch } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function ConvertToEmployeeModal({
   candidate,
@@ -57,12 +58,11 @@ export function ConvertToEmployeeModal({
         <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
         <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] max-h-[min(90dvh,40rem)] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-card p-5 shadow-2xl">
           <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-            Convert to employee
-          </DialogPrimitive.Title>
+            {t("Convert to employee")}</DialogPrimitive.Title>
           <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
             {candidate
               ? `Prefill ${candidate.fullName} into the employee roster. Required HR fields that were not on the candidate file still need to be completed.`
-              : "Create an employee record from this hire."}
+              : t("Create an employee record from this hire.")}
           </DialogPrimitive.Description>
           {error ? (
             <p className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
@@ -91,7 +91,7 @@ export function ConvertToEmployeeModal({
                 value={form.branchId}
                 onChange={(e) => patch({ branchId: e.target.value })}
               >
-                <option value="">Unassigned</option>
+                <option value="">{t("Unassigned")}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name}
@@ -110,20 +110,17 @@ export function ConvertToEmployeeModal({
               />
             </Field>
             <div className="space-y-1 sm:col-span-2">
-              <Label>Address</Label>
+              <Label>{t("Address")}</Label>
               <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} />
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
-            Resume attachments stay on the candidate file. Link them from the employee profile after
-            the record exists.
-          </p>
+            {t("Resume attachments stay on the candidate file. Link them from the employee profile after the record exists.")}</p>
           <div className="mt-5 flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+              {t("Cancel")}</Button>
             <Button type="button" disabled={busy} onClick={() => void onConvert(form)}>
-              {busy ? "Creating…" : "Create employee"}
+              {busy ? t("Creating…") : t("Create employee")}
             </Button>
           </div>
         </DialogPrimitive.Content>

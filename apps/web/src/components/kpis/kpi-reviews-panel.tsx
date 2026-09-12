@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatPercent } from "@/lib/kpis/format";
 import type { ReviewsModel } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 const APPRAISAL: Record<ReviewsModel["appraisalStatus"], string> = {
   not_started: "Not started",
@@ -20,13 +21,12 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Reviews & actions</CardTitle>
+        <CardTitle className="text-base">{t("Reviews & actions")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          Appraisal progress, feedback, and the next action to take
-        </p>
+          {t("Appraisal progress, feedback, and the next action to take")}</p>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <Block title="Latest manager review">
+        <Block title={t("Latest manager review")}>
           {reviews.managerReview ? (
             <>
               <p className="text-sm font-medium">{reviews.managerReview.reviewer}</p>
@@ -34,38 +34,37 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
               <p className="mt-2 text-sm leading-relaxed">{reviews.managerReview.notes}</p>
             </>
           ) : (
-            <Empty text="No manager review notes in this period." />
+            <Empty text={t("No manager review notes in this period.")} />
           )}
         </Block>
-        <Block title="Self-assessment">
+        <Block title={t("Self-assessment")}>
           {reviews.selfAssessment ? (
             <p className="text-sm">{reviews.selfAssessment.notes}</p>
           ) : (
-            <Empty text="Self-assessment is not in this cycle yet." />
+            <Empty text={t("Self-assessment is not in this cycle yet.")} />
           )}
         </Block>
-        <Block title="Peer feedback">
+        <Block title={t("Peer feedback")}>
           {reviews.peerFeedback ? (
             <p className="text-sm">{reviews.peerFeedback.summary}</p>
           ) : (
-            <Empty text="No peer feedback summary available." />
+            <Empty text={t("No peer feedback summary available.")} />
           )}
         </Block>
-        <Block title="Appraisal status">
-          <p className="text-lg font-semibold">{APPRAISAL[reviews.appraisalStatus]}</p>
+        <Block title={t("Appraisal status")}>
+          <p className="text-lg font-semibold">{t(APPRAISAL[reviews.appraisalStatus])}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Next review {formatDate(reviews.nextReviewDate)}
+            {t("Next review")}{formatDate(reviews.nextReviewDate)}
           </p>
         </Block>
-        <Block title="Improvement plan">
-          <p className="text-lg font-semibold">{PIP[reviews.pipStatus]}</p>
+        <Block title={t("Improvement plan")}>
+          <p className="text-lg font-semibold">{t(PIP[reviews.pipStatus])}</p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Suggested when overall score is under 70.
-          </p>
+            {t("Suggested when overall score is under 70.")}</p>
         </Block>
-        <Block title="Training recommendations" className="md:col-span-2 xl:col-span-3">
+        <Block title={t("Training recommendations")} className="md:col-span-2 xl:col-span-3">
           {reviews.trainingRecommendations.length === 0 ? (
-            <Empty text="No training actions flagged from current gaps." />
+            <Empty text={t("No training actions flagged from current gaps.")} />
           ) : (
             <ul className="list-disc space-y-1 pl-4 text-sm">
               {reviews.trainingRecommendations.map((t) => (
@@ -74,14 +73,12 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
             </ul>
           )}
         </Block>
-        <Block title="Goal completion context">
+        <Block title={t("Goal completion context")}>
           <p className="text-sm text-muted-foreground">
-            Rating trend is visible in the charts above. Use the KPI table to evidence each score
-            before the next review date.
-          </p>
+            {t("Rating trend is visible in the charts above. Use the KPI table to evidence each score before the next review date.")}</p>
           {reviews.managerReview?.rating != null ? (
             <p className="mt-2 text-sm">
-              Latest linked rating {formatPercent(reviews.managerReview.rating, 0)}
+              {t("Latest linked rating")}{formatPercent(reviews.managerReview.rating, 0)}
             </p>
           ) : null}
         </Block>

@@ -16,6 +16,7 @@ import {
 import type { AlertCategory } from "@hr/shared";
 import type { AlertRule } from "@/lib/alerts/types";
 import { CATEGORY_ICON, UrgencyBadge } from "@/components/alerts/alert-badges";
+import { t } from "@/i18n";
 
 export function AlertsEventRules({
   rules,
@@ -56,10 +57,7 @@ export function AlertsEventRules({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Turn each lifecycle event on or off, then choose who gets it, how it is
-        delivered, and how urgent it is. Batch quieter events into a digest so
-        the inbox stays useful.
-      </p>
+        {t("Turn each lifecycle event on or off, then choose who gets it, how it is delivered, and how urgent it is. Batch quieter events into a digest so the inbox stays useful.")}</p>
       <div className="flex flex-col gap-3 lg:flex-row">
         <aside className="flex gap-1 overflow-x-auto lg:w-48 lg:flex-col lg:overflow-visible">
           <CategoryTab
@@ -90,7 +88,7 @@ export function AlertsEventRules({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search events"
+              placeholder={t("Search events")}
               className="pl-9"
             />
           </div>
@@ -158,7 +156,7 @@ export function AlertsEventRules({
             </section>
           ))}
           {visible.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No events match that search.</p>
+            <p className="text-sm text-muted-foreground">{t("No events match that search.")}</p>
           ) : null}
         </div>
       </div>

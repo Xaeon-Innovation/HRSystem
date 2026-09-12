@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { KpiStatusBadge } from "@/components/kpis/kpi-status-badge";
 import { formatKpiValue, formatPercent } from "@/lib/kpis/format";
 import type { ScoredKpi } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 export function KpiMetricList({
   items,
@@ -28,7 +29,7 @@ export function KpiMetricList({
     <div className="space-y-4">
       {needsWork.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">Needs a result or is off target</h2>
+          <h2 className="text-sm font-semibold">{t("Needs a result or is off target")}</h2>
           {needsWork.map((k) => (
             <MetricRow key={k.id} kpi={k} isAdmin={isAdmin} onOpen={onOpen} />
           ))}
@@ -36,7 +37,7 @@ export function KpiMetricList({
       ) : null}
       {ok.length > 0 ? (
         <section className="space-y-2">
-          <h2 className="text-sm font-semibold">On track</h2>
+          <h2 className="text-sm font-semibold">{t("On track")}</h2>
           {ok.map((k) => (
             <MetricRow key={k.id} kpi={k} isAdmin={isAdmin} onOpen={onOpen} />
           ))}
@@ -80,10 +81,10 @@ function MetricRow({
             ) : null}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            Goal {formatKpiValue(kpi.targetValue, kpi.unit)}
+            {t("Target")}{formatKpiValue(kpi.targetValue, kpi.unit)}
             {" · "}
-            Result {formatKpiValue(kpi.actualValue, kpi.unit)}
-            {pct != null ? ` · ${formatPercent(pct, 0)} of goal` : ""}
+            {t("Result")}{formatKpiValue(kpi.actualValue, kpi.unit)}
+            {pct != null ? ` · ${formatPercent(pct, 0)} of target` : ""}
           </p>
           <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-secondary">
             <div

@@ -28,6 +28,7 @@ import {
   getCatalogAlert,
 } from "@hr/shared";
 import { CategoryBadge, UrgencyBadge } from "@/components/alerts/alert-badges";
+import { t } from "@/i18n";
 
 export function AlertRuleSheet({
   rule,
@@ -73,19 +74,18 @@ export function AlertRuleSheet({
           </div>
           <div className="flex items-center justify-between rounded-lg border bg-secondary/40 px-3 py-2">
             <div>
-              <p className="text-sm font-medium">Enabled</p>
+              <p className="text-sm font-medium">{t("Enabled")}</p>
               <p className="text-xs text-muted-foreground">
-                Off events stay configured but never notify.
-              </p>
+                {t("Off events stay configured but never notify.")}</p>
             </div>
             <Switch
               checked={draft.enabled}
               onCheckedChange={(enabled) => setDraft({ ...draft, enabled })}
-              aria-label="Enable alert"
+              aria-label={t("Enable alert")}
             />
           </div>
           <fieldset className="space-y-2">
-            <Label>Urgency</Label>
+            <Label>{t("Urgency")}</Label>
             <div className="grid grid-cols-3 gap-2">
               {ALERT_URGENCIES.map((urgency) => (
                 <button
@@ -104,7 +104,7 @@ export function AlertRuleSheet({
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <Label>Recipients</Label>
+            <Label>{t("Recipients")}</Label>
             <div className="grid gap-2 sm:grid-cols-2">
               {ALERT_RECIPIENTS.map((recipient) => (
                 <label
@@ -127,7 +127,7 @@ export function AlertRuleSheet({
             </div>
           </fieldset>
           <fieldset className="space-y-2">
-            <Label>Channel</Label>
+            <Label>{t("Channel")}</Label>
             <div className="space-y-2">
               {ALERT_CHANNELS.map((channel) => (
                 <label
@@ -156,7 +156,7 @@ export function AlertRuleSheet({
             </div>
           </fieldset>
           <div className="space-y-2">
-            <Label htmlFor="alert-frequency">Frequency</Label>
+            <Label htmlFor="alert-frequency">{t("Frequency")}</Label>
             <select
               id="alert-frequency"
               className={SELECT_CLASS}
@@ -177,13 +177,13 @@ export function AlertRuleSheet({
             </select>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="alert-escalate">Escalate after (hours)</Label>
+            <Label htmlFor="alert-escalate">{t("Escalate after (hours)")}</Label>
             <Input
               id="alert-escalate"
               type="number"
               min={1}
               max={720}
-              placeholder="Leave empty for no escalation"
+              placeholder={t("Leave empty for no escalation")}
               value={draft.escalateAfterHours ?? ""}
               onChange={(e) =>
                 setDraft({
@@ -195,15 +195,12 @@ export function AlertRuleSheet({
               }
             />
             <p className="text-xs text-muted-foreground">
-              Remind the next recipient if nobody acts. Typical for pending
-              approvals and overdue reviews.
-            </p>
+              {t("Remind the next recipient if nobody acts. Typical for pending approvals and overdue reviews.")}</p>
           </div>
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button
             disabled={saving || draft.recipients.length === 0 || draft.channels.length === 0}
             onClick={() =>
@@ -217,7 +214,7 @@ export function AlertRuleSheet({
               })
             }
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Saving…") : t("Save")}
           </Button>
         </SheetFooter>
       </SheetContent>

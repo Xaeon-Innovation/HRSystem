@@ -22,6 +22,7 @@ import {
   type CandidateSource,
   type HiringActor,
 } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 function emptyDraft(store: HiringStore, actor: HiringActor): CandidateDraft {
   return {
@@ -143,10 +144,9 @@ export function CandidateForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="max-w-xl">
         <SheetHeader>
-          <SheetTitle>Add candidate</SheetTitle>
+          <SheetTitle>{t("Add candidate")}</SheetTitle>
           <SheetDescription>
-            Upload a PDF or Word CV to autofill. Review every field before you save.
-          </SheetDescription>
+            {t("Upload a PDF or Word CV to autofill. Review every field before you save.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-3">
           {error ? (
@@ -161,9 +161,9 @@ export function CandidateForm({
               disabled={parsing}
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
-            {parsing ? <p className="text-xs text-muted-foreground">Reading CV in the browser…</p> : null}
+            {parsing ? <p className="text-xs text-muted-foreground">{t("Reading CV in the browser…")}</p> : null}
             {form.resumeFileName ? (
-              <p className="text-xs text-muted-foreground">Attached: {form.resumeFileName}</p>
+              <p className="text-xs text-muted-foreground">{t("Attached:")}{form.resumeFileName}</p>
             ) : null}
           </Field>
           {warnings.length > 0 ? (
@@ -189,7 +189,7 @@ export function CandidateForm({
                 value={form.appliedJobId}
                 onChange={(e) => patch({ appliedJobId: e.target.value })}
               >
-                <option value="">Talent pool</option>
+                <option value="">{t("Talent pool")}</option>
                 {store.jobs(actor).map((j) => (
                   <option key={j.id} value={j.id}>
                     {j.title}
@@ -246,7 +246,7 @@ export function CandidateForm({
               <Input
                 value={form.resumeUrl.startsWith("blob:") ? "" : form.resumeUrl}
                 onChange={(e) => patch({ resumeUrl: e.target.value, parsedResume: form.parsedResume })}
-                placeholder="Optional link if you did not upload a file"
+                placeholder={t("Optional link if you did not upload a file")}
               />
             </Field>
             <Field label="Cover letter URL">
@@ -259,10 +259,9 @@ export function CandidateForm({
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button type="button" disabled={busy || parsing} onClick={submit}>
-            {busy ? "Saving…" : "Add candidate"}
+            {busy ? t("Saving…") : t("Add candidate")}
           </Button>
         </SheetFooter>
       </SheetContent>

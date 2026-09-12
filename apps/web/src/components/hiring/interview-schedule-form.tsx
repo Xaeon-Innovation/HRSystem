@@ -28,6 +28,7 @@ import {
   type InterviewMode,
   type InterviewType,
 } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 function localInputValue(iso?: string) {
   if (!iso) return "";
@@ -86,8 +87,8 @@ export function InterviewScheduleForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Schedule interview</SheetTitle>
-          <SheetDescription>Tied to the candidate’s current stage. Sending is logged, not emailed yet.</SheetDescription>
+          <SheetTitle>{t("Schedule interview")}</SheetTitle>
+          <SheetDescription>{t("Tied to the candidate’s current stage. Sending is logged, not emailed yet.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-3">
           {error ? (
@@ -179,11 +180,11 @@ export function InterviewScheduleForm({
             </div>
           </Field>
           {form.mode === "online" ? (
-            <Field label="Meeting link">
+            <Field label={t("Meeting link")}>
               <Input value={form.meetingLink} onChange={(e) => patch({ meetingLink: e.target.value })} />
             </Field>
           ) : (
-            <Field label="Location">
+            <Field label={t("Location")}>
               <Input value={form.location} onChange={(e) => patch({ location: e.target.value })} />
             </Field>
           )}
@@ -193,11 +194,9 @@ export function InterviewScheduleForm({
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button type="button" onClick={submit}>
-            Schedule
-          </Button>
+            {t("Schedule")}</Button>
         </SheetFooter>
       </SheetContent>
     </Sheet>

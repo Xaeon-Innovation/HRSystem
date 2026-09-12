@@ -12,6 +12,7 @@ import { AGING_STAGE_DAYS, STUCK_STAGE_DAYS } from "@/lib/hiring/workflow";
 import { FitScoreBadge } from "@/components/hiring/fit-score-badge";
 import type { FitScoreResult } from "@/lib/hiring/fit-score";
 import { CANDIDATE_STAGES, type Candidate, type CandidateStage } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function CandidatePipelineBoard({
   candidates,
@@ -71,8 +72,7 @@ export function CandidatePipelineBoard({
               <div className="flex min-h-[12rem] flex-col gap-2 p-2">
                 {col.length === 0 ? (
                   <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-                    Drop a candidate here
-                  </p>
+                    {t("Drop a candidate here")}</p>
                 ) : (
                   col.map((c) => {
                     const days = daysInStageNow(currentStageEnteredAt(c));
@@ -148,8 +148,7 @@ export function CandidatePipelineBoard({
                                     : "text-muted-foreground",
                               )}
                             >
-                              {formatDays(days)} in stage
-                              {c.rating ? ` · ${c.rating}/5` : ""}
+                              {formatDays(days)} {t("in stage")}{c.rating ? ` · ${c.rating}/5` : ""}
                             </p>
                           </button>
                         </div>
@@ -159,12 +158,11 @@ export function CandidatePipelineBoard({
                             className="mt-2 text-[11px] font-medium text-primary hover:underline"
                             onClick={() => onSaveBestFit(c.id)}
                           >
-                            Save as best fit
-                          </button>
+                            {t("Save as best fit")}</button>
                         ) : null}
                         {canMove ? (
                           <label className="mt-2 block">
-                            <span className="sr-only">Move {c.fullName} to stage</span>
+                            <span className="sr-only">{t("Move")}{c.fullName} {t("to stage")}</span>
                             <select
                               className="h-7 w-full rounded-md border border-input bg-background px-1.5 text-[11px]"
                               value={c.currentStage}
@@ -190,15 +188,14 @@ export function CandidatePipelineBoard({
       {candidates.length === 0 ? (
         <div className="mt-3">
           <HiringEmptyState
-            title="No candidates in this view"
-            description="Add a candidate or clear filters to see the pipeline."
+            title={t("No candidates in this view")}
+            description={t("Add a candidate or clear filters to see the pipeline.")}
           />
         </div>
       ) : null}
       {canMove ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Drag cards between columns, or use the stage menu on each card for keyboard access.
-        </p>
+          {t("Drag cards between columns, or use the stage menu on each card for keyboard access.")}</p>
       ) : null}
     </div>
   );

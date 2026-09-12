@@ -4,6 +4,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export const Sheet = DialogPrimitive.Root;
 export const SheetTrigger = DialogPrimitive.Trigger;
@@ -16,7 +17,7 @@ export const SheetOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-foreground/20 backdrop-blur-[2px]", className)}
+    className={cn("fixed inset-0 z-50 bg-foreground/20 backdrop-blur-md", className)}
     {...props}
   />
 ));
@@ -31,7 +32,7 @@ export const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed inset-y-0 right-0 z-50 flex h-dvh w-full max-w-lg flex-col border-l bg-card shadow-2xl",
+        "fixed inset-y-0 right-0 z-50 flex h-dvh w-full max-w-lg flex-col border-l border-white/40 bg-card shadow-2xl backdrop-blur-2xl dark:border-white/10",
         className,
       )}
       {...props}
@@ -39,7 +40,7 @@ export const SheetContent = React.forwardRef<
       {children}
       <DialogPrimitive.Close className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
         <X className="h-4 w-4" />
-        <span className="sr-only">Close</span>
+        <span className="sr-only">{t("Close")}</span>
       </DialogPrimitive.Close>
     </DialogPrimitive.Content>
   </SheetPortal>

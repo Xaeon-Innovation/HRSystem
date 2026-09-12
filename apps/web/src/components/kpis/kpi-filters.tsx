@@ -9,6 +9,7 @@ import { SELECT_CLASS } from "@/lib/kpis/format";
 import { REVIEW_CYCLES, type BranchOption, type EmployeeOption, type KpiFilters } from "@/lib/kpis/types";
 import { ROLE_TEMPLATES, departmentForRole, inferRoleTemplate } from "@/lib/kpis/templates";
 import { cn } from "@/lib/utils";
+import { t } from "@/i18n";
 
 export function KpiFiltersBar({
   filters,
@@ -18,6 +19,7 @@ export function KpiFiltersBar({
   isAdmin,
   onExport,
   onEditTemplate,
+  hideHeader = false,
 }: {
   filters: KpiFilters;
   onChange: (patch: Partial<KpiFilters>) => void;
@@ -26,6 +28,7 @@ export function KpiFiltersBar({
   isAdmin: boolean;
   onExport: () => void;
   onEditTemplate: () => void;
+  hideHeader?: boolean;
 }) {
   const [more, setMore] = useState(false);
   const departments = [
@@ -43,27 +46,24 @@ export function KpiFiltersBar({
 
   return (
     <div className="space-y-3">
+      {!hideHeader ? (
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
-          <h1 className="text-2xl font-semibold tracking-tight">Performance</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("Performance")}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Each metric has a <span className="font-medium text-foreground">target</span>.
-            A manager enters the <span className="font-medium text-foreground">result</span>.
-            The score is how close that result is to the target.
-          </p>
+            {t("Each metric has a")}<span className="font-medium text-foreground">{t("target")}</span>{t(". A manager enters the")}<span className="font-medium text-foreground">{t("result")}</span>{t(". The score is how close that result is to the target.")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onExport}>
             <Download className="h-4 w-4" />
-            Export
-          </Button>
+            {t("Export")}</Button>
           {isAdmin ? (
             <Button size="sm" onClick={onEditTemplate}>
-              Set up KPIs
-            </Button>
+              {t("Set up KPIs")}</Button>
           ) : null}
         </div>
       </div>
+      ) : null}
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
         <FilterField label={isAdmin ? "Whose performance" : "Viewing"}>
@@ -73,7 +73,7 @@ export function KpiFiltersBar({
             onChange={(e) => onChange({ employeeId: e.target.value })}
             disabled={!isAdmin}
           >
-            <option value="">{isAdmin ? "Everyone" : "Me"}</option>
+            <option value="">{isAdmin ? t("Everyone") : t("Me")}</option>
             {employees.map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}
@@ -92,10 +92,10 @@ export function KpiFiltersBar({
             {REVIEW_CYCLES.map((c) => (
               <option key={c} value={c}>
                 {c === "monthly"
-                  ? "This month"
+                  ? t("This month")
                   : c === "quarterly"
-                    ? "This quarter"
-                    : "This year"}
+                    ? t("This quarter")
+                    : t("This year")}
               </option>
             ))}
           </select>
@@ -108,14 +108,13 @@ export function KpiFiltersBar({
           onClick={() => setMore((v) => !v)}
         >
           <SlidersHorizontal className="h-4 w-4" />
-          More filters
-          <ChevronDown className={cn("h-4 w-4 transition", more ? "rotate-180" : "")} />
+          {t("More filters")}<ChevronDown className={cn("h-4 w-4 transition", more ? "rotate-180" : "")} />
         </Button>
       </div>
 
       {more ? (
         <div className="grid grid-cols-2 gap-2 rounded-xl border bg-card p-3 md:grid-cols-4">
-          <FilterField label="Job type">
+          <FilterField label={t("Job type")}>
             <select
               className={SELECT_CLASS}
               value={filters.role}
@@ -123,21 +122,21 @@ export function KpiFiltersBar({
                 onChange({ role: e.target.value as KpiFilters["role"] })
               }
             >
-              <option value="">All jobs</option>
-              {ROLE_TEMPLATES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
+              <option value="">{t("All jobs")}</option>
+              {ROLE_TEMPLATES.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {t(tpl.label)}
                 </option>
               ))}
             </select>
           </FilterField>
-          <FilterField label="Department">
+          <FilterField label={t("Department")}>
             <select
               className={SELECT_CLASS}
               value={filters.department}
               onChange={(e) => onChange({ department: e.target.value })}
             >
-              <option value="">All departments</option>
+              <option value="">{t("All departments")}</option>
               {departments.map((d) => (
                 <option key={d} value={d}>
                   {d}
@@ -145,13 +144,13 @@ export function KpiFiltersBar({
               ))}
             </select>
           </FilterField>
-          <FilterField label="Location">
+          <FilterField label={t("Location")}>
             <select
               className={SELECT_CLASS}
               value={filters.branchId}
               onChange={(e) => onChange({ branchId: e.target.value })}
             >
-              <option value="">All locations</option>
+              <option value="">{t("All locations")}</option>
               {branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

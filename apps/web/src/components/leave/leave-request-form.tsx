@@ -17,10 +17,32 @@ import { formatDays, SELECT_CLASS, TEXTAREA_CLASS } from "@/lib/leave/format";
 import { hasBlockingConflicts } from "@/lib/leave/conflicts";
 import { cn } from "@/lib/utils";
 import type { LeaveStore } from "@/lib/leave/store";
-import type { LeaveActor, LeaveRequest, LeaveRequestDraft, LeaveType } from "@/lib/leave/types";
+import type {
+  LeaveActor,
+  LeaveAttachment,
+  LeaveRequest,
+  LeaveRequestDraft,
+  LeaveType,
+} from "@/lib/leave/types";
 import { PARTIAL_DAY_TYPES, type PartialDayType } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 type FormState = Omit<LeaveRequestDraft, "asDraft">;
+
+const MAX_ATTACHMENT_BYTES = Math.floor(1.5 * 1024 * 1024);
+const MAX_ATTACHMENTS = 3;
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("Could not read file"));
+    };
+    reader.onerror = () => reject(new Error(`Could not read ${file.name}`));
+    reader.readAsDataURL(file);
+  });
+}
 
 export function LeaveRequestForm({
   open,
@@ -68,16 +90,59 @@ export function LeaveRequestForm({
       form.customHours,
       form.urgency,
       form.attachmentName,
+      form.attachments,
       store,
     ],
   );
 
   const days = preview?.days ?? 0;
   const effectiveDays = form.requestedDays ?? days;
+  const attachments = form.attachments ?? [];
 
   function patch(p: Partial<FormState>) {
     setForm((prev) => ({ ...prev, ...p }));
     setError(null);
+  }
+
+  async function onPickFiles(fileList: FileList | null) {
+    if (!fileList?.length) return;
+    const room = MAX_ATTACHMENTS - attachments.length;
+    if (room <= 0) {
+      setError(`You can attach up to ${MAX_ATTACHMENTS} files.`);
+      return;
+    }
+    const picked = Array.from(fileList).slice(0, room);
+    const next: LeaveAttachment[] = [...attachments];
+    for (const file of picked) {
+      if (file.size > MAX_ATTACHMENT_BYTES) {
+        setError(`“${file.name}” is larger than 1.5MB.`);
+        continue;
+      }
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        next.push({
+          id: `att-${crypto.randomUUID()}`,
+          name: file.name,
+          mime: file.type || "application/octet-stream",
+          size: file.size,
+          dataUrl,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not read file.");
+      }
+    }
+    patch({
+      attachments: next,
+      attachmentName: next[0]?.name ?? null,
+    });
+  }
+
+  function removeAttachment(id: string) {
+    const next = attachments.filter((a) => a.id !== id);
+    patch({
+      attachments: next,
+      attachmentName: next[0]?.name ?? null,
+    });
   }
 
   function submit(asDraft: boolean) {
@@ -92,6 +157,8 @@ export function LeaveRequestForm({
       ...form,
       employeeId: isAdmin ? form.employeeId : actor.employeeId ?? form.employeeId,
       requestedDays: effectiveDays,
+      attachments,
+      attachmentName: attachments[0]?.name ?? form.attachmentName,
       asDraft,
     };
     void (async () => {
@@ -119,14 +186,13 @@ export function LeaveRequestForm({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="max-w-xl">
         <SheetHeader>
-          <SheetTitle>{editing ? "Edit leave request" : "New leave request"}</SheetTitle>
+          <SheetTitle>{editing ? t("Edit leave request") : t("New leave request")}</SheetTitle>
           <SheetDescription>
-            Dates, days, and remaining balance are checked before anything is sent for approval.
-          </SheetDescription>
+            {t("Dates, days, and remaining balance are checked before anything is sent for approval.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-4">
           {isAdmin ? (
-            <Field label="Employee">
+            <Field label={t("Employee")}>
               <select
                 className={SELECT_CLASS}
                 value={form.employeeId}
@@ -147,10 +213,10 @@ export function LeaveRequestForm({
               value={form.leaveTypeId}
               onChange={(e) => patch({ leaveTypeId: e.target.value })}
             >
-              {types.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                  {t.paid ? "" : " (unpaid)"}
+              {types.map((lt) => (
+                <option key={lt.id} value={lt.id}>
+                  {lt.name}
+                  {lt.paid ? "" : t(" (unpaid)")}
                 </option>
               ))}
             </select>
@@ -204,12 +270,12 @@ export function LeaveRequestForm({
                 {PARTIAL_DAY_TYPES.map((p) => (
                   <option key={p} value={p}>
                     {p === "full"
-                      ? "Full day"
+                      ? t("Full day")
                       : p === "first_half"
-                        ? "Morning half-day"
+                        ? t("Morning half-day")
                         : p === "second_half"
-                          ? "Afternoon half-day"
-                          : "Custom hours"}
+                          ? t("Afternoon half-day")
+                          : t("Custom hours")}
                   </option>
                 ))}
               </select>
@@ -217,7 +283,7 @@ export function LeaveRequestForm({
           </div>
 
           {form.partialDayType === "custom_hours" ? (
-            <Field label="Hours">
+            <Field label={t("Hours")}>
               <Input
                 type="number"
                 min={1}
@@ -230,7 +296,7 @@ export function LeaveRequestForm({
           ) : null}
 
           <fieldset className="space-y-2">
-            <legend className="text-xs text-muted-foreground">Urgency</legend>
+            <legend className="text-xs text-muted-foreground">{t("Urgency")}</legend>
             <div className="flex gap-2">
               {(["planned", "emergency"] as const).map((u) => (
                 <button
@@ -244,7 +310,7 @@ export function LeaveRequestForm({
                       : "bg-card text-muted-foreground ring-border hover:bg-secondary",
                   )}
                 >
-                  {u === "planned" ? "Planned" : "Emergency"}
+                  {u === "planned" ? t("Planned") : t("Emergency")}
                 </button>
               ))}
             </div>
@@ -255,7 +321,7 @@ export function LeaveRequestForm({
               className={TEXTAREA_CLASS}
               value={form.reason}
               onChange={(e) => patch({ reason: e.target.value })}
-              placeholder="Why you need this time off"
+              placeholder={t("Why you need this time off")}
             />
           </Field>
 
@@ -264,7 +330,7 @@ export function LeaveRequestForm({
               className={TEXTAREA_CLASS}
               value={form.handoverNotes}
               onChange={(e) => patch({ handoverNotes: e.target.value })}
-              placeholder="Who covers your work, and what they need"
+              placeholder={t("Who covers your work, and what they need")}
             />
           </Field>
 
@@ -274,7 +340,7 @@ export function LeaveRequestForm({
               value={form.coverageEmployeeId ?? ""}
               onChange={(e) => patch({ coverageEmployeeId: e.target.value || null })}
             >
-              <option value="">None selected</option>
+              <option value="">{t("None selected")}</option>
               {employees
                 .filter((e) => e.id !== form.employeeId)
                 .map((e) => (
@@ -285,22 +351,43 @@ export function LeaveRequestForm({
             </select>
           </Field>
 
-          <Field label={leaveType?.attachmentRequired ? "Attachment (required)" : "Attachment (optional)"}>
+          <Field label={leaveType?.attachmentRequired ? "Attachments (required)" : "Attachments (optional)"}>
             <Input
               type="file"
-              onChange={(e) => patch({ attachmentName: e.target.files?.[0]?.name ?? null })}
+              multiple
+              disabled={attachments.length >= MAX_ATTACHMENTS}
+              onChange={(e) => {
+                void onPickFiles(e.target.files);
+                e.target.value = "";
+              }}
             />
-            {form.attachmentName ? (
-              <p className="mt-1 text-xs text-muted-foreground">{form.attachmentName}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("Up to")}{MAX_ATTACHMENTS} {t("files, 1.5MB each.")}</p>
+            {attachments.length > 0 ? (
+              <ul className="mt-2 space-y-1">
+                {attachments.map((a) => (
+                  <li
+                    key={a.id}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs"
+                  >
+                    <span className="min-w-0 truncate">{a.name}</span>
+                    <button
+                      type="button"
+                      className="shrink-0 text-destructive underline"
+                      onClick={() => removeAttachment(a.id)}
+                    >
+                      {t("Remove")}</button>
+                  </li>
+                ))}
+              </ul>
             ) : null}
           </Field>
 
           {preview?.balance && leaveType?.tracksBalance ? (
             <div className="rounded-lg border bg-secondary/40 px-3 py-2 text-sm">
-              <p className="font-medium">Balance before you submit</p>
+              <p className="font-medium">{t("Balance before you submit")}</p>
               <p className="mt-1 tabular-nums text-muted-foreground">
-                Remaining {formatDays(preview.balance.remaining)} · pending {formatDays(preview.balance.pending)} ·
-                available {formatDays(preview.available)} · this request {formatDays(effectiveDays)}
+                {t("Remaining")}{formatDays(preview.balance.remaining)} {t("· pending")}{formatDays(preview.balance.pending)} {t("· available")}{formatDays(preview.available)} {t("· this request")}{formatDays(effectiveDays)}
               </p>
             </div>
           ) : null}
@@ -310,10 +397,9 @@ export function LeaveRequestForm({
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button type="button" variant="outline" disabled={saving || busy} onClick={() => submit(true)}>
-              Save draft
-            </Button>
+              {t("Save draft")}</Button>
             <Button type="button" disabled={saving || busy || blocked} onClick={() => submit(false)}>
-              {leaveType && !leaveType.approvalRequired ? "Submit" : "Submit for approval"}
+              {leaveType && !leaveType.approvalRequired ? t("Submit") : t("Submit for approval")}
             </Button>
           </div>
         </SheetBody>
@@ -337,6 +423,7 @@ function initialForm(
   editing?: LeaveRequest | null,
 ): FormState {
   if (editing) {
+    const attachments = editing.attachments ?? [];
     return {
       employeeId: editing.employeeId,
       leaveTypeId: editing.leaveTypeId,
@@ -349,7 +436,8 @@ function initialForm(
       reason: editing.reason,
       handoverNotes: editing.handoverNotes,
       coverageEmployeeId: editing.coverageEmployeeId,
-      attachmentName: editing.attachmentName,
+      attachmentName: attachments[0]?.name ?? editing.attachmentName,
+      attachments,
     };
   }
   return {
@@ -365,5 +453,6 @@ function initialForm(
     handoverNotes: "",
     coverageEmployeeId: null,
     attachmentName: null,
+    attachments: [],
   };
 }

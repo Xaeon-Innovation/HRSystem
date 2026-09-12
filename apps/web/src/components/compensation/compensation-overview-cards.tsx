@@ -11,6 +11,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { formatMoney } from "@/lib/compensation/format";
 import type { OverviewSummary } from "@/lib/compensation/types";
+import { t } from "@/i18n";
 
 export function CompensationOverviewCards({ summary }: { summary: OverviewSummary }) {
   const cutoffHint =
@@ -22,49 +23,49 @@ export function CompensationOverviewCards({ summary }: { summary: OverviewSummar
 
   const cards = [
     {
-      label: "Monthly salary liability",
+      label: t("Monthly salary liability"),
       value: formatMoney(summary.monthlyLiability, summary.currency, { compact: true }),
       hint: `${summary.employeeCount} people in scope`,
       icon: CircleDollarSign,
     },
     {
-      label: "Bonuses this cycle",
+      label: t("Bonuses this cycle"),
       value: formatMoney(summary.bonusesThisCycle, summary.currency, { compact: true }),
       hint: `${formatMoney(summary.commissionsThisCycle, summary.currency, { compact: true })} commissions`,
       icon: Banknote,
     },
     {
-      label: "Pending approvals",
+      label: t("Pending approvals"),
       value: String(summary.pendingApprovals),
-      hint: "Salary and payout requests",
+      hint: t("Salary and payout requests"),
       icon: GitPullRequest,
     },
     {
-      label: "Recent salary changes",
+      label: t("Recent salary changes"),
       value: String(summary.recentChangeCount),
-      hint: "Last 90 days",
+      hint: t("Last 90 days"),
       icon: Users,
     },
     {
-      label: "Outside salary band",
+      label: t("Outside salary band"),
       value: String(summary.outOfBandCount),
-      hint: "Below min or above max",
+      hint: t("Below min or above max"),
       icon: AlertTriangle,
     },
     {
-      label: "Payroll cutoff",
+      label: t("Payroll cutoff"),
       value: cutoffHint,
       hint: summary.upcomingCutoff,
       icon: CalendarClock,
     },
     {
-      label: "Deductions this cycle",
+      label: t("Deductions this cycle"),
       value: formatMoney(summary.deductionsThisCycle, summary.currency, { compact: true }),
-      hint: "Recurring deduction lines",
+      hint: t("Recurring deduction lines"),
       icon: TrendingDown,
     },
     {
-      label: "Avg by department",
+      label: t("Avg by department"),
       value: summary.avgByDepartment[0]
         ? formatMoney(summary.avgByDepartment[0].average, summary.currency, { compact: true })
         : "—",

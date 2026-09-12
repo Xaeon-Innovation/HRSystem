@@ -15,6 +15,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useState } from "react";
+import { t } from "@/i18n";
 
 export function OfferDetailDrawer({
   offer,
@@ -53,10 +54,10 @@ export function OfferDetailDrawer({
             <SheetBody className="space-y-4">
               <OfferStatusBadge status={offer.status} />
               <dl className="grid grid-cols-2 gap-3 text-sm">
-                <Fact label="Offer date" value={formatDate(offer.offerDate)} />
-                <Fact label="Expiry" value={formatDate(offer.expiryDate)} />
-                <Fact label="Join date" value={formatDate(offer.expectedJoinDate)} />
-                <Fact label="Approved by" value={offer.approvedByName ?? "—"} />
+                <Fact label={t("Offer date")} value={formatDate(offer.offerDate)} />
+                <Fact label={t("Expiry")} value={formatDate(offer.expiryDate)} />
+                <Fact label={t("Join date")} value={formatDate(offer.expectedJoinDate)} />
+                <Fact label={t("Approved by")} value={offer.approvedByName ?? "—"} />
               </dl>
               {offer.benefitsNotes ? (
                 <p className="text-sm">{offer.benefitsNotes}</p>
@@ -65,44 +66,39 @@ export function OfferDetailDrawer({
                 <p className="rounded-lg bg-secondary/70 px-3 py-2 text-sm">{offer.notes}</p>
               ) : null}
               {offer.negotiationNotes ? (
-                <p className="text-sm text-muted-foreground">Negotiation: {offer.negotiationNotes}</p>
+                <p className="text-sm text-muted-foreground">{t("Negotiation:")}{offer.negotiationNotes}</p>
               ) : null}
               {canManage && (offer.status === "sent" || offer.status === "draft") ? (
                 <textarea
                   className={TEXTAREA_CLASS}
-                  placeholder="Negotiation notes"
+                  placeholder={t("Negotiation notes")}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               ) : null}
               <Button variant="ghost" size="sm" onClick={() => onOpenCandidate(offer.candidateId)}>
-                Open candidate
-              </Button>
+                {t("Open candidate")}</Button>
             </SheetBody>
             {canManage ? (
               <SheetFooter className="flex-wrap">
                 {offer.status === "draft" ? (
                   <Button size="sm" variant="outline" onClick={() => onSend(offer.id)}>
-                    Mark sent
-                  </Button>
+                    {t("Mark sent")}</Button>
                 ) : null}
                 {offer.status === "pending_approval" ? (
                   <Button size="sm" onClick={() => onApprove(offer.id)}>
-                    Approve & send
-                  </Button>
+                    {t("Approve & send")}</Button>
                 ) : null}
                 {offer.status === "sent" || offer.status === "draft" ? (
                   <>
                     <Button size="sm" onClick={() => onAccept(offer.id)}>
-                      Mark accepted
-                    </Button>
+                      {t("Mark accepted")}</Button>
                     <Button
                       size="sm"
                       variant="destructive"
                       onClick={() => onReject(offer.id, notes)}
                     >
-                      Mark declined
-                    </Button>
+                      {t("Mark declined")}</Button>
                   </>
                 ) : null}
               </SheetFooter>

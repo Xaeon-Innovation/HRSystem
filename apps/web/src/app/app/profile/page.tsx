@@ -11,7 +11,10 @@ import { prepareAvatarDataUrl } from "@/lib/avatar-image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Camera } from "lucide-react";
+import { t } from "@/i18n";
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
@@ -41,7 +44,7 @@ export default function ProfilePage() {
     e.target.value = "";
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      setError("Choose a photo under 12 MB.");
+      setError(t("Choose a photo under 12 MB."));
       setMessage(null);
       return;
     }
@@ -55,9 +58,9 @@ export default function ProfilePage() {
         body: JSON.stringify({ imageBase64 }),
       });
       applyUser(res.user);
-      setMessage("Profile photo updated.");
+      setMessage(t("Profile photo updated."));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not upload photo");
+      setError(err instanceof Error ? err.message : t("Could not upload photo"));
     } finally {
       setBusy(false);
     }
@@ -72,29 +75,28 @@ export default function ProfilePage() {
         method: "DELETE",
       });
       applyUser(res.user);
-      setMessage("Profile photo removed.");
+      setMessage(t("Profile photo removed."));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not remove photo");
+      setError(err instanceof Error ? err.message : t("Could not remove photo"));
     } finally {
       setBusy(false);
     }
   }
 
   if (!user) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <PageSkeleton dense />;
   }
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Profile")}</h1>
         <p className="text-sm text-muted-foreground">
-          Add a photo so teammates can recognize you on the roster and map.
-        </p>
+          {t("Add a photo so teammates can recognize you on the roster and map.")}</p>
       </div>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Your photo</CardTitle>
+          <CardTitle className="text-base">{t("Your photo")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
@@ -103,7 +105,7 @@ export default function ProfilePage() {
               className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              aria-label="Change profile photo"
+              aria-label={t("Change profile photo")}
             >
               <UserAvatar
                 name={user.name}
@@ -120,7 +122,7 @@ export default function ProfilePage() {
                 {user.email}
               </p>
               <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {ROLE_LABEL[user.role]}
+                {t(ROLE_LABEL[user.role])}
               </p>
             </div>
           </div>
@@ -137,7 +139,7 @@ export default function ProfilePage() {
               disabled={busy}
               onClick={() => inputRef.current?.click()}
             >
-              {busy ? "Saving…" : user.avatarUrl ? "Change photo" : "Upload photo"}
+              {busy ? t("Saving…") : user.avatarUrl ? t("Change photo") : t("Upload photo")}
             </Button>
             {user.avatarUrl ? (
               <Button
@@ -146,17 +148,29 @@ export default function ProfilePage() {
                 disabled={busy}
                 onClick={() => void removePhoto()}
               >
-                Remove
-              </Button>
+                {t("Remove")}</Button>
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            JPEG, PNG, WebP, or GIF — photos are resized automatically
-          </p>
+            {t("JPEG, PNG, WebP, or GIF — photos are resized automatically")}</p>
           {message ? (
-            <p className="text-sm text-teal-800">{message}</p>
+            <p className="text-sm text-teal-800">{t(message)}</p>
           ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-destructive">{t(error)}</p> : null}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{t("Language")}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            {t(
+              "Arabic uses the same layout as English — only the words change.",
+            )}
+          </p>
+          <LanguageToggle className="w-full sm:w-auto" />
         </CardContent>
       </Card>
     </div>

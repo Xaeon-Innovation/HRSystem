@@ -9,6 +9,7 @@ import {
   integrationRawEvents,
   locationPings,
   tenants,
+  users,
 } from "@hr/db";
 import { createNotification } from "./services/notifications.js";
 import {
@@ -24,6 +25,7 @@ import {
 import { refreshAllTenantMetrics } from "./analytics/metrics.js";
 import { detectAnomalies, detectStaleSyncs } from "./analytics/alerts.js";
 import { reconcileAll } from "./analytics/reconcile.js";
+import { runLeaveJobsForAllTenants } from "./services/leave.js";
 
 export function startJobs(app: FastifyInstance) {
   const hourMs = 60 * 60 * 1000;
@@ -138,6 +140,33 @@ export function startJobs(app: FastifyInstance) {
               title: "Missed clock-out",
               body: "You appear to still be clocked in past the expected shift length.",
             });
+            if (emp.managerId) {
+              const manager = await app.db.query.employees.findFirst({
+                where: and(
+                  eq(employees.id, emp.managerId),
+                  eq(employees.tenantId, tenant.id),
+                ),
+                columns: { userId: true },
+              });
+              if (manager?.userId && manager.userId !== emp.userId) {
+                const empUser = await app.db.query.users.findFirst({
+                  where: eq(users.id, emp.userId),
+                  columns: { name: true },
+                });
+                const who = empUser?.name?.trim() || "A direct report";
+                await createNotification(app, {
+                  tenantId: tenant.id,
+                  userId: manager.userId,
+                  type: "missed_clock_out",
+                  title: "Team missed clock-out",
+                  body: `${who} appears still clocked in past the expected shift length.`,
+                  metadata: {
+                    employeeId: emp.id,
+                    attendanceId: rec.id,
+                  },
+                });
+              }
+            }
           }
         }
       }
@@ -200,11 +229,26 @@ export function startJobs(app: FastifyInstance) {
     }
   };
 
+  const leaveMaintenance = async () => {
+    try {
+      const hour = new Date().getHours();
+      // Accrual: daily-ish — prefer 02:00, also every 6 hours as a catch-up.
+      const runAccrual = hour === 2 || hour % 6 === 0;
+      // Reminders: same cadence; once-per-day dedupe lives in runLeaveReminders.
+      const runReminders = runAccrual || hour === 9;
+      if (!runAccrual && !runReminders) return;
+      await runLeaveJobsForAllTenants(app, { runAccrual, runReminders });
+    } catch (err) {
+      app.log.error(err, "leave maintenance job failed");
+    }
+  };
+
   setTimeout(() => {
     void retention();
     void missedClockOuts();
     void drainRaw();
     void operational();
+    void leaveMaintenance();
   }, 5_000);
 
   setInterval(() => {
@@ -221,6 +265,10 @@ export function startJobs(app: FastifyInstance) {
 
   setInterval(() => {
     void missedClockOuts();
+  }, hourMs);
+
+  setInterval(() => {
+    void leaveMaintenance();
   }, hourMs);
 
   setInterval(() => {

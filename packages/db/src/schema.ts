@@ -1,4 +1,5 @@
 import {
+  type AnyPgColumn,
   boolean,
   date,
   doublePrecision,
@@ -260,6 +261,7 @@ export type MapAppearanceSettings = {
 export type TenantSettings = {
   brandingName?: string;
   logoUrl?: string | null;
+  brandPreset?: "neutral" | "teal" | "forest" | "slate";
   timezone?: string;
   pingIntervalSec?: number;
   locationRetentionDays?: number;
@@ -328,6 +330,8 @@ export const tenants = pgTable(
     slug: text("slug").notNull(),
     status: tenantStatusEnum("status").notNull().default("active"),
     settings: jsonb("settings").$type<TenantSettings>().notNull().default({}),
+    logoMime: text("logo_mime"),
+    logoBytes: text("logo_bytes"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -433,6 +437,10 @@ export const employees = pgTable(
       onDelete: "set null",
     }),
     siteId: uuid("site_id").references(() => sites.id, {
+      onDelete: "set null",
+    }),
+    /** Direct manager (same tenant). Null = unassigned. */
+    managerId: uuid("manager_id").references((): AnyPgColumn => employees.id, {
       onDelete: "set null",
     }),
     phone: text("phone"),
@@ -678,6 +686,11 @@ export const kpiScores = pgTable(
     reviewerUserId: uuid("reviewer_user_id")
       .notNull()
       .references(() => users.id),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    acknowledgedByUserId: uuid("acknowledged_by_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1621,6 +1634,36 @@ export const leaveStates = pgTable("leave_states", {
     }>()
     .notNull()
     .default({}),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** Tenant-scoped Hiring module snapshot (jobs, candidates, pipeline, offers…). */
+export const hiringStates = pgTable("hiring_states", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  snapshot: jsonb("snapshot")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** Tenant-scoped Compensation module snapshot (pay records, requests, bands…). */
+export const compensationStates = pgTable("compensation_states", {
+  tenantId: uuid("tenant_id")
+    .primaryKey()
+    .references(() => tenants.id, { onDelete: "cascade" }),
+  snapshot: jsonb("snapshot")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+  version: integer("version").notNull().default(1),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

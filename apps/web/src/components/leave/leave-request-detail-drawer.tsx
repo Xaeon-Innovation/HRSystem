@@ -15,7 +15,9 @@ import { LeaveAuditTimeline } from "@/components/leave/leave-audit-timeline";
 import { LeaveConflictWarnings } from "@/components/leave/leave-conflict-warnings";
 import { LeaveStatusBadge } from "@/components/leave/leave-status-badge";
 import { formatDate, formatDateTime, formatDays, partialDayLabel, TEXTAREA_CLASS, urgencyLabel } from "@/lib/leave/format";
+import { actorCanActOnStep, currentApprovalStep } from "@/lib/leave/workflow";
 import type { LeaveActor, LeaveRequest } from "@/lib/leave/types";
+import { t } from "@/i18n";
 
 export function LeaveRequestDetailDrawer({
   request,
@@ -55,7 +57,11 @@ export function LeaveRequestDetailDrawer({
   }, [request?.id, request?.internalHrNote]);
 
   const own = request && (actor.employeeId === request.employeeId || actor.id === request.employeeId);
-  const canDecide = Boolean(request && request.status === "pending" && isAdmin);
+  const canDecide = Boolean(
+    request &&
+      request.status === "pending" &&
+      (isAdmin || actorCanActOnStep(actor, currentApprovalStep(request))),
+  );
   const canEdit = Boolean(
     request && own && (request.status === "draft" || request.status === "returned"),
   );
@@ -95,55 +101,80 @@ export function LeaveRequestDetailDrawer({
               </div>
 
               <dl className="grid grid-cols-2 gap-3 text-sm">
-                <Fact label="Days" value={formatDays(request.requestedDays)} />
-                <Fact label="Submitted" value={formatDateTime(request.submittedAt)} />
-                <Fact label="Department" value={`${request.department} · ${request.branchName}`} />
-                <Fact label="Manager" value={request.managerName ?? "—"} />
-                <Fact label="Approver" value={request.approverName ?? "—"} />
-                <Fact label="Decision" value={formatDateTime(request.decisionDate)} />
+                <Fact label={t("Days")} value={formatDays(request.requestedDays)} />
+                <Fact label={t("Submitted")} value={formatDateTime(request.submittedAt)} />
+                <Fact label={t("Department")} value={`${request.department} · ${request.branchName}`} />
+                <Fact label={t("Manager")} value={request.managerName ?? "—"} />
+                <Fact label={t("Approver")} value={request.approverName ?? "—"} />
+                <Fact label={t("Decision")} value={formatDateTime(request.decisionDate)} />
               </dl>
 
               {request.rejectionReason ? (
-                <Section title="Rejection reason">
+                <Section title={t("Rejection reason")}>
                   <p className="text-sm">{request.rejectionReason}</p>
                 </Section>
               ) : null}
 
-              <Section title="Employee note">
-                <p className="text-sm">{request.reason || "No note"}</p>
+              <Section title={t("Employee note")}>
+                <p className="text-sm">{request.reason || t("No note")}</p>
               </Section>
 
-              <Section title="Handover / coverage">
-                <p className="text-sm">{request.handoverNotes || "None recorded"}</p>
+              <Section title={t("Handover / coverage")}>
+                <p className="text-sm">{request.handoverNotes || t("None recorded")}</p>
                 {request.coverageEmployeeName ? (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Coverage: {request.coverageEmployeeName}
+                    {t("Coverage:")}{request.coverageEmployeeName}
                   </p>
                 ) : null}
               </Section>
 
-              {request.attachmentName ? (
-                <Section title="Attachment">
-                  <p className="text-sm">{request.attachmentName}</p>
+              {request.attachments?.length || request.attachmentName ? (
+                <Section title={t("Attachment")}>
+                  <ul className="space-y-2">
+                    {(request.attachments?.length
+                      ? request.attachments
+                      : [
+                          {
+                            id: "legacy",
+                            name: request.attachmentName ?? t("Attachment"),
+                            dataUrl: request.attachmentUrl,
+                          },
+                        ]
+                    ).map((att) => (
+                      <li key={att.id} className="text-sm">
+                        {att.dataUrl && att.dataUrl !== "#" ? (
+                          <a
+                            download={att.name}
+                            href={att.dataUrl}
+                            className="font-medium text-primary underline underline-offset-2"
+                          >
+                            {t("Download")}{att.name}
+                          </a>
+                        ) : (
+                          <span>{att.name}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
                 </Section>
               ) : null}
 
               {request.conflicts.length > 0 ? (
-                <Section title="Policy checks">
+                <Section title={t("Policy checks")}>
                   <LeaveConflictWarnings conflicts={request.conflicts} />
                 </Section>
               ) : null}
 
-              <Section title="Approval steps">
+              <Section title={t("Approval steps")}>
                 {request.approvalSteps.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No approval chain — auto-handled.</p>
+                  <p className="text-sm text-muted-foreground">{t("No approval chain — auto-handled.")}</p>
                 ) : (
                   <ol className="space-y-2">
                     {request.approvalSteps.map((s) => (
                       <li key={s.id} className="rounded-md border px-3 py-2 text-sm">
                         <div className="flex items-center justify-between gap-2">
                           <p className="font-medium">
-                            Step {s.level} · {s.assigneeName}
+                            {t("Step")}{s.level} · {s.assigneeName}
                           </p>
                           <LeaveStatusBadge
                             status={
@@ -159,7 +190,7 @@ export function LeaveRequestDetailDrawer({
                         </div>
                         <p className="text-xs capitalize text-muted-foreground">{s.role}</p>
                         {s.backupName ? (
-                          <p className="text-xs text-muted-foreground">Backup: {s.backupName}</p>
+                          <p className="text-xs text-muted-foreground">{t("Backup:")}{s.backupName}</p>
                         ) : null}
                         {s.comment ? <p className="mt-1 text-sm">{s.comment}</p> : null}
                       </li>
@@ -168,9 +199,9 @@ export function LeaveRequestDetailDrawer({
                 )}
               </Section>
 
-              <Section title="Comments">
+              <Section title={t("Comments")}>
                 {request.comments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No comments yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("No comments yet.")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {request.comments.map((c) => (
@@ -187,7 +218,7 @@ export function LeaveRequestDetailDrawer({
                   className={`${TEXTAREA_CLASS} mt-2`}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
-                  placeholder={isAdmin ? "Approver note" : "Add a note"}
+                  placeholder={isAdmin ? t("Approver note") : t("Add a note")}
                 />
                 <Button
                   size="sm"
@@ -199,17 +230,16 @@ export function LeaveRequestDetailDrawer({
                     setComment("");
                   }}
                 >
-                  Add comment
-                </Button>
+                  {t("Add comment")}</Button>
               </Section>
 
               {isAdmin ? (
-                <Section title="Internal HR note">
+                <Section title={t("Internal HR note")}>
                   <textarea
                     className={TEXTAREA_CLASS}
                     value={hrNote}
                     onChange={(e) => setHrNote(e.target.value)}
-                    placeholder="Visible only to people ops"
+                    placeholder={t("Visible only to people ops")}
                   />
                   <Button
                     size="sm"
@@ -217,12 +247,11 @@ export function LeaveRequestDetailDrawer({
                     variant="outline"
                     onClick={() => onHrNote(request.id, hrNote)}
                   >
-                    Save HR note
-                  </Button>
+                    {t("Save HR note")}</Button>
                 </Section>
               ) : null}
 
-              <Section title="Audit trail">
+              <Section title={t("Audit trail")}>
                 <LeaveAuditTimeline events={request.audit} />
               </Section>
 
@@ -231,53 +260,48 @@ export function LeaveRequestDetailDrawer({
               <div className="flex flex-wrap gap-2 border-t pt-4">
                 {canEdit ? (
                   <Button size="sm" onClick={() => onEdit(request.id)}>
-                    Continue editing
-                  </Button>
+                    {t("Continue editing")}</Button>
                 ) : null}
                 {canDecide ? (
                   <>
                     <Button
                       size="sm"
-                      onClick={() => onApprove(request.id, comment || "Approved")}
+                      onClick={() => onApprove(request.id, comment || t("Approved"))}
                     >
-                      Approve
-                    </Button>
+                      {t("Approve")}</Button>
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() => {
                         if (!comment.trim()) {
-                          setError("A written reason is required to reject.");
+                          setError(t("A written reason is required to reject."));
                           return;
                         }
                         onReject(request.id, comment.trim());
                       }}
                     >
-                      Reject
-                    </Button>
+                      {t("Reject")}</Button>
                     <Button
                       size="sm"
                       variant="ghost"
                       onClick={() => {
                         if (!comment.trim()) {
-                          setError("Tell the employee what to change.");
+                          setError(t("Tell the employee what to change."));
                           return;
                         }
                         onReturn(request.id, comment.trim());
                       }}
                     >
-                      Return for edits
-                    </Button>
+                      {t("Return for edits")}</Button>
                   </>
                 ) : null}
                 {canCancel ? (
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => onCancel(request.id, comment || "Cancelled")}
+                    onClick={() => onCancel(request.id, comment || t("Cancelled"))}
                   >
-                    Cancel request
-                  </Button>
+                    {t("Cancel request")}</Button>
                 ) : null}
               </div>
             </SheetBody>

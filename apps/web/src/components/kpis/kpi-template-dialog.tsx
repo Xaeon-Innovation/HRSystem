@@ -16,6 +16,7 @@ import { SELECT_CLASS } from "@/lib/kpis/format";
 import { ROLE_TEMPLATES } from "@/lib/kpis/templates";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { ApiKpiDefinition, EmployeeOption, RoleTemplateId } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 export function KpiTemplateDialog({
   open,
@@ -31,6 +32,7 @@ export function KpiTemplateDialog({
   onDelete,
   onUnassign,
   onApplyTemplate,
+  onPullActuals,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -53,6 +55,7 @@ export function KpiTemplateDialog({
   onDelete: (id: string) => Promise<void>;
   onUnassign: (assignmentId: string) => Promise<void>;
   onApplyTemplate: (role: RoleTemplateId, employeeId: string) => Promise<void>;
+  onPullActuals?: () => Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [target, setTarget] = useState("100");
@@ -147,22 +150,21 @@ export function KpiTemplateDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Set up KPIs</SheetTitle>
+          <SheetTitle>{t("Set up KPIs")}</SheetTitle>
           <SheetDescription>
-            Assign a job pack or any custom metric to a person. Edit or delete saved metrics here.
-          </SheetDescription>
+            {t("Assign a job pack or any custom metric to a person. Edit or delete saved metrics here.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-6">
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
           <section className="space-y-2">
-            <Label>Person</Label>
+            <Label>{t("Person")}</Label>
             <select
               className={SELECT_CLASS}
               value={employeeId}
               onChange={(e) => setEmployeeId(e.target.value)}
             >
-              <option value="">Choose who gets the metrics</option>
+              <option value="">{t("Choose who gets the metrics")}</option>
               {employees.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
@@ -172,23 +174,39 @@ export function KpiTemplateDialog({
             <p className="text-xs text-muted-foreground">
               {employeeId
                 ? `Assign and unassign apply to ${personName}.`
-                : "Choose a person to assign. You can still save, edit, or delete a metric without assigning it."}
+                : t("Choose a person to assign. You can still save, edit, or delete a metric without assigning it.")}
             </p>
           </section>
 
+          {onPullActuals ? (
+            <section className="space-y-2 rounded-md border px-3 py-3">
+              <h3 className="text-sm font-semibold">{t("Attendance actuals")}</h3>
+              <p className="text-sm text-muted-foreground">
+                {t("For metrics named like Attendance or On-time, fill this month&apos;s score from clock-ins when missing.")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={busy}
+                onClick={() => run(() => onPullActuals())}
+              >
+                {t("Pull attendance actuals")}</Button>
+            </section>
+          ) : null}
+
           <section className="space-y-3">
-            <h3 className="text-sm font-semibold">Assign a job pack</h3>
+            <h3 className="text-sm font-semibold">{t("Assign a job pack")}</h3>
             <p className="text-sm text-muted-foreground">{template.summary}</p>
             <div className="grid gap-2">
-              <Label>Job type</Label>
+              <Label>{t("Job type")}</Label>
               <select
                 className={SELECT_CLASS}
                 value={role}
                 onChange={(e) => setRole(e.target.value as RoleTemplateId)}
               >
-                {ROLE_TEMPLATES.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.label}
+                {ROLE_TEMPLATES.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {t(tpl.label)}
                   </option>
                 ))}
               </select>
@@ -196,8 +214,8 @@ export function KpiTemplateDialog({
             <ul className="space-y-1 rounded-md border bg-secondary/40 px-3 py-2 text-xs">
               {template.kpis.map((k) => (
                 <li key={k.key} className="flex justify-between gap-2">
-                  <span>{k.title}</span>
-                  <span className="text-muted-foreground">counts {k.weight}%</span>
+                  <span>{t(k.title)}</span>
+                  <span className="text-muted-foreground">{t("counts")}{k.weight}%</span>
                 </li>
               ))}
             </ul>
@@ -206,32 +224,32 @@ export function KpiTemplateDialog({
               disabled={busy || !employeeId}
               className="w-full"
             >
-              {busy ? "Assigning…" : "Assign this job pack"}
+              {busy ? t("Assigning…") : t("Assign this job pack")}
             </Button>
           </section>
 
           <section>
             <h3 className="text-sm font-semibold">
-              {editing ? `Edit “${editing.name}”` : "Add a custom metric"}
+              {editing ? `Edit “${editing.name}”` : t("Add a custom metric")}
             </h3>
             <p className="mt-1 text-sm text-muted-foreground">
               {editing
-                ? "Saving changes updates this metric for everyone who has it."
-                : "Your own name and target — not limited to the job packs."}
+                ? t("Saving changes updates this metric for everyone who has it.")
+                : t("Your own name and target — not limited to the job packs.")}
             </p>
             <form className="mt-3 space-y-3" onSubmit={saveMetric}>
               <div className="space-y-1">
-                <Label>Name</Label>
+                <Label>{t("Name")}</Label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required
-                  placeholder="e.g. Training hours"
+                  placeholder={t("e.g. Training hours")}
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <Label>Target</Label>
+                  <Label>{t("Target")}</Label>
                   <Input
                     type="number"
                     value={target}
@@ -239,15 +257,15 @@ export function KpiTemplateDialog({
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label>Period</Label>
+                  <Label>{t("Period")}</Label>
                   <select
                     className={SELECT_CLASS}
                     value={period}
                     onChange={(e) => setPeriod(e.target.value)}
                   >
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
+                    <option value="weekly">{t("Weekly")}</option>
+                    <option value="monthly">{t("Monthly")}</option>
+                    <option value="quarterly">{t("Quarterly")}</option>
                   </select>
                 </div>
               </div>
@@ -260,25 +278,23 @@ export function KpiTemplateDialog({
                     disabled={busy}
                     onClick={cancelEdit}
                   >
-                    Cancel
-                  </Button>
+                    {t("Cancel")}</Button>
                 ) : null}
                 <Button type="submit" disabled={busy} className="flex-1">
                   {editing
-                    ? "Save changes"
+                    ? t("Save changes")
                     : employeeId
-                      ? "Add and assign to this person"
-                      : "Save metric only"}
+                      ? t("Add and assign to this person")
+                      : t("Save metric only")}
                 </Button>
               </div>
             </form>
           </section>
 
           <section>
-            <h3 className="text-sm font-semibold">Saved metrics</h3>
+            <h3 className="text-sm font-semibold">{t("Saved metrics")}</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Assign, edit, or delete any metric.
-            </p>
+              {t("Assign, edit, or delete any metric.")}</p>
             <ul className="mt-2 space-y-2">
               {definitions.map((k) => {
                 const assigned = isAssigned(k.id);
@@ -289,8 +305,8 @@ export function KpiTemplateDialog({
                       <span>
                         {k.name}
                         <span className="block text-[11px] text-muted-foreground">
-                          target {k.targetValue ?? "—"} · {k.reviewPeriod}
-                          {assigned ? " · assigned to this person" : ""}
+                          {t("target")}{k.targetValue ?? "—"} · {k.reviewPeriod}
+                          {assigned ? t(" · assigned to this person") : ""}
                         </span>
                       </span>
                     </div>
@@ -302,16 +318,14 @@ export function KpiTemplateDialog({
                           disabled={busy}
                           onClick={() => run(() => onUnassign(assignmentId))}
                         >
-                          Unassign
-                        </Button>
+                          {t("Unassign")}</Button>
                       ) : (
                         <Button
                           size="sm"
                           disabled={busy || !employeeId}
                           onClick={() => run(() => onAssign(k.id, employeeId))}
                         >
-                          Assign
-                        </Button>
+                          {t("Assign")}</Button>
                       )}
                       <Button
                         size="sm"
@@ -319,30 +333,27 @@ export function KpiTemplateDialog({
                         disabled={busy}
                         onClick={() => startEdit(k)}
                       >
-                        Edit
-                      </Button>
+                        {t("Edit")}</Button>
                       <Button
                         size="sm"
                         variant="outline"
                         disabled={busy}
                         onClick={() => run(() => onClone(k.id))}
                       >
-                        Clone
-                      </Button>
+                        {t("Clone")}</Button>
                       <Button
                         size="sm"
                         variant="destructive"
                         disabled={busy}
                         onClick={() => setPendingDelete(k)}
                       >
-                        Delete
-                      </Button>
+                        {t("Delete")}</Button>
                     </div>
                   </li>
                 );
               })}
               {definitions.length === 0 ? (
-                <li className="text-sm text-muted-foreground">None yet.</li>
+                <li className="text-sm text-muted-foreground">{t("None yet.")}</li>
               ) : null}
             </ul>
           </section>

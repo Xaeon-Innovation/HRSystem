@@ -30,6 +30,7 @@ import {
   JOB_STATUSES,
 } from "@/lib/hiring/types";
 import { employmentTypeLabel, jobStatusLabel, priorityLabel } from "@/lib/hiring/format";
+import { t } from "@/i18n";
 
 function emptyDraft(store: HiringStore): JobOpeningDraft {
   const team = store.team();
@@ -144,10 +145,9 @@ export function JobOpeningForm({
     >
       <SheetContent className="max-w-xl">
         <SheetHeader>
-          <SheetTitle>{editing ? "Edit job opening" : "New job opening"}</SheetTitle>
+          <SheetTitle>{editing ? t("Edit job opening") : t("New job opening")}</SheetTitle>
           <SheetDescription>
-            A requisition is the source of truth for the pipeline, interviews, and offers.
-          </SheetDescription>
+            {t("A requisition is the source of truth for the pipeline, interviews, and offers.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-3">
           {error ? (
@@ -302,7 +302,7 @@ export function JobOpeningForm({
           </Field>
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Screening questions</Label>
+              <Label>{t("Screening questions")}</Label>
               <Button
                 type="button"
                 size="sm"
@@ -323,8 +323,7 @@ export function JobOpeningForm({
                   })
                 }
               >
-                Add question
-              </Button>
+                {t("Add question")}</Button>
             </div>
             {form.screeningQuestions.map((q, i) => (
               <QuestionEditor
@@ -346,10 +345,9 @@ export function JobOpeningForm({
         </SheetBody>
         <SheetFooter>
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+            {t("Cancel")}</Button>
           <Button type="button" disabled={busy} onClick={submit}>
-            {busy ? "Saving…" : editing ? "Save opening" : "Create opening"}
+            {busy ? t("Saving…") : editing ? t("Save opening") : t("Create opening")}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -378,7 +376,7 @@ function QuestionEditor({
   return (
     <div className="space-y-2 rounded-lg border p-3">
       <Input
-        placeholder="Question"
+        placeholder={t("Question")}
         value={question.prompt}
         onChange={(e) => onChange({ ...question, prompt: e.target.value })}
       />
@@ -390,9 +388,9 @@ function QuestionEditor({
             onChange({ ...question, type: e.target.value as ScreeningQuestion["type"] })
           }
         >
-          <option value="yes_no">Yes / no</option>
-          <option value="text">Text</option>
-          <option value="number">Number</option>
+          <option value="yes_no">{t("Yes / no")}</option>
+          <option value="text">{t("Text")}</option>
+          <option value="number">{t("Number")}</option>
         </select>
         <label className="flex items-center gap-1.5 text-xs">
           <input
@@ -400,29 +398,26 @@ function QuestionEditor({
             checked={question.required}
             onChange={(e) => onChange({ ...question, required: e.target.checked })}
           />
-          Required
-        </label>
+          {t("Required")}</label>
         <label className="flex items-center gap-1.5 text-xs">
           <input
             type="checkbox"
             checked={question.knockout}
             onChange={(e) => onChange({ ...question, knockout: e.target.checked })}
           />
-          Knockout
-        </label>
+          {t("Knockout")}</label>
         {question.knockout && question.type === "yes_no" ? (
           <select
             className={`${SELECT_CLASS} w-auto`}
             value={question.expectedAnswer ?? "yes"}
             onChange={(e) => onChange({ ...question, expectedAnswer: e.target.value })}
           >
-            <option value="yes">Expect yes</option>
-            <option value="no">Expect no</option>
+            <option value="yes">{t("Expect yes")}</option>
+            <option value="no">{t("Expect no")}</option>
           </select>
         ) : null}
         <Button type="button" size="sm" variant="ghost" onClick={onRemove}>
-          Remove
-        </Button>
+          {t("Remove")}</Button>
       </div>
     </div>
   );

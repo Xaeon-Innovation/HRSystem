@@ -28,9 +28,11 @@ import { resolveUrgency } from "@/lib/alerts/format";
 import type { AlertRule, InboxNotification } from "@/lib/alerts/types";
 import type { AlertCategory, AlertUrgency } from "@hr/shared";
 import { AlertRuleSheet } from "@/components/alerts/alert-rule-sheet";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { AlertsCustomBuilder, type CustomAlertDraft } from "@/components/alerts/alerts-custom-builder";
 import { AlertsEventRules } from "@/components/alerts/alerts-event-rules";
 import { AlertsInbox } from "@/components/alerts/alerts-inbox";
+import { t } from "@/i18n";
 
 export function AlertsDashboard() {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -104,41 +106,31 @@ export function AlertsDashboard() {
   const cards = useMemo(() => {
     if (isAdmin) {
       return [
-        { label: "Unread", value: String(unread), hint: "Waiting in your inbox", icon: BellRing },
-        { label: "Critical", value: String(critical), hint: "Needs action today", icon: ShieldAlert },
-        { label: "Event alerts on", value: String(activeRules), hint: `${rules.filter((r) => r.kind === "catalog").length} in catalog`, icon: SlidersHorizontal },
-        { label: "Custom rules", value: String(customRules), hint: "Threshold builders", icon: Sparkles },
+        { label: t("Unread"), value: String(unread), hint: t("Waiting in your inbox"), icon: BellRing },
+        { label: t("Critical"), value: String(critical), hint: t("Needs action today"), icon: ShieldAlert },
+        { label: t("Event alerts on"), value: String(activeRules), hint: `${rules.filter((r) => r.kind === "catalog").length} in catalog`, icon: SlidersHorizontal },
+        { label: t("Custom rules"), value: String(customRules), hint: t("Threshold builders"), icon: Sparkles },
       ];
     }
     return [
-      { label: "Unread", value: String(unread), hint: "New for you", icon: BellRing },
-      { label: "Critical", value: String(critical), hint: "High urgency", icon: ShieldAlert },
-      { label: "In inbox", value: String(items.length), hint: "Last 100 items", icon: Bell },
+      { label: t("Unread"), value: String(unread), hint: t("New for you"), icon: BellRing },
+      { label: t("Critical"), value: String(critical), hint: t("High urgency"), icon: ShieldAlert },
+      { label: t("In inbox"), value: String(items.length), hint: t("Last 100 items"), icon: Bell },
     ];
   }, [isAdmin, unread, critical, activeRules, customRules, rules, items.length]);
 
   if (loading) {
-    return (
-      <div className="space-y-4" aria-busy="true" aria-label="Loading alerts">
-        <div className="h-16 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-          ))}
-        </div>
-        <div className="h-72 animate-pulse rounded-xl bg-card ring-1 ring-border" />
-      </div>
-    );
+    return <PageSkeleton dense />;
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Alerts</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("Alerts")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {isAdmin
-            ? "Inbox for live notices, plus routing for employee, leave, KPI, attendance, payroll, and system events."
-            : "Your HR notices — leave updates, deadlines, and anything that needs attention."}
+            ? t("Inbox for live notices, plus routing for employee, leave, KPI, attendance, payroll, and system events.")
+            : t("Your HR notices — leave updates, deadlines, and anything that needs attention.")}
         </p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -170,9 +162,9 @@ export function AlertsDashboard() {
       {isAdmin ? (
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
-            <TabsTrigger value="inbox">Inbox</TabsTrigger>
-            <TabsTrigger value="events">Event alerts</TabsTrigger>
-            <TabsTrigger value="custom">Custom</TabsTrigger>
+            <TabsTrigger value="inbox">{t("Inbox")}</TabsTrigger>
+            <TabsTrigger value="events">{t("Event alerts")}</TabsTrigger>
+            <TabsTrigger value="custom">{t("Custom")}</TabsTrigger>
           </TabsList>
           <TabsContent value="inbox">
             <AlertsInbox
@@ -330,15 +322,14 @@ function AnnounceSheet({
       <SheetContent>
         <form className="flex h-full flex-col" onSubmit={submit}>
           <SheetHeader>
-            <SheetTitle>Broadcast announcement</SheetTitle>
+            <SheetTitle>{t("Broadcast announcement")}</SheetTitle>
             <SheetDescription>
-              Sends an in-app notice to everyone in this company.
-            </SheetDescription>
+              {t("Sends an in-app notice to everyone in this company.")}</SheetDescription>
           </SheetHeader>
           <SheetBody className="space-y-4">
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <div className="space-y-2">
-              <Label htmlFor="announce-title">Title</Label>
+              <Label htmlFor="announce-title">{t("Title")}</Label>
               <Input
                 id="announce-title"
                 value={title}
@@ -347,7 +338,7 @@ function AnnounceSheet({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="announce-body">Message</Label>
+              <Label htmlFor="announce-body">{t("Message")}</Label>
               <textarea
                 id="announce-body"
                 className={TEXTAREA_CLASS}
@@ -359,10 +350,9 @@ function AnnounceSheet({
           </SheetBody>
           <SheetFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
+              {t("Cancel")}</Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Sending…" : "Send"}
+              {busy ? t("Sending…") : t("Send")}
             </Button>
           </SheetFooter>
         </form>

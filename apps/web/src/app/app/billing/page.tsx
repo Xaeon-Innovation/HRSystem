@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 type BillingCurrent = {
   subscription: {
@@ -89,15 +91,14 @@ export default function BillingPage() {
   }
 
   if (error && !data) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Billing</h1>
+        <h1 className="text-2xl font-semibold">{t("Billing")}</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your organization subscription
-        </p>
+          {t("Manage your organization subscription")}</p>
       </div>
       {message ? <p className="text-sm text-primary">{message}</p> : null}
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
@@ -105,10 +106,10 @@ export default function BillingPage() {
       <div className="grid gap-3 md:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Current plan</CardTitle>
+            <CardTitle className="text-base">{t("Current plan")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            {data.plan?.name ?? "None"}{" "}
+            {data.plan?.name ?? t("None")}{" "}
             <span className="text-muted-foreground">
               ({data.subscription?.status ?? "n/a"})
             </span>
@@ -116,16 +117,16 @@ export default function BillingPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Seats</CardTitle>
+            <CardTitle className="text-base">{t("Seats")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             {data.seatsUsed}
-            {data.seatLimit != null ? ` / ${data.seatLimit}` : " / unlimited"}
+            {data.seatLimit != null ? ` / ${data.seatLimit}` : t(" / unlimited")}
           </CardContent>
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Renews / ends</CardTitle>
+            <CardTitle className="text-base">{t("Renews / ends")}</CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
             {data.subscription?.currentPeriodEnd
@@ -137,19 +138,16 @@ export default function BillingPage() {
 
       {data.subscription && !data.subscription.cancelAtPeriodEnd ? (
         <Button variant="outline" disabled={busy} onClick={cancel}>
-          Cancel at period end
-        </Button>
+          {t("Cancel at period end")}</Button>
       ) : null}
 
       {!data.paymobConfigured ? (
         <p className="text-sm text-muted-foreground">
-          Online checkout is not configured yet. Contact platform support to
-          upgrade.
-        </p>
+          {t("Online checkout is not configured yet. Contact platform support to upgrade.")}</p>
       ) : null}
 
       <div>
-        <h2 className="mb-2 text-lg font-medium">Available plans</h2>
+        <h2 className="mb-2 text-lg font-medium">{t("Available plans")}</h2>
         <div className="space-y-2">
           {data.availablePlans.map((p) => (
             <Card key={p.id}>
@@ -157,7 +155,7 @@ export default function BillingPage() {
                 <div>
                   <p className="font-medium">{p.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {(p.amountCents / 100).toFixed(2)} {p.currency}/mo · seats{" "}
+                    {(p.amountCents / 100).toFixed(2)} {p.currency}{t("/mo · seats")}{" "}
                     {p.seatLimit ?? "∞"}
                     {p.description ? ` · ${p.description}` : ""}
                   </p>
@@ -172,7 +170,7 @@ export default function BillingPage() {
                   }
                   onClick={() => checkout(p.id)}
                 >
-                  {data.plan?.id === p.id ? "Current" : "Subscribe"}
+                  {data.plan?.id === p.id ? t("Current") : t("Subscribe")}
                 </Button>
               </CardContent>
             </Card>

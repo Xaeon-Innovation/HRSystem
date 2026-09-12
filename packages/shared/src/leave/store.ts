@@ -80,11 +80,54 @@ function balanceBucket(types: LeaveType[], type: LeaveType): string {
   return type.id;
 }
 
+/** Backfill `attachments` for snapshots that only had name / "#" url. */
+export function normalizeLeaveRequest(request: LeaveRequest): LeaveRequest {
+  const existing = Array.isArray(request.attachments) ? request.attachments : [];
+  if (existing.length > 0) {
+    return {
+      ...request,
+      attachments: existing.slice(0, 3),
+      attachmentName: existing[0]?.name ?? request.attachmentName,
+      attachmentUrl: existing[0]?.dataUrl ?? null,
+    };
+  }
+  const url =
+    request.attachmentUrl && request.attachmentUrl !== "#"
+      ? request.attachmentUrl
+      : null;
+  if (request.attachmentName && url) {
+    const att = {
+      id: `att-${request.id}`,
+      name: request.attachmentName,
+      mime: "application/octet-stream",
+      size: 0,
+      dataUrl: url,
+    };
+    return {
+      ...request,
+      attachments: [att],
+      attachmentUrl: url,
+    };
+  }
+  return {
+    ...request,
+    attachments: [],
+    attachmentUrl: url,
+  };
+}
+
+function normalizeSnapshot(data: LeaveSnapshot): LeaveSnapshot {
+  return {
+    ...data,
+    requests: data.requests.map(normalizeLeaveRequest),
+  };
+}
+
 export class LeaveStore {
   private data: LeaveSnapshot;
 
   constructor(seed?: LeaveSnapshot) {
-    this.data = seed ?? emptyLeaveSnapshot();
+    this.data = normalizeSnapshot(seed ?? emptyLeaveSnapshot());
   }
 
   private persist() {
@@ -92,7 +135,7 @@ export class LeaveStore {
   }
 
   applySnapshot(next: LeaveSnapshot) {
-    this.data = next;
+    this.data = normalizeSnapshot(next);
   }
 
   snapshot(): LeaveSnapshot {
@@ -133,11 +176,16 @@ export class LeaveStore {
       status?: string;
       hireDate?: string | null;
       branchId?: string | null;
+      managerId?: string | null;
     }>;
     branches?: Array<{ id: string; name: string }>;
     current?: LeaveActor | null;
   }) {
     const branches = new Map((input.branches ?? []).map((b) => [b.id, b.name]));
+    const nameById = new Map((input.employees ?? []).map((e) => [e.id, e.name]));
+    for (const existing of this.data.employees) {
+      if (!nameById.has(existing.id)) nameById.set(existing.id, existing.name);
+    }
     const existing = new Map(this.data.employees.map((e) => [e.id, e]));
     const now = `${todayIso()}T08:00:00.000Z`;
 
@@ -153,6 +201,14 @@ export class LeaveStore {
       }
     };
 
+    const resolveManager = (managerId: string | null | undefined) => {
+      if (!managerId) return { managerId: null as string | null, managerName: null as string | null };
+      return {
+        managerId,
+        managerName: nameById.get(managerId) ?? null,
+      };
+    };
+
     for (const emp of input.employees ?? []) {
       if (existing.has(emp.id)) {
         const prev = existing.get(emp.id)!;
@@ -164,10 +220,16 @@ export class LeaveStore {
           prev.branchName = branches.get(emp.branchId) ?? prev.branchName;
         }
         if (emp.hireDate) prev.hireDate = emp.hireDate;
+        if (emp.managerId !== undefined) {
+          const mgr = resolveManager(emp.managerId);
+          prev.managerId = mgr.managerId;
+          prev.managerName = mgr.managerName;
+        }
         ensureBalances(prev);
         continue;
       }
       const branchId = emp.branchId || "unassigned";
+      const mgr = resolveManager(emp.managerId);
       const next: LeaveEmployee = {
         id: emp.id,
         name: emp.name,
@@ -176,8 +238,8 @@ export class LeaveStore {
         department: departmentFromTitle(emp.jobTitle || emp.role || ""),
         branchId,
         branchName: branches.get(branchId) ?? "Unassigned",
-        managerId: null,
-        managerName: null,
+        managerId: mgr.managerId,
+        managerName: mgr.managerName,
         hireDate: emp.hireDate ?? todayIso(),
         probationEndsOn: null,
         status: emp.status === "inactive" ? "inactive" : "active",
@@ -234,7 +296,15 @@ export class LeaveStore {
     let rows = [...this.data.requests];
     if (viewer && !hasSystemModuleRole(viewer, "leaves")) {
       const id = viewer.employeeId;
-      rows = rows.filter((r) => r.employeeId === id);
+      rows = rows.filter(
+        (r) =>
+          Boolean(id) &&
+          (r.employeeId === id ||
+            r.managerId === id ||
+            r.approvalSteps.some(
+              (s) => s.status === "pending" && s.assigneeId === id,
+            )),
+      );
     }
     if (!filters) return rows.sort((a, b) => (b.submittedAt ?? b.createdAt).localeCompare(a.submittedAt ?? a.createdAt));
 
@@ -354,8 +424,10 @@ export class LeaveStore {
       urgency: draft.urgency,
       status,
       reason: draft.reason.trim(),
-      attachmentName: draft.attachmentName,
-      attachmentUrl: draft.attachmentName ? "#" : null,
+      attachments: (draft.attachments ?? []).slice(0, 3),
+      attachmentName:
+        draft.attachments?.[0]?.name ?? draft.attachmentName ?? null,
+      attachmentUrl: draft.attachments?.[0]?.dataUrl ?? null,
       submittedAt: draft.asDraft ? null : at,
       approvedAt: status === "approved" ? at : null,
       rejectedAt: null,
@@ -491,6 +563,7 @@ export class LeaveStore {
           handoverNotes: request.handoverNotes,
           coverageEmployeeId: request.coverageEmployeeId,
           attachmentName: request.attachmentName,
+          attachments: request.attachments,
           asDraft: false,
         },
         employee,

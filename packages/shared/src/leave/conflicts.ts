@@ -132,7 +132,9 @@ export function detectConflicts(input: {
     });
   }
 
-  if (leaveType.attachmentRequired && !draft.attachmentName && !draft.asDraft) {
+  const hasAttachment =
+    Boolean(draft.attachmentName) || (draft.attachments?.length ?? 0) > 0;
+  if (leaveType.attachmentRequired && !hasAttachment && !draft.asDraft) {
     conflicts.push({
       kind: "attachment_required",
       severity: "error",

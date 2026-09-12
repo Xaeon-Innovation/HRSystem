@@ -6,6 +6,8 @@ import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { t } from "@/i18n";
 
 type Day = {
   day: string;
@@ -54,14 +56,13 @@ export default function EmployeeAnalyticsPage() {
   }, [params.id]);
 
   if (error) return <p className="text-destructive">{error}</p>;
-  if (!data) return <p className="text-muted-foreground">Loading…</p>;
+  if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
       <div>
         <Link href="/app/analytics" className="text-sm text-muted-foreground hover:underline">
-          ← Analytics
-        </Link>
+          {t("← Analytics")}</Link>
         <div className="mt-2 flex items-center gap-3">
           <UserAvatar
             name={data.employee.name}
@@ -71,7 +72,7 @@ export default function EmployeeAnalyticsPage() {
           <div>
             <h1 className="text-2xl font-semibold">{data.employee.name}</h1>
             <p className="text-sm text-muted-foreground">
-              {data.employee.jobTitle ?? "Employee"}
+              {data.employee.jobTitle ?? t("Employee")}
             </p>
           </div>
         </div>
@@ -83,11 +84,9 @@ export default function EmployeeAnalyticsPage() {
               <CardTitle className="text-base">{d.day}</CardTitle>
             </CardHeader>
             <CardContent className="text-sm text-muted-foreground">
-              {d.wasClockedIn ? "clocked in" : "absent"} ·{" "}
-              {(d.totalWorkMinutes / 60).toFixed(1)}h · late {d.latenessMinutes}m ·
-              jobs {d.jobsCompletedCount} · visits {d.visitsCompletedCount} · tasks{" "}
-              {d.tasksCompletedCount} · GPS {d.gpsUpdatesCount}/{d.gpsExpectedCount} ·
-              score {d.productivityScore.toFixed(1)}
+              {d.wasClockedIn ? t("clocked in") : "absent"} ·{" "}
+              {(d.totalWorkMinutes / 60).toFixed(1)}{t("h · late")}{d.latenessMinutes}{t("m · jobs")}{d.jobsCompletedCount} {t("· visits")}{d.visitsCompletedCount} {t("· tasks")}{" "}
+              {d.tasksCompletedCount} {t("· GPS")}{d.gpsUpdatesCount}/{d.gpsExpectedCount} {t("· score")}{d.productivityScore.toFixed(1)}
             </CardContent>
           </Card>
         ))}
@@ -95,7 +94,7 @@ export default function EmployeeAnalyticsPage() {
       {timeline ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Timeline {timeline.date}</CardTitle>
+            <CardTitle className="text-base">{t("Timeline")}{timeline.date}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {timeline.events.map((ev, i) => (
@@ -107,7 +106,7 @@ export default function EmployeeAnalyticsPage() {
               </div>
             ))}
             {timeline.events.length === 0 ? (
-              <p className="text-muted-foreground">No combined events for this day.</p>
+              <p className="text-muted-foreground">{t("No combined events for this day.")}</p>
             ) : null}
           </CardContent>
         </Card>

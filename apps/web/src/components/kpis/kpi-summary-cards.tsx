@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/kpis/format";
 import type { DashboardSummary } from "@/lib/kpis/types";
+import { t } from "@/i18n";
 
 function ScoreRing({ value }: { value: number | null }) {
   const v = value == null ? 0 : Math.max(0, Math.min(value, 100));
@@ -56,60 +57,96 @@ function scoreWords(value: number | null): string {
   return "Needs attention — several metrics are off target.";
 }
 
+export type KpiDrillFocus = "attention" | "on_track" | "missing";
+
 export function KpiSummaryCards({
   summary,
   teamAverage,
   hasActuals,
+  periodLabel,
+  activeFocus,
+  onDrill,
 }: {
   summary: DashboardSummary;
   teamAverage?: number | null;
   hasActuals: boolean;
+  /** Calendar period label, e.g. "Sep 2026". */
+  periodLabel?: string;
+  /** When set, matching stat is highlighted (redesign drill-in). */
+  activeFocus?: KpiDrillFocus | "";
+  onDrill?: (focus: KpiDrillFocus) => void;
 }) {
   const met =
     summary.goalCompletionRate == null || summary.kpiCount === 0
       ? "—"
       : `${Math.round((summary.goalCompletionRate / 100) * (summary.kpiCount - summary.incompleteCount))} of ${summary.kpiCount - summary.incompleteCount}`;
 
+  const vsPrev =
+    summary.overallDelta == null
+      ? null
+      : `${summary.overallDelta >= 0 ? "+" : ""}${formatNumber(summary.overallDelta, 0)} vs previous period`;
+
   return (
-    <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-white to-accent/35">
+    <Card className="overflow-hidden border-primary/15 bg-gradient-to-br from-white to-accent/35 dark:from-card dark:to-accent/20">
       <CardContent className="flex flex-col gap-5 py-5 sm:flex-row sm:items-center">
         <ScoreRing value={hasActuals ? summary.overallPerformanceScore : null} />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-muted-foreground">Overall score</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {t("Overall score")}{periodLabel ? ` · ${periodLabel}` : ""}
+          </p>
           <p className="mt-0.5 text-sm leading-relaxed text-foreground/90">
             {hasActuals
               ? scoreWords(summary.overallPerformanceScore)
-              : "Targets are set. Enter a result on a metric below to calculate the score."}
+              : t("Targets are set. Enter a result on a metric to calculate the score.")}
           </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            100 means the weighted mix of metrics hit their targets. Metrics without a result are left out.
-          </p>
+          {vsPrev ? (
+            <p
+              className={cn(
+                "mt-2 inline-flex items-center gap-1 text-xs font-medium",
+                summary.overallDelta != null && summary.overallDelta < 0
+                  ? "text-rose-700"
+                  : "text-emerald-700",
+              )}
+            >
+              {summary.overallDelta != null && summary.overallDelta < 0 ? (
+                <TrendingDown className="h-3.5 w-3.5" />
+              ) : (
+                <TrendingUp className="h-3.5 w-3.5" />
+              )}
+              {vsPrev}
+            </p>
+          ) : (
+            <p className="mt-2 text-xs text-muted-foreground">
+              {onDrill
+                ? t("Tap a tile to filter the people queue.")
+                : t("100 means the weighted mix of metrics hit their targets.")}
+            </p>
+          )}
         </div>
         <div className="grid grid-cols-3 gap-3 sm:w-72 sm:shrink-0">
           <Stat
             label="Hit target"
             value={hasActuals ? met : "—"}
+            active={activeFocus === "on_track"}
+            onClick={onDrill ? () => onDrill("on_track") : undefined}
           />
           <Stat
             label="Need a look"
             value={String(summary.riskCount)}
+            active={activeFocus === "attention"}
+            onClick={onDrill ? () => onDrill("attention") : undefined}
           />
           <Stat
-            label="vs last time"
-            value={
-              summary.overallDelta == null
-                ? "—"
-                : `${summary.overallDelta >= 0 ? "+" : ""}${formatNumber(summary.overallDelta, 0)}`
-            }
-            hint={
-              summary.overallDelta == null ? undefined : summary.overallDelta >= 0 ? "up" : "down"
-            }
+            label="Incomplete"
+            value={String(summary.incompleteCount)}
+            active={activeFocus === "missing"}
+            onClick={onDrill ? () => onDrill("missing") : undefined}
           />
         </div>
       </CardContent>
       {teamAverage != null && hasActuals && summary.overallPerformanceScore != null ? (
         <p className="border-t bg-muted/50 px-5 py-2 text-xs text-muted-foreground">
-          Team average {formatNumber(teamAverage, 0)}
+          {t("Team average")}{formatNumber(teamAverage, 0)}
           {summary.rank != null ? ` · Rank #${summary.rank} of ${summary.cohortSize}` : ""}
         </p>
       ) : null}
@@ -120,22 +157,35 @@ export function KpiSummaryCards({
 function Stat({
   label,
   value,
-  hint,
+  active,
+  onClick,
 }: {
   label: string;
   value: string;
-  hint?: "up" | "down";
+  active?: boolean;
+  onClick?: () => void;
 }) {
-  return (
-    <div className="rounded-lg bg-card px-2 py-2 text-center">
+  const inner = (
+    <>
       <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="mt-0.5 inline-flex items-center justify-center gap-1 text-lg font-semibold tabular-nums">
-        {hint === "up" ? <TrendingUp className="h-3.5 w-3.5 text-emerald-700" /> : null}
-        {hint === "down" ? <TrendingDown className="h-3.5 w-3.5 text-rose-700" /> : null}
-        <span className={cn(hint === "down" && "text-rose-700", hint === "up" && "text-emerald-700")}>
-          {value}
-        </span>
-      </p>
-    </div>
+      <p className="mt-0.5 text-lg font-semibold tabular-nums">{value}</p>
+    </>
   );
+
+  if (onClick) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        className={cn(
+          "rounded-lg bg-card px-2 py-2 text-center ring-1 ring-transparent transition-colors hover:ring-primary/30",
+          active && "bg-primary/10 ring-primary/40",
+        )}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return <div className="rounded-lg bg-card px-2 py-2 text-center">{inner}</div>;
 }

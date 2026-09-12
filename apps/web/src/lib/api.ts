@@ -1,4 +1,20 @@
+import {
+  cacheGeneration,
+  clearApiCache,
+  getApiInflight,
+  peekApiCache,
+  setApiInflight,
+  writeApiCache,
+} from "@/lib/api-cache";
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export type ApiOptions = RequestInit & {
+  /** Skip the short-lived GET memory cache (live map, search, history). */
+  skipCache?: boolean;
+  /** Background fetch — does not hold the navigation progress bar. */
+  silent?: boolean;
+};
 
 export type AuthUser = {
   id: string;
@@ -48,6 +64,7 @@ export function clearSession() {
   s.removeItem(TOKEN_KEY);
   s.removeItem(REFRESH_KEY);
   s.removeItem(USER_KEY);
+  clearApiCache();
 }
 
 export function getUser(): AuthUser | null {
@@ -101,45 +118,94 @@ async function request(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-export async function api<T>(
-  path: string,
-  options: RequestInit = {},
-): Promise<T> {
-  const { access, refresh } = getTokens();
-  const headers = new Headers(options.headers);
-  if (options.body !== undefined && !headers.has("Content-Type")) {
-    headers.set("Content-Type", "application/json");
-  }
-  if (access) headers.set("Authorization", `Bearer ${access}`);
+/** In-flight `api()` count — used by NavigationProgress to wait for page data. */
+let apiInflight = 0;
 
-  let res = await request(`${API_URL}${path}`, { ...options, headers });
-
-  if (res.status === 401 && refresh) {
-    const refreshed = await request(`${API_URL}/v1/auth/refresh`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: refresh }),
-    });
-    if (refreshed.ok) {
-      const data = (await refreshed.json()) as {
-        accessToken: string;
-        refreshToken: string;
-      };
-      const user = getUser();
-      if (user) setSession(data.accessToken, data.refreshToken, user);
-      headers.set("Authorization", `Bearer ${data.accessToken}`);
-      res = await request(`${API_URL}${path}`, { ...options, headers });
-    }
-  }
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(
-      typeof err.error === "string" ? err.error : JSON.stringify(err.error),
+function bumpApiInflight(delta: number) {
+  apiInflight = Math.max(0, apiInflight + delta);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("hr-api-inflight", { detail: { count: apiInflight } }),
     );
   }
-  return res.json() as Promise<T>;
 }
+
+export async function api<T>(
+  path: string,
+  options: ApiOptions = {},
+): Promise<T> {
+  const { skipCache, silent, ...fetchOptions } = options;
+  const method = (fetchOptions.method ?? "GET").toUpperCase();
+
+  if (method === "GET" && !skipCache) {
+    const cached = peekApiCache<T>(path);
+    if (cached !== undefined) return cached;
+    const pending = getApiInflight<T>(path);
+    if (pending) return pending;
+  } else if (method === "GET") {
+    const pending = getApiInflight<T>(path);
+    if (pending) return pending;
+  }
+
+  const run = (async () => {
+    if (!silent) bumpApiInflight(1);
+    const gen = cacheGeneration();
+    try {
+      const { access, refresh } = getTokens();
+      const headers = new Headers(fetchOptions.headers);
+      if (fetchOptions.body !== undefined && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+      }
+      if (access) headers.set("Authorization", `Bearer ${access}`);
+
+      let res = await request(`${API_URL}${path}`, {
+        ...fetchOptions,
+        headers,
+        cache: "no-store",
+      });
+
+      if (res.status === 401 && refresh) {
+        const refreshed = await request(`${API_URL}/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: refresh }),
+        });
+        if (refreshed.ok) {
+          const data = (await refreshed.json()) as {
+            accessToken: string;
+            refreshToken: string;
+          };
+          const user = getUser();
+          if (user) setSession(data.accessToken, data.refreshToken, user);
+          headers.set("Authorization", `Bearer ${data.accessToken}`);
+          res = await request(`${API_URL}${path}`, {
+            ...fetchOptions,
+            headers,
+            cache: "no-store",
+          });
+        }
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(
+          typeof err.error === "string" ? err.error : JSON.stringify(err.error),
+        );
+      }
+      const data = (await res.json()) as T;
+      if (method === "GET" && !skipCache) writeApiCache(path, data, Date.now(), gen);
+      else if (method !== "GET") clearApiCache();
+      return data;
+    } finally {
+      if (!silent) bumpApiInflight(-1);
+    }
+  })();
+
+  if (method === "GET") return setApiInflight(path, run);
+  return run;
+}
+
+export { peekApiCache, clearApiCache };
 
 export function wsUrl(token: string) {
   const base = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4000/ws";

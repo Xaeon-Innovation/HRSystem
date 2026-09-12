@@ -5,6 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type Alert = {
   id: string;
@@ -45,9 +46,8 @@ export default function AnalyticsAlertsPage() {
     <div className="space-y-6">
       <div>
         <Link href="/app/analytics" className="text-sm text-muted-foreground hover:underline">
-          ← Analytics
-        </Link>
-        <h1 className="text-2xl font-semibold">Analytics alerts</h1>
+          {t("← Analytics")}</Link>
+        <h1 className="text-2xl font-semibold">{t("Analytics alerts")}</h1>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
@@ -68,17 +68,15 @@ export default function AnalyticsAlertsPage() {
               </div>
               <div className="flex gap-2">
                 <Button size="sm" variant="outline" onClick={() => setStatus(a.id, "acknowledged")}>
-                  Ack
-                </Button>
+                  {t("Ack")}</Button>
                 <Button size="sm" onClick={() => setStatus(a.id, "resolved")}>
-                  Resolve
-                </Button>
+                  {t("Resolve")}</Button>
               </div>
             </CardContent>
           </Card>
         ))}
         {alerts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No alerts.</p>
+          <p className="text-sm text-muted-foreground">{t("No alerts.")}</p>
         ) : null}
       </div>
     </div>

@@ -23,6 +23,7 @@ import type { JobOpening, JobStatus } from "@/lib/hiring/types";
 import { JOB_STATUSES } from "@/lib/hiring/types";
 import { UserAvatar } from "@/components/user-avatar";
 import type { Candidate } from "@/lib/hiring/types";
+import { t } from "@/i18n";
 
 export function JobDetailDrawer({
   job,
@@ -68,55 +69,55 @@ export function JobDetailDrawer({
               </div>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">Hiring manager</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Hiring manager")}</dt>
                   <dd>{job.hiringManagerName}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Recruiter</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Recruiter")}</dt>
                   <dd>{job.recruiterOwnerName}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Openings</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Openings")}</dt>
                   <dd>
                     {job.filledCount}/{job.openingsCount}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Salary range</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Salary range")}</dt>
                   <dd>
                     {formatMoney(job.salaryRangeMin, job.currency)}–{formatMoney(job.salaryRangeMax, job.currency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Opened</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Opened")}</dt>
                   <dd>{formatDate(job.openedAt)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">Target hire</dt>
+                  <dt className="text-xs text-muted-foreground">{t("Target hire")}</dt>
                   <dd>{formatDate(job.targetHireDate)}</dd>
                 </div>
               </dl>
               {job.description ? <p className="text-sm leading-relaxed">{job.description}</p> : null}
               {job.requirements ? (
                 <section>
-                  <h3 className="text-sm font-semibold">Requirements</h3>
+                  <h3 className="text-sm font-semibold">{t("Requirements")}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{job.requirements}</p>
                 </section>
               ) : null}
               {job.responsibilities ? (
                 <section>
-                  <h3 className="text-sm font-semibold">Responsibilities</h3>
+                  <h3 className="text-sm font-semibold">{t("Responsibilities")}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{job.responsibilities}</p>
                 </section>
               ) : null}
               {job.screeningQuestions.length > 0 ? (
                 <section>
-                  <h3 className="text-sm font-semibold">Screening questions</h3>
+                  <h3 className="text-sm font-semibold">{t("Screening questions")}</h3>
                   <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                     {job.screeningQuestions.map((q) => (
                       <li key={q.id}>
                         {q.prompt}
-                        {q.knockout ? " (knockout)" : ""}
+                        {q.knockout ? t(" (knockout)") : ""}
                       </li>
                     ))}
                   </ul>
@@ -126,8 +127,7 @@ export function JobDetailDrawer({
               {canManage ? (
                 <div className="flex flex-wrap gap-2">
                   <Button size="sm" onClick={onEdit}>
-                    Edit opening
-                  </Button>
+                    {t("Edit opening")}</Button>
                   <select
                     className={`${SELECT_CLASS} w-auto`}
                     value={job.status}
@@ -140,15 +140,14 @@ export function JobDetailDrawer({
                     ))}
                   </select>
                   <Button size="sm" variant="outline" onClick={onRemove}>
-                    Remove
-                  </Button>
+                    {t("Remove")}</Button>
                 </div>
               ) : null}
 
               <section>
-                <h3 className="mb-2 text-sm font-semibold">Candidates on this role</h3>
+                <h3 className="mb-2 text-sm font-semibold">{t("Candidates on this role")}</h3>
                 {ranked.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">None yet.</p>
+                  <p className="text-sm text-muted-foreground">{t("None yet.")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {ranked.map((c) => (

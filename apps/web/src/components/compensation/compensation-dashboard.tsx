@@ -21,9 +21,12 @@ import {
   CompLoadingSkeleton,
 } from "@/components/compensation/compensation-states";
 import { CompensationVariablePanel } from "@/components/compensation/compensation-variable-panel";
+import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
+import { useUiRedesign } from "@/hooks/use-ui-redesign";
 import {
   getCompensationStore,
   type CompActor,
+  type CompensationPersistedSnapshot,
   type EmployeeFilters,
 } from "@/lib/compensation";
 import { isAdminActor } from "@/lib/compensation/workflow";
@@ -42,6 +45,7 @@ import {
   formatDate,
   formatMoney,
 } from "@/lib/compensation/format";
+import { t } from "@/i18n";
 
 type EmployeeOption = {
   id: string;
@@ -77,9 +81,11 @@ function actorFrom(user: AuthUser | null): CompActor {
 
 export function CompensationDashboard() {
   const store = getCompensationStore();
+  const redesign = useUiRedesign();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const [tab, setTab] = useState("overview");
   const [filters, setFilters] = useState<EmployeeFilters>(EMPTY_FILTERS);
@@ -102,15 +108,49 @@ export function CompensationDashboard() {
     setError(null);
     const current = getUser();
     const admin = isAdminActor(actorFrom(current));
+
+    store.setRemotePersist((snapshot, expectedVersion) => {
+      void api<{ compensation: CompensationPersistedSnapshot & { version?: number } }>(
+        "/v1/compensation",
+        {
+          method: "PUT",
+          body: JSON.stringify({ snapshot, expectedVersion }),
+        },
+      )
+        .then((res) => {
+          if (typeof res.compensation.version === "number") {
+            store.setVersion(res.compensation.version);
+          }
+          setSaveError(null);
+        })
+        .catch((e) => {
+          const msg =
+            e instanceof Error ? e.message : "Could not save compensation data";
+          setSaveError(
+            msg.includes("updated elsewhere")
+              ? `${msg} Reload the page to continue.`
+              : msg,
+          );
+        });
+    });
+
     Promise.all([
+      api<{ compensation: CompensationPersistedSnapshot & { version?: number } }>(
+        "/v1/compensation",
+      ),
       admin
-        ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({ employees: [] }))
+        ? api<{ employees: EmployeeOption[] }>("/v1/employees").catch(() => ({
+            employees: [],
+          }))
         : Promise.resolve({ employees: [] as EmployeeOption[] }),
       admin
-        ? api<{ branches: BranchOption[] }>("/v1/branches").catch(() => ({ branches: [] }))
+        ? api<{ branches: BranchOption[] }>("/v1/branches").catch(() => ({
+            branches: [],
+          }))
         : Promise.resolve({ branches: [] as BranchOption[] }),
     ])
-      .then(async ([empRes, branchRes]) => {
+      .then(async ([compRes, empRes, branchRes]) => {
+        store.replaceFromServer(compRes.compensation);
         store.hydrateDirectory({
           employees: empRes.employees,
           branches: branchRes.branches,
@@ -125,14 +165,16 @@ export function CompensationDashboard() {
               clockInAt: string;
               clockOutAt: string | null;
             }>;
-          }>(`/v1/attendance/period?from=${period.start}&to=${period.end}`).catch(() => ({
-            records: [] as Array<{
-              id: string;
-              employeeId: string;
-              clockInAt: string;
-              clockOutAt: string | null;
-            }>,
-          }));
+          }>(`/v1/attendance/period?from=${period.start}&to=${period.end}`).catch(
+            () => ({
+              records: [] as Array<{
+                id: string;
+                employeeId: string;
+                clockInAt: string;
+                clockOutAt: string | null;
+              }>,
+            }),
+          );
           if (clocks.records.length > 0) {
             store.ingestClockHours(clocks.records);
           }
@@ -143,6 +185,10 @@ export function CompensationDashboard() {
         setError(e instanceof Error ? e.message : "Failed to load compensation"),
       )
       .finally(() => setLoading(false));
+
+    return () => {
+      store.setRemotePersist(null);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -202,6 +248,7 @@ export function CompensationDashboard() {
       <CompensationHeader
         isAdmin={isAdmin}
         isManager={isManager}
+        preview={false}
         onNew={() => {
           setFormEmployeeId(null);
           setFormOpen(true);
@@ -217,41 +264,60 @@ export function CompensationDashboard() {
           {error}
         </p>
       ) : null}
+      {saveError ? (
+        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
+          {t("Couldn’t save to server:")}{saveError}
+        </p>
+      ) : null}
 
       <CompensationOverviewCards summary={summary} />
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="overview" className="flex-none px-3">
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="employees" className="flex-none px-3">
-            Employees
-          </TabsTrigger>
-          <TabsTrigger value="history" className="flex-none px-3">
-            History
-          </TabsTrigger>
-          <TabsTrigger value="components" className="flex-none px-3">
-            Allowances
-          </TabsTrigger>
-          <TabsTrigger value="variable" className="flex-none px-3">
-            Bonus / commission
-          </TabsTrigger>
-          <TabsTrigger value="approvals" className="flex-none px-3">
-            Approvals
-            {summary.pendingApprovals > 0 ? (
-              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
-                {summary.pendingApprovals}
-              </span>
-            ) : null}
-          </TabsTrigger>
-          <TabsTrigger value="payroll" className="flex-none px-3">
-            Payroll inputs
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="flex-none px-3">
-            Reports
-          </TabsTrigger>
-        </TabsList>
+        {redesign ? (
+          <PrimaryTabBar
+            value={tab}
+            onValueChange={setTab}
+            primaryCount={5}
+            tabs={[
+              { value: "overview", label: t("Overview") },
+              { value: "employees", label: t("Employees") },
+              { value: "history", label: t("History") },
+              { value: "components", label: t("Allowances") },
+              {
+                value: "approvals",
+                label: t("Approvals"),
+                badge: summary.pendingApprovals,
+              },
+              { value: "variable", label: t("Bonus / commission") },
+              { value: "payroll", label: t("Payroll inputs") },
+              { value: "reports", label: t("Reports") },
+            ]}
+          />
+        ) : (
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="overview" className="flex-none px-3">
+              {t("Overview")}</TabsTrigger>
+            <TabsTrigger value="employees" className="flex-none px-3">
+              {t("Employees")}</TabsTrigger>
+            <TabsTrigger value="history" className="flex-none px-3">
+              {t("History")}</TabsTrigger>
+            <TabsTrigger value="components" className="flex-none px-3">
+              {t("Allowances")}</TabsTrigger>
+            <TabsTrigger value="variable" className="flex-none px-3">
+              {t("Bonus / commission")}</TabsTrigger>
+            <TabsTrigger value="approvals" className="flex-none px-3">
+              {t("Approvals")}{summary.pendingApprovals > 0 ? (
+                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
+                  {summary.pendingApprovals}
+                </span>
+              ) : null}
+            </TabsTrigger>
+            <TabsTrigger value="payroll" className="flex-none px-3">
+              {t("Payroll inputs")}</TabsTrigger>
+            <TabsTrigger value="reports" className="flex-none px-3">
+              {t("Reports")}</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="overview" className="mt-4">
           <CompensationOverviewPanel
@@ -396,7 +462,7 @@ export function CompensationDashboard() {
               <SheetHeader>
                 <SheetTitle>{selectedRequest.employeeName}</SheetTitle>
                 <SheetDescription>
-                  {changeTypeLabel(selectedRequest.changeType)} · effective{" "}
+                  {changeTypeLabel(selectedRequest.changeType)} {t("· effective")}{" "}
                   {formatDate(selectedRequest.effectiveDate)}
                 </SheetDescription>
               </SheetHeader>

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import { t } from "@/i18n";
 
 type Audit = {
   id: string;
@@ -47,10 +48,9 @@ export default function AuditsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Audits</h1>
+        <h1 className="text-2xl font-semibold">{t("Audits")}</h1>
         <p className="text-sm text-muted-foreground">
-          Platform and tenant-admin sensitive actions ({total} matching)
-        </p>
+          {t("Platform and tenant-admin sensitive actions (")}{total} {t("matching)")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
@@ -59,9 +59,9 @@ export default function AuditsPage() {
         onSubmit={(e) => load(e).catch((err) => setError(err.message))}
       >
         <div className="space-y-1">
-          <Label>Action</Label>
+          <Label>{t("Action")}</Label>
           <Input
-            placeholder="tenant.suspend"
+            placeholder={t("tenant.suspend")}
             value={filters.action}
             onChange={(e) =>
               setFilters((f) => ({ ...f, action: e.target.value }))
@@ -69,16 +69,16 @@ export default function AuditsPage() {
           />
         </div>
         <div className="space-y-1">
-          <Label>Tenant ID</Label>
+          <Label>{t("Tenant ID")}</Label>
           <Input
-            placeholder="uuid"
+            placeholder={t("uuid")}
             value={filters.tenantId}
             onChange={(e) =>
               setFilters((f) => ({ ...f, tenantId: e.target.value }))
             }
           />
         </div>
-        <Button type="submit">Filter</Button>
+        <Button type="submit">{t("Filter")}</Button>
       </form>
 
       <div className="space-y-2">
@@ -104,7 +104,7 @@ export default function AuditsPage() {
           </Card>
         ))}
         {audits.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No audit events.</p>
+          <p className="text-sm text-muted-foreground">{t("No audit events.")}</p>
         ) : null}
       </div>
     </div>

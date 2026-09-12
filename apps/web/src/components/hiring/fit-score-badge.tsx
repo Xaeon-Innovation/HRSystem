@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { fitLabel, type FitScoreResult } from "@/lib/hiring/fit-score";
+import { t } from "@/i18n";
 
 export function FitScoreBadge({
   result,
@@ -49,30 +50,29 @@ export function FitScoreBadge({
 
 export function FitScoreBreakdown({ result }: { result: FitScoreResult }) {
   if (result.score == null) {
-    return <p className="text-sm text-muted-foreground">No job attached — score appears once they are on an opening.</p>;
+    return <p className="text-sm text-muted-foreground">{t("No job attached — score appears once they are on an opening.")}</p>;
   }
   return (
     <div className="rounded-lg border bg-secondary/40 p-3 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <p className="font-medium">Job-fit score</p>
+        <p className="font-medium">{t("Job-fit score")}</p>
         <FitScoreBadge result={result} />
       </div>
       {result.knockout ? (
-        <p className="mt-2 text-rose-800 dark:text-rose-300">Knockout screening failed — score is floored.</p>
+        <p className="mt-2 text-rose-800 dark:text-rose-300">{t("Knockout screening failed — score is floored.")}</p>
       ) : null}
       {result.matchedSkills.length > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">
-          Matched: {result.matchedSkills.join(", ")}
+          {t("Matched:")}{result.matchedSkills.join(", ")}
         </p>
       ) : null}
       {result.missingSkills.length > 0 ? (
         <p className="mt-1 text-xs text-muted-foreground">
-          Gaps: {result.missingSkills.join(", ")}
+          {t("Gaps:")}{result.missingSkills.join(", ")}
         </p>
       ) : null}
       <p className="mt-2 text-[11px] text-muted-foreground">
-        Skills 50% · experience 25% · screening 15%
-        {result.usedInterview ? " · interviews 10%" : " · interviews omitted until a scorecard exists"}
+        {t("Skills 50% · experience 25% · screening 15%")}{result.usedInterview ? t(" · interviews 10%") : t(" · interviews omitted until a scorecard exists")}
       </p>
     </div>
   );

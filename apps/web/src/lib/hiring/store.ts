@@ -89,7 +89,27 @@ export type HiringSnapshot = {
   communications: CommunicationRecord[];
   activity: HiringActivityEvent[];
   bestFitDrafts: BestFitDraft[];
+  /** Optimistic concurrency token from the server snapshot row. */
+  version?: number;
 };
+
+/** Persisted on the server — directory (team/branches) is always re-hydrated. */
+export type HiringPersistedSnapshot = Omit<HiringSnapshot, "team" | "branches">;
+
+export function persistableHiringState(data: HiringSnapshot): HiringPersistedSnapshot {
+  return {
+    stages: data.stages,
+    jobs: data.jobs,
+    candidates: data.candidates,
+    interviews: data.interviews,
+    scorecards: data.scorecards,
+    offers: data.offers,
+    templates: data.templates,
+    communications: data.communications,
+    activity: data.activity,
+    bestFitDrafts: data.bestFitDrafts,
+  };
+}
 
 function emptySnapshot(): HiringSnapshot {
   return {
@@ -108,17 +128,37 @@ function emptySnapshot(): HiringSnapshot {
   };
 }
 
+/** Fresh tenant seed: structure only, no demo people/jobs. */
+export function emptyServerSnapshot(): HiringSnapshot {
+  return {
+    team: [],
+    branches: [],
+    stages: structuredClone(DEFAULT_STAGES),
+    jobs: [],
+    candidates: [],
+    interviews: [],
+    scorecards: [],
+    offers: [],
+    templates: structuredClone(MOCK_TEMPLATES),
+    communications: [],
+    activity: [],
+    bestFitDrafts: [],
+  };
+}
+
 function loadSnapshot(): HiringSnapshot {
-  if (typeof window === "undefined") return emptySnapshot();
+  if (typeof window === "undefined") return emptyServerSnapshot();
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    if (!raw) return emptySnapshot();
+    if (!raw) return emptyServerSnapshot();
     const parsed = JSON.parse(raw) as HiringSnapshot;
-    if (!parsed.jobs || !parsed.candidates) return emptySnapshot();
-    if (!parsed.bestFitDrafts) parsed.bestFitDrafts = structuredClone(MOCK_BEST_FIT);
+    if (!parsed.jobs || !parsed.candidates) return emptyServerSnapshot();
+    if (!parsed.bestFitDrafts) parsed.bestFitDrafts = [];
+    if (!parsed.stages?.length) parsed.stages = structuredClone(DEFAULT_STAGES);
+    if (!parsed.templates?.length) parsed.templates = structuredClone(MOCK_TEMPLATES);
     return parsed;
   } catch {
-    return emptySnapshot();
+    return emptyServerSnapshot();
   }
 }
 
@@ -130,6 +170,11 @@ function saveSnapshot(data: HiringSnapshot) {
     /* ignore quota */
   }
 }
+
+type RemotePersistHandler = (
+  snapshot: HiringPersistedSnapshot,
+  expectedVersion: number,
+) => void;
 
 function nowIso() {
   return new Date().toISOString();
@@ -157,13 +202,62 @@ const EMPTY_FILTERS: CandidateFilters = {
 
 export class HiringStore {
   private data: HiringSnapshot;
+  private remotePersist: RemotePersistHandler | null = null;
+  private persistTimer: ReturnType<typeof setTimeout> | null = null;
+  private suppressRemote = false;
+  private version = 1;
 
   constructor(seed?: HiringSnapshot) {
     this.data = seed ?? loadSnapshot();
+    if (typeof this.data.version === "number") this.version = this.data.version;
+  }
+
+  /** Wire server persistence; sessionStorage remains a local cache. */
+  setRemotePersist(handler: RemotePersistHandler | null) {
+    this.remotePersist = handler;
+  }
+
+  getVersion() {
+    return this.version;
+  }
+
+  setVersion(version: number) {
+    this.version = version;
+    this.data.version = version;
+  }
+
+  /** Replace local state from GET /v1/hiring (does not push back). */
+  replaceFromServer(input: Partial<HiringSnapshot> & Pick<HiringSnapshot, "jobs" | "candidates">) {
+    this.suppressRemote = true;
+    const base = emptyServerSnapshot();
+    this.data = {
+      ...base,
+      ...input,
+      stages: input.stages?.length ? input.stages : base.stages,
+      templates: input.templates?.length ? input.templates : base.templates,
+      interviews: input.interviews ?? [],
+      scorecards: input.scorecards ?? [],
+      offers: input.offers ?? [],
+      communications: input.communications ?? [],
+      activity: input.activity ?? [],
+      bestFitDrafts: input.bestFitDrafts ?? [],
+      team: input.team ?? [],
+      branches: input.branches ?? [],
+      version: typeof input.version === "number" ? input.version : this.version,
+    };
+    if (typeof input.version === "number") this.version = input.version;
+    saveSnapshot(this.data);
+    this.suppressRemote = false;
   }
 
   private persist() {
+    this.data.version = this.version;
     saveSnapshot(this.data);
+    if (this.suppressRemote || !this.remotePersist) return;
+    if (this.persistTimer) clearTimeout(this.persistTimer);
+    this.persistTimer = setTimeout(() => {
+      this.remotePersist?.(persistableHiringState(this.data), this.version);
+    }, 350);
   }
 
   snapshot(): HiringSnapshot {
@@ -229,7 +323,8 @@ export class HiringStore {
         branchName: this.data.branches[0]?.name ?? "HQ",
       });
     }
-    this.persist();
+    // Directory is always reloaded from employees/branches APIs — cache locally only.
+    saveSnapshot(this.data);
   }
 
   team() {
@@ -1152,12 +1247,18 @@ export class HiringStore {
     return [...list].sort((a, b) => b.sentAt.localeCompare(a.sentAt));
   }
 
-  sendCommunication(
+  async sendCommunication(
     candidateId: string,
     templateId: string,
     actor: HiringActor,
     overrides?: { subject?: string; body?: string },
-  ): CommunicationRecord {
+    sendEmail?: (input: {
+      to: string;
+      subject: string;
+      body: string;
+      candidateId: string;
+    }) => Promise<{ ok: boolean; reason?: string }>,
+  ): Promise<CommunicationRecord> {
     const c = this.candidate(candidateId);
     if (!c) throw new Error("Candidate not found.");
     const tpl = this.data.templates.find((t) => t.id === templateId);
@@ -1170,14 +1271,34 @@ export class HiringStore {
         .replaceAll("{{type}}", "interview")
         .replaceAll("{{datetime}}", "the scheduled time")
         .replaceAll("{{expiry}}", "the offer expiry date");
+    const subject = fill(overrides?.subject ?? tpl.subject);
+    const body = fill(overrides?.body ?? tpl.body);
+    let status: CommunicationRecord["status"] = "logged";
+    if (sendEmail && c.email) {
+      try {
+        const result = await sendEmail({
+          to: c.email,
+          subject,
+          body,
+          candidateId,
+        });
+        if (result.ok) status = "sent";
+        else if (result.reason === "not_configured") status = "logged";
+        else status = "failed";
+      } catch {
+        status = "failed";
+      }
+    } else if (sendEmail && !c.email) {
+      status = "failed";
+    }
     const rec: CommunicationRecord = {
       id: newId("cm"),
       candidateId,
       event: tpl.event,
-      subject: fill(overrides?.subject ?? tpl.subject),
-      body: fill(overrides?.body ?? tpl.body),
+      subject,
+      body,
       channel: "email",
-      status: "mocked_sent",
+      status,
       actorId: actor.id,
       actorName: actor.name,
       sentAt: nowIso(),

@@ -19,6 +19,7 @@ import {
   loadLeaveStore,
   notifyLeaveDecision,
   notifyLeaveSubmitted,
+  runLeaveAccrual,
   saveLeaveStore,
   visibleSnapshot,
 } from "../services/leave.js";
@@ -42,6 +43,7 @@ function asDraft(body: ReturnType<typeof leaveRequestDraftSchema.parse>): LeaveR
     handoverNotes: body.handoverNotes,
     coverageEmployeeId: body.coverageEmployeeId ?? null,
     attachmentName: body.attachmentName ?? null,
+    attachments: body.attachments ?? [],
     asDraft: body.asDraft,
   };
 }
@@ -118,10 +120,7 @@ export const leaveRoutes: FastifyPluginAsync = async (app) => {
     }
   });
 
-  app.post(
-    "/requests/:id/decide",
-    { preHandler: requireModuleRole("leaves") },
-    async (request, reply) => {
+  app.post("/requests/:id/decide", async (request, reply) => {
       const tenantId = tenantIdOf(request);
       const user = request.user as JwtPayload;
       const { id } = request.params as { id: string };
@@ -155,8 +154,7 @@ export const leaveRoutes: FastifyPluginAsync = async (app) => {
           .code(400)
           .send({ error: err instanceof Error ? err.message : "Could not update leave" });
       }
-    },
-  );
+    });
 
   app.post(
     "/requests/bulk-decide",
@@ -328,9 +326,8 @@ export const leaveRoutes: FastifyPluginAsync = async (app) => {
       const tenantId = tenantIdOf(request);
       const user = request.user as JwtPayload;
       const actor = await leaveActorFor(app, user);
+      const posted = await runLeaveAccrual(app, tenantId);
       const store = await loadLeaveStore(app, tenantId, actor);
-      const posted = store.runMonthlyAccrual(actor);
-      await saveLeaveStore(app, tenantId, store);
       return { posted, leave: visibleSnapshot(store, actor) };
     },
   );

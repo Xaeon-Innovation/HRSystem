@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { LanguageToggle } from "@/components/language-toggle";
+import { t } from "@/i18n";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,28 +41,28 @@ export default function LoginPage() {
       else if (data.user.role === "tenant_admin") router.push("/app");
       else router.push("/app/clock");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed");
+        setError(err instanceof Error ? err.message : t("Login failed"));
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="relative mx-auto flex min-h-dvh max-w-md items-center px-4">
-      <div className="absolute right-4 top-4">
+    <div className="relative mx-auto flex min-h-dvh w-full max-w-md items-center px-4">
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
+        <LanguageToggle showLabels={false} />
         <ThemeToggle />
       </div>
       <Card className="w-full">
         <CardHeader>
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-            HR Track
-          </p>
-          <CardTitle>Sign in</CardTitle>
+            {t("HR Track")}</p>
+          <CardTitle>{t("Sign in")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form className="space-y-4" onSubmit={onSubmit}>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t("Email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -71,7 +73,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("Password")}</Label>
               <Input
                 id="password"
                 type="password"
@@ -82,7 +84,7 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="slug">Tenant slug (optional)</Label>
+              <Label htmlFor="slug">{t("Tenant slug (optional)")}</Label>
               <Input
                 id="slug"
                 placeholder="cms"
@@ -91,25 +93,27 @@ export default function LoginPage() {
               />
             </div>
             {error ? (
-              <p className="text-sm text-destructive">{error}</p>
+              <p className="text-sm text-destructive">{t(error)}</p>
             ) : null}
             <Button className="w-full" size="lg" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
+              {loading ? t("Signing in…") : t("Sign in")}
             </Button>
           </form>
           <p className="mt-4 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Integrations &amp; Analytics</span>{" "}
-            are on the <span className="font-medium">tenant admin</span> account, not the
-            platform super admin.
-          </p>
+            <span className="font-medium text-foreground">
+              {t("Integrations & Analytics")}
+            </span>{" "}
+            {t(
+              "are on the tenant admin account, not the platform super admin.",
+            )}</p>
           <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
             <li>
-              Tenant admin: <code>admin@cms.local</code> / Admin123! · slug{" "}
-              <code>cms</code>
+              {t("Tenant admin:")} <code>admin@cms.local</code> / Admin123! ·{" "}
+              {t("slug")} <code>cms</code>
             </li>
             <li>
-              Platform super admin: <code>superadmin@hr.local</code> / SuperAdmin123! · no
-              slug (Tenants / Plans only)
+              {t("Platform super admin:")} <code>superadmin@hr.local</code> /
+              SuperAdmin123! · {t("no slug (Tenants / Plans only)")}
             </li>
           </ul>
         </CardContent>

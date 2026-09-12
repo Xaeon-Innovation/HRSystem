@@ -11,6 +11,7 @@ import type {
   CompStatus,
   VariableStatus,
 } from "@/lib/compensation/types";
+import { t } from "@/i18n";
 
 const COMP_STATUS: Record<CompStatus, string> = {
   active:
@@ -74,6 +75,6 @@ export function VariableStatusBadge({ status }: { status: VariableStatus }) {
 }
 
 export function BandBadge({ position }: { position: BandPosition | null }) {
-  if (!position) return <span className="text-xs text-muted-foreground">No band</span>;
+  if (!position) return <span className="text-xs text-muted-foreground">{t("No band")}</span>;
   return <span className={cn(pill, BAND_STATUS[position])}>{bandPositionLabel(position)}</span>;
 }
