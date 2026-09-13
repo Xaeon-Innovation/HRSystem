@@ -13,6 +13,7 @@ import {
   sites,
   analyticsMetricDefinitions,
   notifications,
+  sealSecret,
 } from "./index.js";
 
 const connectionString =
@@ -148,6 +149,7 @@ async function main() {
           name: `${name} Admin`,
           role: "tenant_admin",
           passwordHash: await bcrypt.hash(adminPassword, 10),
+          loginPasswordCipher: sealSecret(adminPassword),
         })
         .returning();
       admin = createdAdmin;
@@ -164,6 +166,14 @@ async function main() {
         status: "active",
       });
       console.log(`Created tenant admin ${adminEmail}`);
+    } else if (!admin.loginPasswordCipher) {
+      await db
+        .update(users)
+        .set({
+          loginPasswordCipher: sealSecret(adminPassword),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, admin.id));
     }
 
     const empEmail = `employee@${slug}.local`;
@@ -179,6 +189,7 @@ async function main() {
           name: `${name} Employee`,
           role: "employee",
           passwordHash: await bcrypt.hash("Employee123!", 10),
+          loginPasswordCipher: sealSecret("Employee123!"),
         })
         .returning();
       empUser = createdEmp;
@@ -194,6 +205,14 @@ async function main() {
         status: "active",
       });
       console.log(`Created employee ${empEmail}`);
+    } else if (!empUser.loginPasswordCipher) {
+      await db
+        .update(users)
+        .set({
+          loginPasswordCipher: sealSecret("Employee123!"),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, empUser.id));
     }
 
     if (trialPlan) {

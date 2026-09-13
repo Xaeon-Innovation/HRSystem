@@ -183,6 +183,10 @@ export const createEmployeeSchema = z
     }
   });
 
+export const setEmployeePasswordSchema = z.object({
+  password: z.string().min(8).max(72),
+});
+
 export const updateEmployeeSchema = z
   .object(employeeBaseFields)
   .partial()

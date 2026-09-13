@@ -1,11 +1,12 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, ilike, or } from "drizzle-orm";
-import { branches, employees, sites, users } from "@hr/db";
+import { branches, employees, openSecret, sealSecret, sites, users } from "@hr/db";
 import {
   createEmployeeSchema,
   importEmployeesBodySchema,
   normalizeSystemModuleRoles,
+  setEmployeePasswordSchema,
   updateEmployeeSchema,
   draftToCreatePayload,
   isEmployeeDraftComplete,
@@ -37,6 +38,13 @@ function emptyToNull(value: string | null | undefined): string | null | undefine
   if (value == null) return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+async function hashedLoginPassword(plain: string) {
+  return {
+    passwordHash: await bcrypt.hash(plain, 10),
+    loginPasswordCipher: sealSecret(plain),
+  };
 }
 
 const employeeSelect = {
@@ -171,6 +179,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
     });
     if (existingNid) throw new Error("National ID already exists in tenant");
 
+    const hashed = await hashedLoginPassword(password);
     const [user] = await app.db
       .insert(users)
       .values({
@@ -182,7 +191,8 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           data.role === "tenant_admin"
             ? []
             : normalizeSystemModuleRoles(data.systemModuleRoles ?? []),
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash: hashed.passwordHash,
+        loginPasswordCipher: hashed.loginPasswordCipher,
       })
       .returning();
 
@@ -698,6 +708,72 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
           jobRoles: rolesByEmployee.get(id) ?? [],
         }),
       };
+    },
+  );
+
+  app.get(
+    "/:id/credentials",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const { id } = request.params as { id: string };
+      const emp = await app.db.query.employees.findFirst({
+        where: and(eq(employees.id, id), eq(employees.tenantId, tenantId)),
+      });
+      if (!emp) return reply.code(404).send({ error: "Not found" });
+      const user = await app.db.query.users.findFirst({
+        where: eq(users.id, emp.userId),
+      });
+      if (!user) return reply.code(404).send({ error: "Not found" });
+      return {
+        email: user.email,
+        password: openSecret(user.loginPasswordCipher),
+      };
+    },
+  );
+
+  app.post(
+    "/:id/password",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const { id } = request.params as { id: string };
+      const parsed = setEmployeePasswordSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: parsed.error.flatten() });
+      }
+      const emp = await app.db.query.employees.findFirst({
+        where: and(eq(employees.id, id), eq(employees.tenantId, tenantId)),
+      });
+      if (!emp) return reply.code(404).send({ error: "Not found" });
+      const user = await app.db.query.users.findFirst({
+        where: eq(users.id, emp.userId),
+      });
+      if (!user) return reply.code(404).send({ error: "Not found" });
+
+      const nextPassword = parsed.data.password;
+      const hashed = await hashedLoginPassword(nextPassword);
+      await app.db
+        .update(users)
+        .set({
+          passwordHash: hashed.passwordHash,
+          loginPasswordCipher: hashed.loginPasswordCipher,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id));
+
+      const actor = request.user as JwtPayload;
+      await writeAudit(app, {
+        actor,
+        action: "employee.password.change",
+        tenantId,
+        resourceType: "employee",
+        resourceId: emp.id,
+        metadata: { email: user.email },
+        request,
+      });
+
+      return { email: user.email, password: nextPassword };
     },
   );
 

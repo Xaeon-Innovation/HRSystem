@@ -1,7 +1,13 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, count, eq } from "drizzle-orm";
-import { employees, integrationConnections, tenants, users } from "@hr/db";
+import {
+  employees,
+  integrationConnections,
+  sealSecret,
+  tenants,
+  users,
+} from "@hr/db";
 import {
   createTenantSchema,
   updateTenantSchema,
@@ -137,6 +143,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
         name: data.adminName,
         role: "tenant_admin",
         passwordHash: await bcrypt.hash(data.adminPassword, 10),
+        loginPasswordCipher: sealSecret(data.adminPassword),
       })
       .returning();
 

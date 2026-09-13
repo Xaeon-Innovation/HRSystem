@@ -10,3 +10,4 @@ export function createDb(connectionString: string) {
 
 export type Db = ReturnType<typeof createDb>["db"];
 export * from "./schema.js";
+export * from "./secret-box.js";

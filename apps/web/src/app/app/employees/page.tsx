@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
 import { OrgSetupPanel } from "@/components/employees/org-setup-panel";
+import { LoginCredentialsPanel } from "@/components/employees/login-credentials";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { cn } from "@/lib/utils";
 import { useUiRedesign } from "@/hooks/use-ui-redesign";
@@ -1370,7 +1371,7 @@ export default function EmployeesPage() {
               : `Complete ${editing.name}`
             : "Edit employee"
         }
-        description="Update personal details, access, roles, branch, and work zone."
+        description={t("Update sign-in credentials, personal details, access, roles, branch, and work zone.")}
       >
         {editing ? (
           <div className="space-y-4">
@@ -1381,6 +1382,10 @@ export default function EmployeesPage() {
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                 {t("Fill the highlighted fields to complete this profile.")}</p>
             ) : null}
+            <LoginCredentialsPanel
+              employeeId={editing.id}
+              employeeName={editing.name}
+            />
             <div className="grid gap-3 md:grid-cols-2">
               <ProfileFieldGrid draft={editDraft} onChange={setEditField} />
               <div className="space-y-1">
