@@ -46,8 +46,8 @@ export async function provisionTenant(
       settings: {
         brandingName: data.name,
         timezone: "Africa/Cairo",
-        pingIntervalSec: 20,
-        locationRetentionDays: 60,
+        pingIntervalSec: 60,
+        locationRetentionDays: 30,
         missedClockOutHours: 12,
       },
     })

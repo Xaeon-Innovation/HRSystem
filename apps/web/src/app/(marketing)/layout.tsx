@@ -12,7 +12,7 @@ export default function MarketingLayout({
       <MarketingAtmosphere />
       <div className="relative z-10 flex min-h-dvh flex-col">
         <MarketingHeader />
-        <main className="min-w-0 flex-1">{children}</main>
+        <main className="flex min-w-0 flex-1 flex-col">{children}</main>
         <MarketingFooter />
       </div>
     </div>

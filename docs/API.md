@@ -33,6 +33,8 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 | PATCH | `/v1/subscriptions/:id` | Manual override / cancel |
 | GET | `/v1/audits` | Filters: `tenantId`, `actorUserId`, `action`, `from`, `to`, `limit`, `offset` |
 
+Public catalog: `GET /v1/public/plans` (active plans only). Self-serve SKUs are **Field / People / Ops / Scale**; **Enterprise** is sales-only (`amountCents = 0`). Feature packs on `plans.features`: `fieldOps`, `peopleOps`, `analytics`, `integrations`, plus numeric `pingIntervalSec` / `locationRetentionDays` caps. See [BILLING.md](./BILLING.md).
+
 ## Billing (tenant_admin)
 
 | Method | Path | Notes |

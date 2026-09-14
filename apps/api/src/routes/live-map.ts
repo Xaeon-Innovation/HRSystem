@@ -9,7 +9,6 @@ import {
   users,
 } from "@hr/db";
 import {
-  DEFAULT_LOCATION_RETENTION_DAYS,
   resolveMapAppearance,
   updateMapAppearanceSchema,
   type JwtPayload,
@@ -17,12 +16,18 @@ import {
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import { avatarUrlFor } from "../lib/avatar.js";
+import {
+  getTenantPlanFeatures,
+  requirePlanFeature,
+  resolveLocationRetentionDays,
+} from "../lib/features.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
 const MAX_HISTORY_MS = 24 * 60 * 60 * 1000;
 
 export const liveMapRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requirePlanFeature("fieldOps"));
   app.addHook("preHandler", requireRoles("tenant_admin"));
 
   app.get("/map-settings", async (request) => {
@@ -204,9 +209,11 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
     const tenant = await app.db.query.tenants.findFirst({
       where: eq(tenants.id, tenantId),
     });
-    const retentionDays =
-      tenant?.settings.locationRetentionDays ??
-      DEFAULT_LOCATION_RETENTION_DAYS;
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const retentionDays = resolveLocationRetentionDays(
+      tenant?.settings.locationRetentionDays,
+      features,
+    );
 
     const points = await app.db
       .select({

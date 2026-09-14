@@ -39,7 +39,9 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       seatLimit: current?.plan?.seatLimit ?? null,
       accessAllowed: subscriptionAllowsAccess(current?.subscription?.status),
       paymobConfigured: isPaymobConfigured(),
-      availablePlans: catalog.filter((p) => p.code !== "trial"),
+      availablePlans: catalog.filter(
+        (p) => p.code !== "trial" && p.amountCents > 0,
+      ),
     };
   });
 

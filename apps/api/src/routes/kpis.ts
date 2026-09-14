@@ -24,6 +24,7 @@ import {
   tenantIdOf,
 } from "../types.js";
 import { todayInZone, zonedDayBounds } from "../lib/timezone.js";
+import { requirePlanFeature } from "../lib/features.js";
 import { CREATIVE_CMS_GOALS_PRESET } from "../integrations/presets/creative-cms-goals.js";
 
 const ATTENDANCE_KPI_RE =
@@ -37,6 +38,7 @@ function isAttendanceLikeKpi(name: string, description: string | null): boolean 
 
 export const kpiRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requirePlanFeature("peopleOps"));
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);

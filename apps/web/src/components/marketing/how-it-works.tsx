@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { MapPin } from "lucide-react";
+import { Clock, MapPin, Users } from "lucide-react";
 import { MarketingSection } from "@/components/marketing/section";
 import { cn } from "@/lib/utils";
 import { useT } from "@/i18n/provider";
@@ -13,18 +13,21 @@ const STEPS = [
     n: "1",
     title: "Clock in from the phone",
     body: "Field and office teams start shifts with GPS-backed attendance in seconds.",
+    icon: Clock,
   },
   {
     id: "live",
     n: "2",
     title: "See who’s working live",
     body: "Managers open the live map and know who’s on shift, idle, or moving.",
+    icon: MapPin,
   },
   {
     id: "ops",
     n: "3",
     title: "Run the rest of people ops",
     body: "KPIs, leave, hiring, and compensation stay in the same system, not another spreadsheet.",
+    icon: Users,
   },
 ] as const;
 
@@ -78,7 +81,7 @@ function PreviewChrome({ children }: { children: React.ReactNode }) {
         <span className="h-2 w-2 rounded-full bg-border" />
         <span className="h-2 w-2 rounded-full bg-border" />
         <div className="ms-2 min-w-0 flex-1 truncate rounded-md bg-background/80 px-2.5 py-1 text-[11px] text-muted-foreground">
-          app.elevora.ae
+          elevora.xaeons.com/app
         </div>
       </div>
       {children}
@@ -308,7 +311,7 @@ export function HowItWorks() {
   const activeStep = STEPS.find((step) => step.id === active) ?? STEPS[0];
 
   return (
-    <MarketingSection>
+    <MarketingSection compact id="how-it-works">
       <div className="max-w-2xl">
         <h2 className="font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           {t("From the field to the office in three steps")}
@@ -334,6 +337,7 @@ export function HowItWorks() {
           >
             {STEPS.map((step) => {
               const isActive = step.id === active;
+              const Icon = step.icon;
               return (
                 <button
                   key={step.id}
@@ -350,7 +354,8 @@ export function HowItWorks() {
                   )}
                   onClick={() => setActive(step.id)}
                 >
-                  <span className="text-xs font-semibold tabular-nums text-primary">
+                  <span className="flex items-center gap-1 text-xs font-semibold tabular-nums text-primary">
+                    <Icon className="h-3 w-3" aria-hidden />
                     {step.n}
                   </span>
                   <span className="mt-0.5 block text-[11px] font-medium leading-tight text-foreground">
@@ -380,6 +385,7 @@ export function HowItWorks() {
           >
             {STEPS.map((step) => {
               const isActive = step.id === active;
+              const Icon = step.icon;
               return (
                 <li key={step.id} className="border-t border-border/60">
                   <button
@@ -392,7 +398,10 @@ export function HowItWorks() {
                     onClick={() => setActive(step.id)}
                     onMouseEnter={() => setActive(step.id)}
                   >
-                    <span className="text-xs font-semibold tabular-nums text-primary">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold tabular-nums text-primary">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-md bg-primary/10">
+                        <Icon className="h-3.5 w-3.5" aria-hidden />
+                      </span>
                       {t("Step {n}", { n: step.n })}
                     </span>
                     <h3

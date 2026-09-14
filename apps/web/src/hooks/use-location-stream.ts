@@ -10,6 +10,7 @@ import {
 } from "@/lib/offline-queue";
 
 type Options = {
+  pingIntervalSec?: number;
   onError?: (message: string | null) => void;
   onFix?: (position: LastKnownPosition) => void;
   onStatusChange?: (clockedIn: boolean) => void;
@@ -41,6 +42,8 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
   onFixRef.current = options.onFix;
   onStatusChangeRef.current = options.onStatusChange;
 
+  const intervalSec = options.pingIntervalSec ?? DEFAULT_PING_INTERVAL_SEC;
+
   useEffect(() => {
     if (!enabled) {
       wsRef.current?.close();
@@ -61,7 +64,7 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
     const ws = new WebSocket(wsUrl(access));
     wsRef.current = ws;
     const buffer: unknown[] = [];
-    const minIntervalMs = DEFAULT_PING_INTERVAL_SEC * 1000;
+    const minIntervalMs = Math.max(intervalSec, 15) * 1000;
 
     const flush = () => {
       while (buffer.length && ws.readyState === WebSocket.OPEN) {
@@ -142,9 +145,11 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
     }, minIntervalMs);
 
     const statusTimer = setInterval(() => {
-      void api<{ clockedIn: boolean }>("/v1/attendance/status")
+      void api<{ clockedIn: boolean; liveTracking?: boolean }>(
+        "/v1/attendance/status",
+      )
         .then((s) => {
-          if (!s.clockedIn) {
+          if (!s.clockedIn || s.liveTracking === false) {
             onStatusChangeRef.current?.(false);
             ws.close();
           }
@@ -158,5 +163,5 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
       ws.close();
     };
-  }, [enabled]);
+  }, [enabled, intervalSec]);
 }

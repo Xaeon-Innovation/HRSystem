@@ -14,6 +14,7 @@ import {
   type JwtPayload,
 } from "@hr/shared";
 import { todayInZone, zonedDayBounds } from "../lib/timezone.js";
+import { requirePlanFeature } from "../lib/features.js";
 import { authenticate, requireTenantScope, tenantIdOf } from "../types.js";
 
 type TeamStatus = "clocked_in" | "clocked_out" | "on_leave" | "unknown";
@@ -71,6 +72,7 @@ async function assertTeamTodayAccess(
 
 export const teamTodayRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requirePlanFeature("fieldOps"));
 
   app.get(
     "/team-today",

@@ -12,6 +12,12 @@ import { api } from "@/lib/api";
 import { useLocationStream } from "@/hooks/use-location-stream";
 import type { LastKnownPosition } from "@/lib/offline-queue";
 
+type AttendanceStatus = {
+  clockedIn: boolean;
+  liveTracking?: boolean;
+  pingIntervalSec?: number;
+};
+
 type ClockStatusContextValue = {
   clockedIn: boolean;
   locationError: string | null;
@@ -29,16 +35,20 @@ export function ClockStatusProvider({
   children: React.ReactNode;
 }) {
   const [clockedIn, setClockedIn] = useState(false);
+  const [liveTracking, setLiveTracking] = useState(false);
+  const [pingIntervalSec, setPingIntervalSec] = useState<number | undefined>();
   const [locationError, setLocationError] = useState<string | null>(null);
   const [lastKnownPosition, setLastKnownPosition] =
     useState<LastKnownPosition | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
-      const status = await api<{ clockedIn: boolean }>(
-        "/v1/attendance/status",
-      );
+      const status = await api<AttendanceStatus>("/v1/attendance/status");
       setClockedIn(status.clockedIn);
+      setLiveTracking(status.liveTracking === true);
+      if (typeof status.pingIntervalSec === "number") {
+        setPingIntervalSec(status.pingIntervalSec);
+      }
       return status.clockedIn;
     } catch {
       return false;
@@ -54,7 +64,8 @@ export function ClockStatusProvider({
     return () => window.removeEventListener("online", onOnline);
   }, [refreshStatus]);
 
-  useLocationStream(clockedIn, {
+  useLocationStream(clockedIn && liveTracking, {
+    pingIntervalSec,
     onError: (msg) => setLocationError(msg),
     onFix: (pos) => setLastKnownPosition(pos),
     onStatusChange: (next) => {

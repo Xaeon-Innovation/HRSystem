@@ -15,6 +15,11 @@ import {
   toAuthUser,
   toJwtPayload,
 } from "../lib/auth-tokens.js";
+import { getTenantSubscription } from "../lib/billing.js";
+import {
+  getTenantPlanFeatures,
+  resolvePingIntervalSec,
+} from "../lib/features.js";
 import { authenticate } from "../types.js";
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
@@ -167,7 +172,30 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       employeeId = emp?.id ?? null;
     }
 
-    return toAuthUser(user, employeeId);
+    const authUser = toAuthUser(user, employeeId);
+    if (!user.tenantId) return authUser;
+
+    const current = await getTenantSubscription(app.db, user.tenantId);
+    const features = await getTenantPlanFeatures(app.db, user.tenantId);
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, user.tenantId),
+      columns: { settings: true },
+    });
+    return {
+      ...authUser,
+      plan: current?.plan
+        ? {
+            code: current.plan.code,
+            name: current.plan.name,
+            seatLimit: current.plan.seatLimit,
+          }
+        : null,
+      planFeatures: features,
+      pingIntervalSec: resolvePingIntervalSec(
+        tenant?.settings.pingIntervalSec,
+        features,
+      ),
+    };
   });
 
   app.post("/me/avatar", { preHandler: authenticate }, async (request, reply) => {

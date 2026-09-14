@@ -11,6 +11,7 @@ import { t } from "@/i18n";
 import { cn } from "@/lib/utils";
 
 const NAV = [
+  { href: "/#how-it-works", label: "How it works" },
   { href: "/#features", label: "Features" },
   { href: "/pricing", label: "Pricing" },
 ] as const;

@@ -14,6 +14,11 @@ import {
   countActiveSeats,
   getTenantSubscription,
 } from "../lib/billing.js";
+import {
+  getTenantPlanFeatures,
+  resolveLocationRetentionDays,
+  resolvePingIntervalSec,
+} from "../lib/features.js";
 import { provisionTenant } from "../lib/tenant-provision.js";
 import { requireRoles } from "../types.js";
 
@@ -148,13 +153,27 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     if (!current) return reply.code(404).send({ error: "Not found" });
 
     const incomingSettings = parsed.data.settings ?? {};
-    const nextSettings = {
+    const features = await getTenantPlanFeatures(app.db, id);
+    const mergedSettings = {
       ...current.settings,
       ...incomingSettings,
       map: incomingSettings.map
         ? { ...(current.settings.map ?? {}), ...incomingSettings.map }
         : current.settings.map,
     };
+    if (incomingSettings.pingIntervalSec !== undefined) {
+      mergedSettings.pingIntervalSec = resolvePingIntervalSec(
+        incomingSettings.pingIntervalSec,
+        features,
+      );
+    }
+    if (incomingSettings.locationRetentionDays !== undefined) {
+      mergedSettings.locationRetentionDays = resolveLocationRetentionDays(
+        incomingSettings.locationRetentionDays,
+        features,
+      );
+    }
+    const nextSettings = mergedSettings;
 
     const [updated] = await app.db
       .update(tenants)

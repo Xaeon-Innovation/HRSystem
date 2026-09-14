@@ -6,6 +6,7 @@ import {
   locationPings,
 } from "@hr/db";
 import { locationPingSchema, type JwtPayload } from "@hr/shared";
+import { tenantHasFeature } from "./lib/features.js";
 import { addClient, broadcastToTenant, removeClient } from "./ws-hub.js";
 
 export async function registerWs(app: FastifyInstance) {
@@ -48,6 +49,20 @@ export async function registerWs(app: FastifyInstance) {
         }
         if (msg.type === "location.ping") {
           if (!user.employeeId || !user.tenantId) return;
+          const hasFieldOps = await tenantHasFeature(
+            app.db,
+            user.tenantId,
+            "fieldOps",
+          );
+          if (!hasFieldOps) {
+            socket.send(
+              JSON.stringify({
+                type: "error",
+                error: "plan_missing_fieldOps",
+              }),
+            );
+            return;
+          }
           const parsed = locationPingSchema.safeParse(msg.payload);
           if (!parsed.success) {
             socket.send(
@@ -125,6 +140,20 @@ export async function registerWs(app: FastifyInstance) {
           user.role === "tenant_admin" &&
           user.tenantId
         ) {
+          const hasFieldOps = await tenantHasFeature(
+            app.db,
+            user.tenantId,
+            "fieldOps",
+          );
+          if (!hasFieldOps) {
+            socket.send(
+              JSON.stringify({
+                type: "error",
+                error: "plan_missing_fieldOps",
+              }),
+            );
+            return;
+          }
           addClient(`tenant:${user.tenantId}:map`, socket);
           socket.send(
             JSON.stringify({

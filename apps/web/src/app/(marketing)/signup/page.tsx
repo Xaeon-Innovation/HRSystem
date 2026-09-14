@@ -70,7 +70,7 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg px-4 py-10 sm:py-14">
+    <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center px-4 py-10 sm:py-14">
       <Card className="w-full">
         <CardHeader className="space-y-2">
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">

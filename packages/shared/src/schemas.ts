@@ -8,6 +8,8 @@ import {
   INTEGRATION_PROVIDER_TYPES,
   INTEGRATION_SYNC_MODES,
   KPI_TYPES,
+  MAX_PING_INTERVAL_SEC,
+  MIN_PING_INTERVAL_SEC,
   NOTIFICATION_TYPES,
   PAYMOB_INTERVAL_DAYS,
   REVIEW_PERIODS,
@@ -124,7 +126,12 @@ export const updateTenantSchema = z.object({
       logoUrl: z.string().url().optional().nullable(),
       brandPreset: brandPresetSchema.optional(),
       timezone: z.string().optional(),
-      pingIntervalSec: z.number().int().min(15).max(30).optional(),
+      pingIntervalSec: z
+        .number()
+        .int()
+        .min(MIN_PING_INTERVAL_SEC)
+        .max(MAX_PING_INTERVAL_SEC)
+        .optional(),
       locationRetentionDays: z.number().int().min(30).max(90).optional(),
       missedClockOutHours: z.number().positive().optional(),
       defaultHourlyCost: z.number().min(0).optional(),

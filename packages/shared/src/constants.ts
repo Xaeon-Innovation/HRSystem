@@ -65,7 +65,8 @@ export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
 export const DEFAULT_PING_INTERVAL_SEC = 20;
 export const MIN_PING_INTERVAL_SEC = 15;
-export const MAX_PING_INTERVAL_SEC = 30;
+/** Upper bound for tenant ping settings (Field plan uses 60s). */
+export const MAX_PING_INTERVAL_SEC = 60;
 export const DEFAULT_LOCATION_RETENTION_DAYS = 60;
 
 export const MIN_GEOFENCE_RADIUS_METERS = 50;
@@ -259,7 +260,16 @@ export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 export const PAYMOB_INTERVAL_DAYS = [7, 15, 30, 60, 90, 180, 360] as const;
 
-export const PLAN_CODES = ["trial", "starter", "pro", "enterprise"] as const;
+export const PLAN_CODES = [
+  "trial",
+  "field",
+  "people",
+  "ops",
+  "scale",
+  "enterprise",
+  "starter",
+  "pro",
+] as const;
 export type PlanCode = (typeof PLAN_CODES)[number];
 
 export const BRANCH_STATUSES = ["active", "inactive"] as const;
@@ -475,5 +485,19 @@ export const MAX_INTEGRATION_RAW_RETENTION_DAYS = 90;
 export const DEFAULT_LATENESS_GRACE_MINUTES = 15;
 export const DEFAULT_SHIFT_START_HOUR = 9;
 
-export const PLAN_FEATURE_KEYS = ["integrations", "analytics"] as const;
+/** Boolean gates stored on `plans.features`. Numeric limits use the same JSON. */
+export const PLAN_FEATURE_KEYS = [
+  "fieldOps",
+  "peopleOps",
+  "integrations",
+  "analytics",
+] as const;
 export type PlanFeatureKey = (typeof PLAN_FEATURE_KEYS)[number];
+
+/** Numeric / meta keys stored alongside boolean feature flags on `plans.features`. */
+export const PLAN_LIMIT_KEYS = [
+  "pingIntervalSec",
+  "locationRetentionDays",
+  "trialDays",
+] as const;
+export type PlanLimitKey = (typeof PLAN_LIMIT_KEYS)[number];

@@ -11,9 +11,11 @@ import {
   requireTenantScope,
   tenantIdOf,
 } from "../types.js";
+import { requirePlanFeature } from "../lib/features.js";
 
 export const hiringRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requirePlanFeature("peopleOps"));
 
   app.get(
     "/",

@@ -14,8 +14,8 @@ import {
 import { createNotification } from "./services/notifications.js";
 import {
   DEFAULT_INTEGRATION_RAW_RETENTION_DAYS,
-  DEFAULT_LOCATION_RETENTION_DAYS,
 } from "@hr/shared";
+import { getTenantPlanFeatures, resolveLocationRetentionDays } from "./lib/features.js";
 import { drainPendingRawEvents } from "./integrations/process-raw.js";
 import { runConnectionSync } from "./routes/integrations.js";
 import {
@@ -37,9 +37,11 @@ export function startJobs(app: FastifyInstance) {
         where: eq(tenants.status, "active"),
       });
       for (const tenant of allTenants) {
-        const days =
-          tenant.settings.locationRetentionDays ??
-          DEFAULT_LOCATION_RETENTION_DAYS;
+        const features = await getTenantPlanFeatures(app.db, tenant.id);
+        const days = resolveLocationRetentionDays(
+          tenant.settings.locationRetentionDays,
+          features,
+        );
         const cutoff = new Date(Date.now() - days * 24 * hourMs);
         const deleted = await app.db
           .delete(locationPings)

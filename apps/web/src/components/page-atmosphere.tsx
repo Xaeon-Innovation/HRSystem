@@ -2,20 +2,38 @@
 
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import {
-  BubbleBackground,
-  type BubbleColors,
-} from "@/components/animate-ui/components/backgrounds/bubble";
+import { BackgroundGradientAnimation } from "@/components/ui/background-gradient-animation";
 
 type Hsl = { h: number; s: number; l: number };
 
-const FALLBACK_COLORS: BubbleColors = {
+type GradientColors = {
+  start: string;
+  end: string;
+  first: string;
+  second: string;
+  third: string;
+  fourth: string;
+  fifth: string;
+};
+
+const FALLBACK_DARK: GradientColors = {
+  start: "rgb(18, 24, 28)",
+  end: "rgb(12, 16, 20)",
   first: "12, 107, 151",
   second: "32, 160, 176",
-  third: "14, 90, 120",
-  fourth: "196, 154, 108",
+  third: "56, 170, 196",
+  fourth: "14, 90, 120",
   fifth: "40, 140, 132",
-  sixth: "56, 170, 196",
+};
+
+const FALLBACK_LIGHT: GradientColors = {
+  start: "rgb(248, 250, 252)",
+  end: "rgb(241, 245, 249)",
+  first: "12, 107, 151",
+  second: "32, 160, 176",
+  third: "56, 170, 196",
+  fourth: "14, 90, 120",
+  fifth: "40, 140, 132",
 };
 
 function parseHsl(raw: string): Hsl | null {
@@ -38,11 +56,11 @@ function hslToRgb({ h, s, l }: Hsl): string {
   return `${f(0)}, ${f(8)}, ${f(4)}`;
 }
 
-function rgb(h: number, s: number, l: number) {
+function rgbTriple(h: number, s: number, l: number) {
   return hslToRgb({ h, s, l });
 }
 
-function readBubbleColors(): BubbleColors {
+function readColors(isDark: boolean): GradientColors {
   const styles = getComputedStyle(document.documentElement);
   const primary =
     parseHsl(styles.getPropertyValue("--primary")) ?? {
@@ -50,41 +68,48 @@ function readBubbleColors(): BubbleColors {
       s: 85,
       l: 32,
     };
-  const accentFg =
-    parseHsl(styles.getPropertyValue("--accent-foreground")) ?? {
-      h: 175,
-      s: 50,
-      l: 22,
+  const bg =
+    parseHsl(styles.getPropertyValue("--background")) ?? {
+      h: isDark ? 222 : 220,
+      s: isDark ? 14 : 16,
+      l: isDark ? 7 : 98,
     };
-  const isDark = document.documentElement.classList.contains("dark");
+
+  const start = `rgb(${rgbTriple(bg.h, bg.s, bg.l)})`;
+  const end = `rgb(${rgbTriple(bg.h, Math.max(bg.s - 4, 0), isDark ? Math.max(bg.l - 3, 0) : Math.min(bg.l - 2, 100))})`;
 
   return {
-    first: rgb(primary.h, 48, isDark ? 50 : 58),
-    second: rgb(primary.h + 22, 42, isDark ? 54 : 62),
-    third: rgb(primary.h - 14, 40, isDark ? 44 : 52),
-    fourth: rgb(32, 30, isDark ? 46 : 68),
-    fifth: rgb(accentFg.h, 38, isDark ? 50 : 58),
-    sixth: rgb(primary.h + 10, 44, isDark ? 56 : 60),
+    start,
+    end,
+    first: rgbTriple(primary.h, isDark ? 55 : 60, isDark ? 48 : 42),
+    second: rgbTriple(primary.h + 18, isDark ? 50 : 55, isDark ? 52 : 46),
+    third: rgbTriple(primary.h - 12, isDark ? 48 : 52, isDark ? 44 : 40),
+    fourth: rgbTriple(primary.h + 8, isDark ? 42 : 48, isDark ? 40 : 38),
+    fifth: rgbTriple(primary.h + 28, isDark ? 45 : 50, isDark ? 50 : 44),
   };
 }
 
+/** App-shell atmosphere using BackgroundGradientAnimation (Aceternity). */
 export function PageAtmosphere() {
   const { resolvedTheme } = useTheme();
-  const [colors, setColors] = useState<BubbleColors>(FALLBACK_COLORS);
+  const isDark = resolvedTheme === "dark";
+  const [colors, setColors] = useState<GradientColors>(
+    isDark ? FALLBACK_DARK : FALLBACK_LIGHT,
+  );
 
   useEffect(() => {
-    const sync = () => setColors(readBubbleColors());
-
+    const sync = () => {
+      const dark = document.documentElement.classList.contains("dark");
+      setColors(readColors(dark));
+    };
     sync();
     window.addEventListener("hr-tenant-brand", sync);
     window.addEventListener("hr-ui-redesign", sync);
-
     const obs = new MutationObserver(sync);
     obs.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ["class", "data-ui-redesign", "data-brand", "style"],
     });
-
     return () => {
       window.removeEventListener("hr-tenant-brand", sync);
       window.removeEventListener("hr-ui-redesign", sync);
@@ -95,16 +120,22 @@ export function PageAtmosphere() {
   return (
     <div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 isolate overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden contain-strict"
     >
-      <div className="absolute -inset-[22%] blur-[56px]">
-        <BubbleBackground
-          interactive={false}
-          colors={colors}
-          className="absolute inset-0 bg-transparent"
-        />
-      </div>
-      <div className="absolute inset-0 bg-background/40 dark:bg-background/48" />
+      <BackgroundGradientAnimation
+        interactive={false}
+        blendingValue="soft-light"
+        size="85%"
+        gradientBackgroundStart={colors.start}
+        gradientBackgroundEnd={colors.end}
+        firstColor={colors.first}
+        secondColor={colors.second}
+        thirdColor={colors.third}
+        fourthColor={colors.fourth}
+        fifthColor={colors.fifth}
+        containerClassName="absolute inset-0 h-full w-full"
+      />
+      <div className="absolute inset-0 bg-background/45 dark:bg-background/50" />
     </div>
   );
 }

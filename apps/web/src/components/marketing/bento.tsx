@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ComponentType } from "react";
+import {
+  CalendarDays,
+  Clock,
+  Gauge,
+  MapPin,
+  UserPlus,
+  type LucideProps,
+} from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { MarketingSection } from "@/components/marketing/section";
 import { cn } from "@/lib/utils";
@@ -17,31 +25,37 @@ const FEATURES: {
   id: FeatureId;
   title: string;
   body: string;
+  icon: ComponentType<LucideProps>;
 }[] = [
   {
     id: "clock",
     title: "Mobile clock-in",
     body: "GPS-backed attendance from the phone, field or office.",
+    icon: Clock,
   },
   {
     id: "presence",
     title: "Live field presence",
     body: "Watch who’s clocked in and where they are, presence that updates while people work.",
+    icon: MapPin,
   },
   {
     id: "kpi",
     title: "KPIs & scorecards",
     body: "Targets, results, and roll-ups without spreadsheet chaos.",
+    icon: Gauge,
   },
   {
     id: "leave",
     title: "Leave management",
     body: "Policies, balances, requests, and calendars managers actually use.",
+    icon: CalendarDays,
   },
   {
     id: "hiring",
     title: "Hiring & compensation",
     body: "Pipeline through offers, plus structures ready for payroll handoff.",
+    icon: UserPlus,
   },
 ];
 
@@ -327,7 +341,7 @@ export function ProductBento() {
   const [active, setActive] = useState<FeatureId>("clock");
 
   return (
-    <MarketingSection id="features">
+    <MarketingSection compact id="features">
       <div className="max-w-2xl">
         <h2 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
           {t("One system for the field and the office")}
@@ -343,6 +357,7 @@ export function ProductBento() {
         <ul className="min-w-0">
           {FEATURES.map((feature) => {
             const isActive = active === feature.id;
+            const Icon = feature.icon;
             return (
               <li key={feature.id} className="border-t border-border/60">
                 <button
@@ -355,11 +370,11 @@ export function ProductBento() {
                 >
                   <motion.h3
                     className={cn(
-                      "font-semibold tracking-tight text-foreground origin-left",
+                      "flex items-center gap-2.5 font-semibold tracking-tight text-foreground origin-left",
                       isActive ? "text-foreground" : "text-foreground/70",
                     )}
                     animate={{
-                      scale: isActive ? 1.12 : 1,
+                      scale: isActive ? 1.06 : 1,
                       opacity: isActive ? 1 : 0.72,
                     }}
                     transition={
@@ -368,6 +383,16 @@ export function ProductBento() {
                         : { type: "spring", stiffness: 320, damping: 24 }
                     }
                   >
+                    <span
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition-colors",
+                        isActive
+                          ? "border-primary/30 bg-primary/15 text-primary"
+                          : "border-border/70 bg-muted/40 text-muted-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" aria-hidden />
+                    </span>
                     <span className="inline-block text-lg sm:text-xl">
                       {t(feature.title)}
                     </span>

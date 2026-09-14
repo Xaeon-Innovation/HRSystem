@@ -6,11 +6,17 @@ import {
   employeeLiveLocations,
   employees,
   locationPings,
+  tenants,
 } from "@hr/db";
 import { clockEventSchema, correctAttendanceSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import { isInsideGeofence } from "../lib/geo.js";
+import {
+  getTenantPlanFeatures,
+  planFeatureEnabled,
+  resolvePingIntervalSec,
+} from "../lib/features.js";
 import type { App } from "../types.js";
 import {
   requireModuleRole,
@@ -344,7 +350,24 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.get("/status", async (request) => {
     const tenantId = tenantIdOf(request);
     const user = request.user as JwtPayload;
-    if (!user.employeeId) return { clockedIn: false, attendance: null };
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const liveTracking = planFeatureEnabled(features, "fieldOps");
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+      columns: { settings: true },
+    });
+    const pingIntervalSec = resolvePingIntervalSec(
+      tenant?.settings.pingIntervalSec,
+      features,
+    );
+    if (!user.employeeId) {
+      return {
+        clockedIn: false,
+        attendance: null,
+        liveTracking,
+        pingIntervalSec,
+      };
+    }
     const open = await app.db.query.attendanceRecords.findFirst({
       where: and(
         eq(attendanceRecords.tenantId, tenantId),
@@ -352,7 +375,12 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
         isNull(attendanceRecords.clockOutAt),
       ),
     });
-    return { clockedIn: Boolean(open), attendance: open ?? null };
+    return {
+      clockedIn: Boolean(open),
+      attendance: open ?? null,
+      liveTracking,
+      pingIntervalSec,
+    };
   });
 
   app.patch(

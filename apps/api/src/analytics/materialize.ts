@@ -18,9 +18,12 @@ import {
 import {
   DEFAULT_HOURLY_COST,
   DEFAULT_LATENESS_GRACE_MINUTES,
-  DEFAULT_PING_INTERVAL_SEC,
   DEFAULT_SHIFT_START_HOUR,
 } from "@hr/shared";
+import {
+  getTenantPlanFeatures,
+  resolvePingIntervalSec,
+} from "../lib/features.js";
 import { addDays, todayInZone, zonedDayBounds } from "../lib/timezone.js";
 
 function overlapMinutes(
@@ -49,7 +52,11 @@ export async function materializeTenantDays(
   const grace =
     tenant.settings.latenessGraceMinutes ?? DEFAULT_LATENESS_GRACE_MINUTES;
   const shiftStart = tenant.settings.shiftStartHour ?? DEFAULT_SHIFT_START_HOUR;
-  const pingSec = tenant.settings.pingIntervalSec ?? DEFAULT_PING_INTERVAL_SEC;
+  const features = await getTenantPlanFeatures(db, tenantId);
+  const pingSec = resolvePingIntervalSec(
+    tenant.settings.pingIntervalSec,
+    features,
+  );
 
   const roster = await db.query.employees.findMany({
     where: and(eq(employees.tenantId, tenantId), eq(employees.status, "active")),

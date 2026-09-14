@@ -55,6 +55,30 @@ module.exports = {
           "sans-serif",
         ],
       },
+      animation: {
+        "gradient-first": "gradient-move-vertical 30s ease infinite",
+        "gradient-second": "gradient-move-in-circle 20s reverse infinite",
+        "gradient-third": "gradient-move-in-circle 40s linear infinite",
+        "gradient-fourth": "gradient-move-horizontal 40s ease infinite",
+        "gradient-fifth": "gradient-move-in-circle 20s ease infinite",
+      },
+      keyframes: {
+        "gradient-move-horizontal": {
+          "0%": { transform: "translateX(-50%) translateY(-10%)" },
+          "50%": { transform: "translateX(50%) translateY(10%)" },
+          "100%": { transform: "translateX(-50%) translateY(-10%)" },
+        },
+        "gradient-move-in-circle": {
+          "0%": { transform: "rotate(0deg)" },
+          "50%": { transform: "rotate(180deg)" },
+          "100%": { transform: "rotate(360deg)" },
+        },
+        "gradient-move-vertical": {
+          "0%": { transform: "translateY(-50%)" },
+          "50%": { transform: "translateY(50%)" },
+          "100%": { transform: "translateY(-50%)" },
+        },
+      },
     },
   },
   plugins: [],

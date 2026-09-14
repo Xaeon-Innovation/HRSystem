@@ -25,6 +25,13 @@ export type AuthUser = {
   employeeId?: string | null;
   systemModuleRoles?: Array<"kpis" | "leaves" | "hiring" | "compensation">;
   avatarUrl?: string | null;
+  plan?: {
+    code: string;
+    name: string;
+    seatLimit: number | null;
+  } | null;
+  planFeatures?: Record<string, boolean | number | string>;
+  pingIntervalSec?: number;
 };
 
 const TOKEN_KEY = "hr_access_token";
