@@ -431,7 +431,7 @@ export function KpiDashboard() {
             <p className="mt-1 text-sm text-muted-foreground">
               {employeeSelf
                 ? t("Your overall score, what needs attention, and your metrics.")
-                : t("Team pulse first — open a person to coach. Metrics and insights are one tap away.")}
+                : t("Team pulse first, open a person to coach. Metrics and insights are one tap away.")}
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -542,7 +542,7 @@ export function KpiDashboard() {
                 className="w-full sm:w-auto"
                 onClick={() => void acknowledgeScores(pendingAckIds)}
               >
-                {t("Got it — acknowledge all")}</Button>
+                {t("Got it, acknowledge all")}</Button>
             </div>
           ) : null}
 

@@ -61,6 +61,18 @@ export const createTenantSchema = z.object({
   adminName: z.string().min(2).max(120),
 });
 
+export const publicSignupSchema = createTenantSchema.extend({
+  acceptTerms: z.literal(true),
+});
+
+export const publicDemoRequestSchema = z.object({
+  name: z.string().min(2).max(120),
+  company: z.string().min(2).max(120),
+  email: z.string().email(),
+  phone: z.string().max(40).optional(),
+  message: z.string().max(2000).optional(),
+});
+
 const hexColor = z
   .string()
   .regex(/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/, "Must be a hex color");
@@ -437,6 +449,8 @@ export const auditQuerySchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateTenantInput = z.infer<typeof createTenantSchema>;
+export type PublicSignupInput = z.infer<typeof publicSignupSchema>;
+export type PublicDemoRequestInput = z.infer<typeof publicDemoRequestSchema>;
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type ImportEmployeesBody = z.infer<typeof importEmployeesBodySchema>;
 export type ClockEventInput = z.infer<typeof clockEventSchema>;

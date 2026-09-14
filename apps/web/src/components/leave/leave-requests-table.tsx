@@ -245,7 +245,7 @@ export function LeaveRequestsTable({
                     <LeaveStatusBadge status={r.status} />
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {r.approverName ?? r.approvalSteps.find((s) => s.status === "pending")?.assigneeName ?? "—"}
+                    {r.approverName ?? r.approvalSteps.find((s) => s.status === "pending")?.assigneeName ?? "-"}
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">

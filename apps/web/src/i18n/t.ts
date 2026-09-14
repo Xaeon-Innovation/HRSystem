@@ -3,6 +3,14 @@ import { ar } from "./ar";
 
 export type TVars = Record<string, string | number>;
 
+/**
+ * Kept for call sites that await Arabic before switching locale.
+ * Dictionary is already in the module graph (required for SSR/client hydration parity).
+ */
+export async function loadArabic(): Promise<Record<string, string>> {
+  return ar;
+}
+
 export function t(text: string, vars?: TVars): string {
   const locale = getLocale();
   let out = locale === "ar" ? (ar[text] ?? text) : text;

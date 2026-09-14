@@ -128,7 +128,7 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
       );
     };
 
-    // Periodic forced ping (still requires a real position — never invent coords)
+    // Periodic forced ping (still requires a real position, never invent coords)
     const interval = setInterval(() => {
       pingOnce(
         { enableHighAccuracy: true, maximumAge: 15000, timeout: 12000 },

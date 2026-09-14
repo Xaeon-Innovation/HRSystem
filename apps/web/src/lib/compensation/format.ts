@@ -61,9 +61,9 @@ export function monthKey(iso: string): string {
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = parseIsoDate(value.slice(0, 10));
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString(
     intlLocale(),
     intlDateOptions({ month: "short", day: "numeric", year: "numeric" }),
@@ -71,9 +71,9 @@ export function formatDate(value: string | null | undefined): string {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString(
     intlLocale(),
     intlDateOptions({
@@ -94,7 +94,7 @@ export function formatMoney(
   currency = "EGP",
   opts?: { compact?: boolean },
 ): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   if (opts?.compact && Math.abs(value) >= 1000) {
     const k = value / 1000;
     const n = Math.abs(k) >= 10 ? k.toFixed(0) : k.toFixed(1);
@@ -110,18 +110,18 @@ export function formatMoney(
 }
 
 export function formatPercent(value: number | null | undefined, digits = 1): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(digits)}%`;
 }
 
 export function formatCompa(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   return `${value.toFixed(2)}x`;
 }
 
 export function formatHours(value: number | null | undefined, digits = 1): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   return `${value.toFixed(digits)}h`;
 }
 
@@ -333,7 +333,7 @@ export function appraisalLabel(value: AppraisalResult | null | undefined): strin
     case "below":
       return t("Below");
     default:
-      return "—";
+      return "-";
   }
 }
 

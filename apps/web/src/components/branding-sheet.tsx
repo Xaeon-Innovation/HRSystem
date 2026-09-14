@@ -156,7 +156,7 @@ export function BrandingSheet({
               onChange={(e) => void onFile(e)}
             />
             <p className="text-xs text-muted-foreground">
-              {t("JPEG, PNG, WebP, or GIF — stored on this server, not a public URL.")}</p>
+              {t("JPEG, PNG, WebP, or GIF, stored on this server, not a public URL.")}</p>
           </div>
           <div className="space-y-2">
             <Label>{t("Color preset")}</Label>

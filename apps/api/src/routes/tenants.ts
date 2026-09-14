@@ -1,12 +1,8 @@
 import type { FastifyPluginAsync } from "fastify";
-import bcrypt from "bcryptjs";
 import { and, count, eq } from "drizzle-orm";
 import {
-  employees,
   integrationConnections,
-  sealSecret,
   tenants,
-  users,
 } from "@hr/db";
 import {
   createTenantSchema,
@@ -17,8 +13,8 @@ import { writeAudit } from "../lib/audit.js";
 import {
   countActiveSeats,
   getTenantSubscription,
-  startTrialForTenant,
 } from "../lib/billing.js";
+import { provisionTenant } from "../lib/tenant-provision.js";
 import { requireRoles } from "../types.js";
 
 export const tenantRoutes: FastifyPluginAsync = async (app) => {
@@ -112,49 +108,11 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const data = parsed.data;
-    const existing = await app.db.query.tenants.findFirst({
-      where: eq(tenants.slug, data.slug),
-    });
-    if (existing) {
-      return reply.code(409).send({ error: "Slug already exists" });
+    const provisioned = await provisionTenant(app.db, parsed.data);
+    if (!provisioned.ok) {
+      return reply.code(provisioned.status).send({ error: provisioned.error });
     }
-
-    const [tenant] = await app.db
-      .insert(tenants)
-      .values({
-        name: data.name,
-        slug: data.slug,
-        settings: {
-          brandingName: data.name,
-          timezone: "Africa/Cairo",
-          pingIntervalSec: 20,
-          locationRetentionDays: 60,
-          missedClockOutHours: 12,
-        },
-      })
-      .returning();
-
-    const [admin] = await app.db
-      .insert(users)
-      .values({
-        tenantId: tenant.id,
-        email: data.adminEmail,
-        name: data.adminName,
-        role: "tenant_admin",
-        passwordHash: await bcrypt.hash(data.adminPassword, 10),
-        loginPasswordCipher: sealSecret(data.adminPassword),
-      })
-      .returning();
-
-    await app.db.insert(employees).values({
-      tenantId: tenant.id,
-      userId: admin.id,
-      jobTitle: "Tenant Admin",
-      status: "active",
-    });
-
-    const trial = await startTrialForTenant(app.db, tenant.id);
+    const { tenant, admin, subscription } = provisioned.result;
 
     const actor = request.user as JwtPayload;
     await writeAudit(app, {
@@ -166,7 +124,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       metadata: {
         slug: tenant.slug,
         adminEmail: admin.email,
-        trialSubscriptionId: trial?.id ?? null,
+        trialSubscriptionId: subscription?.id ?? null,
       },
       request,
     });
@@ -174,7 +132,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
     return reply.code(201).send({
       tenant,
       admin: { id: admin.id, email: admin.email },
-      subscription: trial,
+      subscription,
     });
   });
 

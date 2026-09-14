@@ -153,7 +153,7 @@ export default function TenantDetailPage() {
           <CardContent className="text-sm">
             {data.subscription?.currentPeriodEnd
               ? new Date(data.subscription.currentPeriodEnd).toLocaleString()
-              : "—"}
+              : "-"}
           </CardContent>
         </Card>
         <Card>
@@ -167,7 +167,7 @@ export default function TenantDetailPage() {
                     ? ` · ${data.integrationHealth.error} error`
                     : ""
                 }`
-              : "—"}
+              : "-"}
           </CardContent>
         </Card>
       </div>

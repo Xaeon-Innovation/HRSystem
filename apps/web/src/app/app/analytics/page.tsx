@@ -249,7 +249,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{t("Analytics")}</h1>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {t("Snapshot first — drill a metric for people breakdown ·")}{data.from} → {data.to}
+            {t("Snapshot first, drill a metric for people breakdown ·")}{data.from} → {data.to}
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">

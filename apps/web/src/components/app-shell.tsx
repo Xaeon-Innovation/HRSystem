@@ -332,24 +332,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   useEffect(() => {
-    if (user?.role !== "tenant_admin") return;
-    let cancelled = false;
-    const warmMap = () => {
-      if (cancelled) return;
-      void import("@/components/live-map");
-      void api("/v1/admin/map-settings", { silent: true }).catch(() => undefined);
-      void api("/v1/admin/live-map?presence=all", { silent: true }).catch(
-        () => undefined,
-      );
-    };
-    const id = window.setTimeout(warmMap, 180);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(id);
-    };
-  }, [user?.role]);
-
-  useEffect(() => {
     void api<AuthUser>("/v1/auth/me")
       .then(async (me) => {
         updateSessionUser(me);
@@ -458,7 +440,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const productName = redesign ? brand.brandingName : t("HR Track");
+  const productName = redesign ? brand.brandingName : "Elevora";
 
   const shell = (
     <div className="flex min-h-dvh w-full flex-col md:flex-row">

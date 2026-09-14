@@ -127,7 +127,7 @@ export function fitLabel(band: FitBand | null): string {
   if (band === "good") return "Good";
   if (band === "fair") return "Fair";
   if (band === "weak") return "Weak";
-  return "—";
+  return "-";
 }
 
 function jobSkillNeedles(job: JobOpening): string[] {

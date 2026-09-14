@@ -77,7 +77,7 @@ describe("live tracking", () => {
       });
       if (empLogin.statusCode !== 200) {
         skip = true;
-        console.warn("Skipping live tracking tests — seed users missing");
+        console.warn("Skipping live tracking tests, seed users missing");
         return;
       }
       const empBody = empLogin.json() as {
@@ -105,7 +105,7 @@ describe("live tracking", () => {
       otherTenantId = acme?.id ?? "";
     } catch {
       skip = true;
-      console.warn("Skipping live tracking tests — Postgres unavailable");
+      console.warn("Skipping live tracking tests, Postgres unavailable");
     }
   });
 

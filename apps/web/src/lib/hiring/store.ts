@@ -93,7 +93,7 @@ export type HiringSnapshot = {
   version?: number;
 };
 
-/** Persisted on the server — directory (team/branches) is always re-hydrated. */
+/** Persisted on the server, directory (team/branches) is always re-hydrated. */
 export type HiringPersistedSnapshot = Omit<HiringSnapshot, "team" | "branches">;
 
 export function persistableHiringState(data: HiringSnapshot): HiringPersistedSnapshot {
@@ -323,7 +323,7 @@ export class HiringStore {
         branchName: this.data.branches[0]?.name ?? "HQ",
       });
     }
-    // Directory is always reloaded from employees/branches APIs — cache locally only.
+    // Directory is always reloaded from employees/branches APIs, cache locally only.
     saveSnapshot(this.data);
   }
 
@@ -406,7 +406,7 @@ export class HiringStore {
       openingsCount: Math.max(1, Number(draft.openingsCount) || 1),
       filledCount: 0,
       hiringManagerId: draft.hiringManagerId,
-      hiringManagerName: hm?.name ?? "—",
+      hiringManagerName: hm?.name ?? "-",
       recruiterOwnerId: draft.recruiterOwnerId,
       recruiterOwnerName: rec?.name ?? actor.name,
       priority: draft.priority,
@@ -888,7 +888,7 @@ export class HiringStore {
         skills: c.skills,
         yearsOfExperience: c.yearsOfExperience,
         education: c.parsedResume?.education ?? null,
-        summary: "Parsed placeholder — confirm name, skills, and years of experience.",
+        summary: "Parsed placeholder, confirm name, skills, and years of experience.",
         source: "placeholder",
       };
     }
@@ -1397,7 +1397,7 @@ export class HiringStore {
         id: `fb-${i.id}`,
         kind: "feedback_overdue",
         severity: "warning",
-        title: `Scorecard overdue — ${i.candidateName}`,
+        title: `Scorecard overdue, ${i.candidateName}`,
         detail: `Interview was ${formatDateTime(i.scheduledAt)}.`,
         candidateId: i.candidateId,
         jobId: i.jobId,
@@ -1411,7 +1411,7 @@ export class HiringStore {
           id: `off-${o.id}`,
           kind: "offer_awaiting_approval",
           severity: "warning",
-          title: `Offer awaiting approval — ${o.candidateName}`,
+          title: `Offer awaiting approval, ${o.candidateName}`,
           detail: o.offeredTitle,
           candidateId: o.candidateId,
           jobId: o.jobId,
@@ -1426,7 +1426,7 @@ export class HiringStore {
           id: `ns-${i.id}`,
           kind: "no_show_followup",
           severity: "warning",
-          title: `No-show follow-up — ${i.candidateName}`,
+          title: `No-show follow-up, ${i.candidateName}`,
           detail: "Reschedule or send a follow-up.",
           candidateId: i.candidateId,
           jobId: i.jobId,
@@ -1442,7 +1442,7 @@ export class HiringStore {
           id: `up-${i.id}`,
           kind: "upcoming_interview",
           severity: "info",
-          title: `Interview soon — ${i.candidateName}`,
+          title: `Interview soon, ${i.candidateName}`,
           detail: formatDateTime(i.scheduledAt),
           candidateId: i.candidateId,
           jobId: i.jobId,
@@ -1459,7 +1459,7 @@ export class HiringStore {
           id: `req-${j.id}`,
           kind: "requisition_target",
           severity: days <= 7 ? "urgent" : "warning",
-          title: `Target hire approaching — ${j.title}`,
+          title: `Target hire approaching, ${j.title}`,
           detail: `${days} day${days === 1 ? "" : "s"} to ${j.targetHireDate}.`,
           candidateId: null,
           jobId: j.id,

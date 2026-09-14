@@ -242,7 +242,7 @@ export function CompensationVariablePanel({
                       <p className="text-muted-foreground">{variableCycleLabel(v.cycle)}</p>
                     </td>
                     <td className="px-3 py-3 text-xs">
-                      {v.kpiLinked ? v.kpiScore ?? t("Linked") : "—"}
+                      {v.kpiLinked ? v.kpiScore ?? t("Linked") : "-"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-col items-start gap-1">

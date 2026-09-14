@@ -73,7 +73,7 @@ describe("profile avatars", () => {
       });
       if (empLogin.statusCode !== 200 || adminLogin.statusCode !== 200) {
         skip = true;
-        console.warn("Skipping avatar tests — seed users missing");
+        console.warn("Skipping avatar tests, seed users missing");
         return;
       }
       const empBody = empLogin.json() as {
@@ -90,7 +90,7 @@ describe("profile avatars", () => {
       adminUserId = adminBody.user.id;
     } catch (err) {
       skip = true;
-      console.warn("Skipping avatar tests — database unavailable", err);
+      console.warn("Skipping avatar tests, database unavailable", err);
     }
   });
 

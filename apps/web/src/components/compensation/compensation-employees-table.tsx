@@ -188,7 +188,7 @@ export function CompensationEmployeesTable({
                       <div className="flex flex-col gap-1">
                         <BandBadge position={band.position} />
                         <span className="text-[11px] text-muted-foreground">
-                          {band.band ? `${band.band.grade} · ${formatCompa(band.compaRatio)}` : "—"}
+                          {band.band ? `${band.band.grade} · ${formatCompa(band.compaRatio)}` : "-"}
                         </span>
                       </div>
                     </td>

@@ -101,7 +101,7 @@ export default function ClockPage() {
           clientEventId: crypto.randomUUID(),
           clientTimestamp: new Date().toISOString(),
         });
-        setMessage("Offline — event queued and will sync when online");
+        setMessage("Offline, event queued and will sync when online");
         setQueued((n) => n + 1);
         setClockedIn(type === "clock-in");
         setLocationError(null);
@@ -134,7 +134,7 @@ export default function ClockPage() {
             clientTimestamp: new Date().toISOString(),
           });
           setQueued((n) => n + 1);
-          setMessage(`${errMsg} — queued for retry`);
+          setMessage(`${errMsg}, queued for retry`);
         } catch (geoErr) {
           setLocationError(
             geoErr instanceof Error ? geoErr.message : errMsg,
@@ -177,9 +177,9 @@ export default function ClockPage() {
           <CardTitle className="text-center text-base font-medium">
             {clockedIn ? (
               <span className="text-emerald-700 dark:text-emerald-400">
-                {t("On shift — clocked in")}</span>
+                {t("On shift, clocked in")}</span>
             ) : (
-              <span className="text-muted-foreground">{t("Off shift — clocked out")}</span>
+              <span className="text-muted-foreground">{t("Off shift, clocked out")}</span>
             )}
           </CardTitle>
         </CardHeader>

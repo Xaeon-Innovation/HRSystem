@@ -86,7 +86,7 @@ export function IncompleteBanner({
       <p className="text-left">
         {count} {t("metric")}{count === 1 ? "" : "s"} {t("still need a result. The overall score only uses metrics that already have a number.")}{onDrill ? (
           <span className="mt-0.5 block text-xs font-medium opacity-90">
-            {active ? t("Showing metrics without results — tap again to clear.") : t("Tap to list them.")}
+            {active ? t("Showing metrics without results, tap again to clear.") : t("Tap to list them.")}
           </span>
         ) : null}
       </p>

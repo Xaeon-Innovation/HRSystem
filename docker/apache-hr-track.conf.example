@@ -3,7 +3,7 @@
 # Then: sudo a2ensite ... && sudo apache2ctl configtest && sudo systemctl reload apache2
 #
 # For cPanel: prefer "Application Manager" / reverse proxy in the panel, or
-# add similar ProxyPass rules in the subdomain's Apache include files —
+# add similar ProxyPass rules in the subdomain's Apache include files -
 # do NOT disable the existing website or CMS vhosts.
 
 <VirtualHost *:80>

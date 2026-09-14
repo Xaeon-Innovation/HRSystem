@@ -359,7 +359,7 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
                   applyLeave(res.leave);
                   setAccrualMsg(
                     res.posted === 0
-                      ? t("No accruals due — already posted for this period.")
+                      ? t("No accruals due, already posted for this period.")
                       : `Posted ${res.posted} accrual transaction${res.posted === 1 ? "" : "s"}.`,
                   );
                 })
@@ -504,7 +504,7 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
                   applyLeave(res.leave);
                   setAccrualMsg(
                     res.posted === 0
-                      ? t("No accruals due — already posted for this period.")
+                      ? t("No accruals due, already posted for this period.")
                       : `Posted ${res.posted} accrual transaction${res.posted === 1 ? "" : "s"}.`,
                   );
                 })

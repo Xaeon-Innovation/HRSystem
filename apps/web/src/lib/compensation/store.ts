@@ -78,7 +78,7 @@ export type Snapshot = {
   period: typeof CURRENT_PERIOD;
 };
 
-/** Server-persisted pay domain — employees & clock hours are hydrated live. */
+/** Server-persisted pay domain, employees & clock hours are hydrated live. */
 export type CompensationPersistedSnapshot = Omit<
   Snapshot,
   "employees" | "clockShifts"
@@ -359,7 +359,7 @@ export class CompensationStore {
       }
     }
 
-    // Directory is always reloaded from employees APIs — cache locally only.
+    // Directory is always reloaded from employees APIs, cache locally only.
     saveSnapshot(this.data);
   }
 
@@ -1050,7 +1050,7 @@ export class CompensationStore {
     row.approvedById = actor.id;
     row.approvedByName = actor.name;
     row.updatedAt = now;
-    if (note) row.notes = [row.notes, note].filter(Boolean).join(" — ");
+    if (note) row.notes = [row.notes, note].filter(Boolean).join(", ");
     this.pushAudit({
       entityType: "variable",
       entityId: row.id,

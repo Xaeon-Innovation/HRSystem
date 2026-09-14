@@ -54,7 +54,7 @@ export function shouldPostAccrual(input: {
   return monthKey(input.lastAccrualAt) < period;
 }
 
-/** Posts monthly accrual conceptually — call from a scheduler or “Run accrual” admin action. */
+/** Posts monthly accrual conceptually, call from a scheduler or “Run accrual” admin action. */
 export function planAccrualPosting(input: {
   employee: LeaveEmployee;
   policy: LeavePolicy;

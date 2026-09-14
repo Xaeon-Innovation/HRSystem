@@ -14,7 +14,7 @@ export function FitScoreBadge({
   if (result.score == null || !result.band) {
     return (
       <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
-        —
+        -
       </span>
     );
   }
@@ -50,7 +50,7 @@ export function FitScoreBadge({
 
 export function FitScoreBreakdown({ result }: { result: FitScoreResult }) {
   if (result.score == null) {
-    return <p className="text-sm text-muted-foreground">{t("No job attached — score appears once they are on an opening.")}</p>;
+    return <p className="text-sm text-muted-foreground">{t("No job attached, score appears once they are on an opening.")}</p>;
   }
   return (
     <div className="rounded-lg border bg-secondary/40 p-3 text-sm">
@@ -59,7 +59,7 @@ export function FitScoreBreakdown({ result }: { result: FitScoreResult }) {
         <FitScoreBadge result={result} />
       </div>
       {result.knockout ? (
-        <p className="mt-2 text-rose-800 dark:text-rose-300">{t("Knockout screening failed — score is floored.")}</p>
+        <p className="mt-2 text-rose-800 dark:text-rose-300">{t("Knockout screening failed, score is floored.")}</p>
       ) : null}
       {result.matchedSkills.length > 0 ? (
         <p className="mt-2 text-xs text-muted-foreground">

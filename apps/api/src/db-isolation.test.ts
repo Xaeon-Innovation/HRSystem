@@ -14,7 +14,7 @@ describe("db tenant isolation", () => {
       ({ db, client } = createDb(DATABASE_URL));
       await db.select().from(tenants).limit(1);
     } catch {
-      console.warn("Skipping DB isolation test — Postgres unavailable");
+      console.warn("Skipping DB isolation test, Postgres unavailable");
       return;
     }
 
@@ -23,7 +23,7 @@ describe("db tenant isolation", () => {
         where: eq(tenants.status, "active"),
       });
       if (all.length < 2) {
-        console.warn("Skipping — seed at least two tenants first");
+        console.warn("Skipping, seed at least two tenants first");
         return;
       }
 

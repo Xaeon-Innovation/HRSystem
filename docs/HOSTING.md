@@ -50,7 +50,7 @@ From the Verpex panel and the server, note:
 | Existing apps | website domain(s), CMS domain(s) |
 | Web stack | Nginx, Apache, LiteSpeed, or cPanel/WHM |
 
-On the VPS, inventory (read-only — do not change yet):
+On the VPS, inventory (read-only, do not change yet):
 
 ```bash
 # What owns 80/443?
@@ -61,7 +61,7 @@ df -h
 free -h
 
 # Are localhost 3000/4000 free?
-sudo ss -tlnp | grep -E ':3000|:4000' || echo "3000/4000 free — good"
+sudo ss -tlnp | grep -E ':3000|:4000' || echo "3000/4000 free, good"
 ```
 
 If something already uses `3000` or `4000`, set different ports in `.env.production` (`WEB_PUBLISH_PORT` / `API_PUBLISH_PORT`) and use those in the proxy configs below.
@@ -95,7 +95,7 @@ Test `ssh deploy@YOUR_VPS_IP` before changing SSH policy.
 
 ---
 
-## 3. Firewall — do not break existing sites
+## 3. Firewall, do not break existing sites
 
 If `ufw` is already in use for the website/CMS, **only ensure** SSH + HTTP + HTTPS are allowed. Do **not** reset rules blindly.
 
@@ -124,7 +124,7 @@ docker --version
 docker compose version
 ```
 
-Docker will **not** bind 80/443 unless you enable the optional `tls` Caddy profile — **do not enable that profile on this shared VPS**.
+Docker will **not** bind 80/443 unless you enable the optional `tls` Caddy profile, **do not enable that profile on this shared VPS**.
 
 ---
 
@@ -139,7 +139,7 @@ git clone YOUR_REPO_URL .
 
 ---
 
-## 6. DNS — add subdomains only
+## 6. DNS, add subdomains only
 
 Create **A records** (do not change records for the existing website/CMS unless you intend to):
 
@@ -199,7 +199,7 @@ Outbound HTTPS: custom REST polling only allows HTTPS (HTTP loopback in non-prod
 
 **Notifications email:** With `RESEND_API_KEY`, the API sends via [Resend](https://resend.com). Without it, set `SMTP_WEBHOOK_URL` to a relay that accepts JSON `{ to, subject, html, text }`. If neither is set, notifications stay in-app (`delivered_local`, or `queued` when `FCM_SERVER_KEY` is present).
 
-`NEXT_PUBLIC_*` are baked into the web image at **build** time — change them later ⇒ rebuild `web`.
+`NEXT_PUBLIC_*` are baked into the web image at **build** time, change them later ⇒ rebuild `web`.
 
 Never commit `.env.production`.
 
@@ -287,7 +287,7 @@ Do **not** uninstall cPanel. Typical approach:
 2. Enable **AutoSSL** (or SSL) for both subdomains.
 3. Reverse-proxy to Docker:
    - **WHM → Application Manager / Proxy**, or  
-   - Edit the subdomain Apache include (e.g. via “Include Editor” / `userdata`) with `ProxyPass` to `http://127.0.0.1:3000/` and `http://127.0.0.1:4000/` (and WebSocket for `/ws` on the API host — see the Apache example).
+   - Edit the subdomain Apache include (e.g. via “Include Editor” / `userdata`) with `ProxyPass` to `http://127.0.0.1:3000/` and `http://127.0.0.1:4000/` (and WebSocket for `/ws` on the API host, see the Apache example).
 4. If the panel forces a docroot, prefer proxy over serving static files from that docroot.
 
 Exact cPanel click-paths vary by version; the goal is always: **TLS on the panel, traffic to localhost Docker ports**.
@@ -408,7 +408,7 @@ Change `WEB_PUBLISH_PORT` / `API_PUBLISH_PORT` in `.env.production`, recreate co
 - Containers running? `docker compose ... ps`  
 - Local health? `curl -fsS http://127.0.0.1:4000/health`  
 - Proxy host/port typos?  
-- SELinux/AppArmor rare on Verpex Ubuntu — check error logs: `sudo tail -50 /var/log/nginx/error.log`
+- SELinux/AppArmor rare on Verpex Ubuntu, check error logs: `sudo tail -50 /var/log/nginx/error.log`
 
 ### WebSocket fails on live map
 
@@ -440,7 +440,7 @@ Add swap or build during low traffic; `docker system prune -f` to reclaim space.
 
 ---
 
-## Appendix — dedicated VPS only (no other sites)
+## Appendix, dedicated VPS only (no other sites)
 
 If this machine later becomes **only** for HR Track and nothing uses 80/443, you may use Caddy:
 

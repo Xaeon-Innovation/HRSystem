@@ -104,8 +104,8 @@ export function LeaveRequestDetailDrawer({
                 <Fact label={t("Days")} value={formatDays(request.requestedDays)} />
                 <Fact label={t("Submitted")} value={formatDateTime(request.submittedAt)} />
                 <Fact label={t("Department")} value={`${request.department} · ${request.branchName}`} />
-                <Fact label={t("Manager")} value={request.managerName ?? "—"} />
-                <Fact label={t("Approver")} value={request.approverName ?? "—"} />
+                <Fact label={t("Manager")} value={request.managerName ?? "-"} />
+                <Fact label={t("Approver")} value={request.approverName ?? "-"} />
                 <Fact label={t("Decision")} value={formatDateTime(request.decisionDate)} />
               </dl>
 
@@ -167,7 +167,7 @@ export function LeaveRequestDetailDrawer({
 
               <Section title={t("Approval steps")}>
                 {request.approvalSteps.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("No approval chain — auto-handled.")}</p>
+                  <p className="text-sm text-muted-foreground">{t("No approval chain, auto-handled.")}</p>
                 ) : (
                   <ol className="space-y-2">
                     {request.approvalSteps.map((s) => (

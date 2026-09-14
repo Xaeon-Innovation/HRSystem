@@ -172,7 +172,7 @@ export async function ensureCmsAccessToken(
 
     if (!phone || !password) {
       throw new Error(
-        "CMS credentials missing — enter the service account phone and password",
+        "CMS credentials missing, enter the service account phone and password",
       );
     }
     const tokens = await loginCms(connection.baseUrl, phone, password);
@@ -190,7 +190,7 @@ export async function ensureCmsAccessToken(
     throw new Error(
       message.includes("login") || message.includes("refresh") || message.includes("CMS")
         ? message
-        : `CMS login failed — check phone/password (${message})`,
+        : `CMS login failed, check phone/password (${message})`,
     );
   }
 }

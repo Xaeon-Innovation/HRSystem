@@ -240,14 +240,14 @@ export function CandidateDatabaseTable({
                   </td>
                   <td className="px-3 py-2 text-xs">
                     <p>{c.email}</p>
-                    <p className="text-muted-foreground">{c.phone || "—"}</p>
+                    <p className="text-muted-foreground">{c.phone || "-"}</p>
                   </td>
                   <td className="px-3 py-2 text-xs">
                     {c.resumeUrl ? (
                       <a href={c.resumeUrl} className="text-primary hover:underline">
                         {t("Resume")}</a>
                     ) : (
-                      "—"
+                      "-"
                     )}
                   </td>
                   <td className="px-3 py-2 tabular-nums">{c.yearsOfExperience}y</td>
@@ -272,7 +272,7 @@ export function CandidateDatabaseTable({
                       }
                     />
                   </td>
-                  <td className="px-3 py-2 tabular-nums">{c.rating ? `${c.rating}/5` : "—"}</td>
+                  <td className="px-3 py-2 tabular-nums">{c.rating ? `${c.rating}/5` : "-"}</td>
                   <td className="px-3 py-2 text-xs">{c.recruiterOwnerName}</td>
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {formatDateTime(c.updatedAt)}

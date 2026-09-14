@@ -106,7 +106,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{t("Operations")}</h1>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {t("Live workforce first — then goals and leave that need attention.")}</p>
+            {t("Live workforce first, then goals and leave that need attention.")}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -187,7 +187,7 @@ export default function DashboardPage() {
               <CardContent>
                 <p className="text-3xl font-semibold">{data.kpis}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t("Active KPI definitions — drill in for off-track results.")}</p>
+                  {t("Active KPI definitions, drill in for off-track results.")}</p>
               </CardContent>
             </Card>
           </Link>
@@ -200,7 +200,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">
-                  {pendingLeave == null ? "—" : pendingLeave}
+                  {pendingLeave == null ? "-" : pendingLeave}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t("Pending requests waiting for a decision.")}</p>

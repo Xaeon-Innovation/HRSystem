@@ -137,8 +137,8 @@ export function CompensationChangeForm({
           {profile ? (
             <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-muted-foreground">
               {t("Current")}{formatMoney(profile.record.baseAmount, profile.record.currency)} {t("· KPI")}{" "}
-              {profile.employee.latestKpiScore ?? "—"} {t("· Last appraisal")}{" "}
-              {profile.employee.lastAppraisalResult ?? "—"}
+              {profile.employee.latestKpiScore ?? "-"} {t("· Last appraisal")}{" "}
+              {profile.employee.lastAppraisalResult ?? "-"}
             </p>
           ) : null}
           <Field label="Change type">

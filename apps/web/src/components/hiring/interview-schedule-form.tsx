@@ -102,7 +102,7 @@ export function InterviewScheduleForm({
             >
               {candidates.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.fullName} — {c.appliedJobTitle}
+                  {c.fullName}, {c.appliedJobTitle}
                 </option>
               ))}
             </select>

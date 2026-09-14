@@ -2,7 +2,7 @@ import type { KpiStatus, KpiTrend, KpiUnit, ReviewCycle } from "./types";
 import { t, intlDateOptions, intlLocale, intlNumberOptions } from "@/i18n";
 
 export function formatNumber(value: number | null | undefined, digits = 1): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   return new Intl.NumberFormat(intlLocale(), intlNumberOptions({
     maximumFractionDigits: digits,
     minimumFractionDigits: Number.isInteger(value) ? 0 : Math.min(digits, 1),
@@ -10,7 +10,7 @@ export function formatNumber(value: number | null | undefined, digits = 1): stri
 }
 
 export function formatPercent(value: number | null | undefined, digits = 0): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   return `${formatNumber(value, digits)}%`;
 }
 
@@ -18,7 +18,7 @@ export function formatKpiValue(
   value: number | null | undefined,
   unit: KpiUnit,
 ): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   switch (unit) {
     case "percent":
       return formatPercent(value, value >= 10 ? 0 : 1);
@@ -42,9 +42,9 @@ export function formatKpiValue(
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString(
     intlLocale(),
     intlDateOptions({ month: "short", day: "numeric", year: "numeric" }),

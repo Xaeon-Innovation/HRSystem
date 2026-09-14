@@ -15,15 +15,15 @@
 
 ## Platform console (super_admin)
 
-- **Tenants** — provision, suspend, soft-delete, settings
-- **Plans** — catalog + optional Paymob sync
-- **Subscriptions** — cross-tenant status / overrides
-- **Audits** — platform + tenant-admin sensitive actions
-- **Health** — cross-tenant health metrics
+- **Tenants**, provision, suspend, soft-delete, settings
+- **Plans**, catalog + optional Paymob sync
+- **Subscriptions**, cross-tenant status / overrides
+- **Audits**, platform + tenant-admin sensitive actions
+- **Health**, cross-tenant health metrics
 
 ## Suspension / offboarding
 
-- Suspend: `PATCH /v1/tenants/:id` with `{ "status": "suspended" }` — logins blocked.
-- Soft delete: `DELETE /v1/tenants/:id` — status `deleted`.
+- Suspend: `PATCH /v1/tenants/:id` with `{ "status": "suspended" }`, logins blocked.
+- Soft delete: `DELETE /v1/tenants/:id`, status `deleted`.
 - Payment failures (Paymob) can auto-suspend after repeated charge failures.
 - Data export/deletion for privacy requests: export via SQL/CSV reports; hard purge is a controlled ops procedure (see PRIVACY.md).

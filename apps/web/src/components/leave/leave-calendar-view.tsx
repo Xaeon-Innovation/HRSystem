@@ -263,7 +263,7 @@ function staffingWarnings(
   for (const [dept, count] of byDept) {
     const size = employees.filter((e) => e.department === dept).length;
     if (count >= 2 && size > 0 && count / size >= 0.4) {
-      return `${count} people in ${dept} are off — staffing is thin.`;
+      return `${count} people in ${dept} are off, staffing is thin.`;
     }
   }
   return null;

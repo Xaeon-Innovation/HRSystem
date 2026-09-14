@@ -1,6 +1,8 @@
-# HR Track — Creative Multi Solutions HR & Workforce Tracking
+# Elevora, HR & Field Workforce Platform (a Xaeon product)
 
 Multi-tenant HR platform: employee management, digital clock in/out, realtime GPS live map, KPIs, notifications, custom system integrations, and workforce analytics.
+
+Support: info@xaeons.com
 
 ## Stack
 
@@ -15,10 +17,10 @@ Multi-tenant HR platform: employee management, digital clock in/out, realtime GP
 # prerequisites: Node 22+, pnpm 9, Docker *or* local Postgres 16
 cp .env.example .env
 
-# Option A — Docker
+# Option A, Docker
 docker compose up -d
 
-# Option B — Homebrew Postgres (no Docker)
+# Option B, Homebrew Postgres (no Docker)
 # brew install postgresql@16
 # export PATH="$(brew --prefix postgresql@16)/bin:$PATH"
 # initdb -D ~/.local/pgdata-hr -U hr --auth-local=trust --auth-host=trust
@@ -48,10 +50,10 @@ pnpm dev
 
 ## Packages
 
-- `apps/web` — Next.js PWA
-- `apps/api` — Fastify REST `/v1` + WebSocket
-- `packages/db` — Drizzle schema/migrations/seed
-- `packages/shared` — Zod schemas + constants
+- `apps/web`, Next.js PWA
+- `apps/api`, Fastify REST `/v1` + WebSocket
+- `packages/db`, Drizzle schema/migrations/seed
+- `packages/shared`, Zod schemas + constants
 
 ## Docs
 

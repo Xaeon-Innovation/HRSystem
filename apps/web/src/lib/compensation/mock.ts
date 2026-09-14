@@ -312,7 +312,7 @@ export const MOCK_RECORDS: CompensationRecord[] = [
     effectiveDate: "2026-07-01",
     status: "active",
     gradeId: "band-g4-ops",
-    notes: "Promoted July 2026. Sitting above G4 max — G5 mapping recommended.",
+    notes: "Promoted July 2026. Sitting above G4 max, G5 mapping recommended.",
   }),
   rec("emp-tariq", {
     payStructure: "weekly",
@@ -399,7 +399,7 @@ export const MOCK_COMPONENTS: CompComponent[] = [
     effectiveFrom: "2023-03-01",
     effectiveTo: null,
     status: "active",
-    note: "Not a statutory engine — reserved line for later payroll",
+    note: "Not a statutory engine, reserved line for later payroll",
   }),
   comp("cc-omar-trans", "emp-omar", {
     kind: "transport_allowance",
@@ -540,7 +540,7 @@ export const MOCK_HISTORY: SalaryHistoryEntry[] = [
   hist("sh-karim-1", "emp-karim", 0, 18000, {
     changeType: "hire_salary",
     effectiveDate: "2021-02-10",
-    reason: "Offer accepted — People operations",
+    reason: "Offer accepted, People operations",
     reviewCycleId: null,
     reviewCycleName: null,
     submittedById: "emp-karim",
@@ -568,7 +568,7 @@ export const MOCK_HISTORY: SalaryHistoryEntry[] = [
   hist("sh-karim-3", "emp-karim", 24000, 28000, {
     changeType: "merit_increase",
     effectiveDate: "2026-04-01",
-    reason: "Annual merit — exceeded people ops KPIs",
+    reason: "Annual merit, exceeded people ops KPIs",
     reviewCycleId: "rev-2026-h1",
     reviewCycleName: "H1 2026 review",
     submittedById: "emp-karim",
@@ -666,7 +666,7 @@ export const MOCK_HISTORY: SalaryHistoryEntry[] = [
   hist("sh-maya-1", "emp-maya", 0, 14000, {
     changeType: "hire_salary",
     effectiveDate: "2025-02-01",
-    reason: "Hire salary — Account Executive",
+    reason: "Hire salary, Account Executive",
     reviewCycleId: null,
     reviewCycleName: null,
     submittedById: "emp-karim",
@@ -722,7 +722,7 @@ export const MOCK_HISTORY: SalaryHistoryEntry[] = [
   hist("sh-hana-3", "emp-hana", 18000, 22000, {
     changeType: "promotion_increase",
     effectiveDate: "2026-07-01",
-    reason: "Senior coordinator scope — North + HQ coverage",
+    reason: "Senior coordinator scope, North + HQ coverage",
     reviewCycleId: "rev-2026-h1",
     reviewCycleName: "H1 2026 review",
     submittedById: "emp-karim",
@@ -750,7 +750,7 @@ export const MOCK_HISTORY: SalaryHistoryEntry[] = [
   hist("sh-tariq-2", "emp-tariq", 2800, 2800, {
     changeType: "salary_freeze",
     effectiveDate: "2026-08-01",
-    reason: "Attendance below policy — freeze until October",
+    reason: "Attendance below policy, freeze until October",
     reviewCycleId: null,
     reviewCycleName: null,
     submittedById: "emp-karim",
@@ -782,7 +782,7 @@ export const MOCK_REQUESTS: ChangeRequest[] = [
     newAmount: 16000,
     currency: "EGP",
     effectiveDate: "2026-09-01",
-    reason: "H1 review — exceeded pipeline and close rate",
+    reason: "H1 review, exceeded pipeline and close rate",
     justification:
       "KPI score 86. Recommend moving from hire salary toward G4 midpoint before Q4 planning.",
     reviewCycleId: "rev-2026-h1",
@@ -838,7 +838,7 @@ export const MOCK_REQUESTS: ChangeRequest[] = [
     effectiveDate: "2026-09-01",
     reason: "Daily rate below G2 minimum once converted",
     justification:
-      "380/day × 22 = 8,360 EGP — below G2 min of 9,000. 450/day lands at 9,900, inside the band.",
+      "380/day × 22 = 8,360 EGP, below G2 min of 9,000. 450/day lands at 9,900, inside the band.",
     reviewCycleId: null,
     reviewCycleName: null,
     kpiScore: 74,
@@ -983,7 +983,7 @@ export const MOCK_REQUESTS: ChangeRequest[] = [
     currency: "EGP",
     effectiveDate: "2026-07-01",
     reason: "Senior coordinator scope",
-    justification: "Coverage of North + HQ. Now above G4 max — consider G5 mapping.",
+    justification: "Coverage of North + HQ. Now above G4 max, consider G5 mapping.",
     reviewCycleId: "rev-2026-h1",
     reviewCycleName: "H1 2026 review",
     kpiScore: 79,
@@ -1183,7 +1183,7 @@ export const MOCK_VARIABLE: VariablePay[] = [
     payoutPeriodStart: "2026-01-01",
     payoutPeriodEnd: "2026-12-31",
     status: "draft",
-    notes: "Accruing — not in August payroll",
+    notes: "Accruing, not in August payroll",
     submittedById: "emp-karim",
     submittedByName: "Karim Said",
     approvedById: null,

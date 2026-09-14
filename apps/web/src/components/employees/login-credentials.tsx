@@ -107,7 +107,7 @@ export function LoginCredentialsPanel({
   return (
     <div
       className="rounded-lg border bg-secondary/30 p-3"
-      aria-label={`${t("Sign-in credentials")} — ${employeeName}`}
+      aria-label={`${t("Sign-in credentials")}, ${employeeName}`}
     >
       <p className="text-sm font-medium">{t("Sign-in credentials")}</p>
       <p className="mt-1 text-xs text-muted-foreground">

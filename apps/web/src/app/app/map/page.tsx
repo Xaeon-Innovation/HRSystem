@@ -582,7 +582,7 @@ export default function MapPage() {
   async function saveZone() {
     if (!selectedLiveId || zoneLat == null || zoneLng == null) return;
     if (zoneLat === 0 && zoneLng === 0) {
-      setError("Set a real center (use live position) — 0, 0 is not valid");
+      setError("Set a real center (use live position), 0, 0 is not valid");
       return;
     }
     const radius = Math.min(
@@ -699,7 +699,7 @@ export default function MapPage() {
       );
       setPlaceHits(data.places);
       if (!data.places.length) {
-        setPlaceError("No places found — try a more specific name or city");
+        setPlaceError("No places found, try a more specific name or city");
       }
     } catch (e) {
       setPlaceHits([]);
@@ -830,7 +830,7 @@ export default function MapPage() {
               </div>
               {draftAppearance.themeId === "custom" ? (
                 <p className="text-xs text-muted-foreground">
-                  {t("Custom theme — advanced options below override the presets.")}</p>
+                  {t("Custom theme, advanced options below override the presets.")}</p>
               ) : null}
               <details className="rounded-lg border bg-card p-3">
                 <summary className="cursor-pointer text-sm font-medium">
@@ -1028,7 +1028,7 @@ export default function MapPage() {
 
           {draftAppearance.themeId === "custom" ? (
             <p className="text-xs text-muted-foreground">
-              {t("Custom theme — advanced options below override the presets.")}</p>
+              {t("Custom theme, advanced options below override the presets.")}</p>
           ) : null}
 
           <details className="rounded-lg border bg-card p-3">
@@ -1295,7 +1295,7 @@ export default function MapPage() {
             </div>
           ) : employeeId ? (
             <p className="text-xs text-muted-foreground">
-              {t("No clock sessions on this day — use a custom time range.")}</p>
+              {t("No clock sessions on this day, use a custom time range.")}</p>
           ) : null}
           {historyMeta ? (
             <p className="text-sm text-muted-foreground">{historyMeta}</p>
@@ -1306,7 +1306,7 @@ export default function MapPage() {
                 {t("Scrub time · recorded")}{" "}
                 {focusPoint
                   ? new Date(focusPoint.recordedAt).toLocaleString()
-                  : "—"}
+                  : "-"}
               </Label>
               <input
                 type="range"

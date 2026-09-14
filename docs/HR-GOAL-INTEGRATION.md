@@ -119,7 +119,7 @@ This list remaps fields for the UI. Use them as follows:
 
 | Response field | Meaning |
 |----------------|---------|
-| `uuid` | Internal UUID — **pass this** to `/target-management` and `/target/analysis` |
+| `uuid` | Internal UUID, **pass this** to `/target-management` and `/target/analysis` |
 | `id` | Staff code (same as `employeeId`) |
 | `employeeId` | Staff code |
 | `name` | Display name |
@@ -547,11 +547,11 @@ HTTP `401` → re-authenticate. HTTP `403` → the service account lacks permiss
 
 For each goal, actual (`currentValue`) is counted between that goal's `startDate` (00:00:00 UTC) and `endDate` (23:59:59 UTC):
 
-1. **`new_patients`** — if the assignee has role `sales`, count actual new-patient visits; otherwise count `PATIENT_CREATION` commissions.
-2. **`follow_up_patients`** — count `FOLLOW_UP` commissions for the assignee.
-3. **`specialties`** — count `VISIT_SPECIALITY_ADDITION` commissions.
-4. **`nominations`** — count `NOMINATION_CONVERSION` commissions.
-5. **`custom`** — use the stored `currentValue` (manual).
+1. **`new_patients`**, if the assignee has role `sales`, count actual new-patient visits; otherwise count `PATIENT_CREATION` commissions.
+2. **`follow_up_patients`**, count `FOLLOW_UP` commissions for the assignee.
+3. **`specialties`**, count `VISIT_SPECIALITY_ADDITION` commissions.
+4. **`nominations`**, count `NOMINATION_CONVERSION` commissions.
+5. **`custom`**, use the stored `currentValue` (manual).
 
 `GET /target-management` recalculates these on read and persists `currentValue` (and sets `completedAt` when actual ≥ target).
 
@@ -575,12 +575,12 @@ A service account should be `admin` or `team_leader` so HR can pull every employ
 
 The HR pull integration should **not** call these unless the vendor is also writing goals back into the CMS:
 
-- `POST /target-management` — create goal
-- `PUT /target-management/{targetId}` — update goal
-- `PUT /target-management/{targetId}/progress` — manual progress
+- `POST /target-management`, create goal
+- `PUT /target-management/{targetId}`, update goal
+- `PUT /target-management/{targetId}/progress`, manual progress
 - `DELETE /target-management/{targetId}`
-- `POST /target-management/reset` — inactivate expired goals
-- `PUT /team/{id}/target` — set team goal (admin)
+- `POST /target-management/reset`, inactivate expired goals
+- `PUT /team/{id}/target`, set team goal (admin)
 
 Legacy `GET/POST/PUT/DELETE /target` exists but does **not** recalculate live progress. Prefer `/target-management`.
 

@@ -64,7 +64,7 @@ export function KpiPeopleQueue({
                 </span>
               </div>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {person.jobTitle || "—"} · {person.metricCount} {t("metric")}{person.metricCount === 1 ? "" : "s"}
+                {person.jobTitle || "-"} · {person.metricCount} {t("metric")}{person.metricCount === 1 ? "" : "s"}
                 {person.waitingAckCount > 0
                   ? ` · ${person.waitingAckCount} waiting ack`
                   : ""}
@@ -72,7 +72,7 @@ export function KpiPeopleQueue({
             </div>
             <div className="shrink-0 text-right">
               <p className="text-lg font-semibold tabular-nums">
-                {person.overall == null ? "—" : formatNumber(person.overall, 0)}
+                {person.overall == null ? "-" : formatNumber(person.overall, 0)}
               </p>
               <p className="text-[10px] text-muted-foreground">{t("overall")}</p>
             </div>

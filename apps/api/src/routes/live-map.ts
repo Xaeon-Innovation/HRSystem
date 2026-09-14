@@ -121,7 +121,7 @@ export const liveMapRoutes: FastifyPluginAsync = async (app) => {
       .where(
         and(
           eq(employeeLiveLocations.tenantId, tenantId),
-          // Live map is for field employees only — never show tenant admins
+          // Live map is for field employees only, never show tenant admins
           eq(users.role, "employee"),
           presenceFilter,
           q.status

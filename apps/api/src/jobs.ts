@@ -232,7 +232,7 @@ export function startJobs(app: FastifyInstance) {
   const leaveMaintenance = async () => {
     try {
       const hour = new Date().getHours();
-      // Accrual: daily-ish — prefer 02:00, also every 6 hours as a catch-up.
+      // Accrual: daily-ish, prefer 02:00, also every 6 hours as a catch-up.
       const runAccrual = hour === 2 || hour % 6 === 0;
       // Reminders: same cadence; once-per-day dedupe lives in runLeaveReminders.
       const runReminders = runAccrual || hour === 9;

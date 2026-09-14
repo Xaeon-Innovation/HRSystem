@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 
-/** Shared route / module loading chrome — shimmer bars with light stagger. */
+/** Shared route / module loading chrome, shimmer bars with light stagger. */
 export function PageSkeleton({
   className,
   dense = false,

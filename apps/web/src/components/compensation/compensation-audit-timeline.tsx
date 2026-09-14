@@ -34,7 +34,7 @@ export function CompensationAuditTimeline({ events }: { events: CompAuditEvent[]
           <p className="text-xs text-muted-foreground">{formatDateTime(e.at)}</p>
           {e.oldValue || e.newValue ? (
             <p className="mt-0.5 text-xs tabular-nums text-muted-foreground">
-              {e.oldValue ?? "—"} → {e.newValue ?? "—"}
+              {e.oldValue ?? "-"} → {e.newValue ?? "-"}
             </p>
           ) : null}
           {e.note ? <p className="mt-0.5 text-muted-foreground">{e.note}</p> : null}

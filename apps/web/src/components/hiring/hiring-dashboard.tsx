@@ -338,7 +338,7 @@ export function HiringDashboard() {
       ) : null}
       {alerts.filter((a) => a.severity === "urgent").length > 0 ? (
         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          {alerts.filter((a) => a.severity === "urgent").length} {t("urgent hiring alert")}{alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"} {t("— stuck stages or hire dates.")}</p>
+          {alerts.filter((a) => a.severity === "urgent").length} {t("urgent hiring alert")}{alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"} {t("stuck stages or hire dates.")}</p>
       ) : null}
 
       <HiringOverviewCards summary={summary} />

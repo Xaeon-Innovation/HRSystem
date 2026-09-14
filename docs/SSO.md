@@ -47,4 +47,4 @@ Tenant admins will toggle SSO in Settings and choose allowed providers. Until th
 
 ## Status
 
-Stub only — no routes, buttons, or token exchange are implemented.
+Stub only, no routes, buttons, or token exchange are implemented.

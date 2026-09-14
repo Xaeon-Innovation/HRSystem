@@ -47,6 +47,13 @@ module.exports = {
           "system-ui",
           "sans-serif",
         ],
+        display: [
+          "var(--font-display)",
+          "var(--font-geist-sans)",
+          "var(--font-arabic)",
+          "system-ui",
+          "sans-serif",
+        ],
       },
     },
   },

@@ -110,13 +110,13 @@ export function CompensationProfileDrawer({
               label="Monthly equivalent"
               value={formatMoney(profile.monthlyEquivalent, record.currency)}
             />
-            <Fact label="Manager" value={employee.managerName ?? "—"} />
+            <Fact label="Manager" value={employee.managerName ?? "-"} />
           </dl>
 
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t("Performance link")}</h4>
             <p className="text-sm text-muted-foreground">
-              {t("Latest KPI")}{employee.latestKpiScore ?? "—"} {t("· Last appraisal")}{" "}
+              {t("Latest KPI")}{employee.latestKpiScore ?? "-"} {t("· Last appraisal")}{" "}
               {appraisalLabel(employee.lastAppraisalResult)}
               {employee.lastAppraisalDate ? ` (${formatDate(employee.lastAppraisalDate)})` : ""}
             </p>
@@ -265,7 +265,7 @@ export function CompensationProfileDrawer({
                     <span>
                       {v.kind === "bonus" ? t("Bonus") : t("Commission")} ·{" "}
                       {formatMoney(v.amount, v.currency)}
-                      {v.kpiLinked ? ` · KPI ${v.kpiScore ?? "—"}` : ""}
+                      {v.kpiLinked ? ` · KPI ${v.kpiScore ?? "-"}` : ""}
                     </span>
                     <VariableStatusBadge status={v.status} />
                   </li>

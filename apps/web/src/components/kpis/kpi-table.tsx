@@ -107,7 +107,7 @@ export function KpiTable({
                   </button>
                 </td>
                 {showEmployee ? (
-                  <td className="px-3 py-2 text-muted-foreground">{k.employeeName ?? "—"}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{k.employeeName ?? "-"}</td>
                 ) : null}
                 <td className="px-3 py-2 tabular-nums">{formatKpiValue(k.targetValue, k.unit)}</td>
                 <td className="px-3 py-2 tabular-nums">{formatKpiValue(k.actualValue, k.unit)}</td>

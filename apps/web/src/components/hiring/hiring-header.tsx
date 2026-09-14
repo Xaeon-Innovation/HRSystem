@@ -24,7 +24,7 @@ export function HiringHeader({
           {preview ? <PreviewBadge /> : null}
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("Open roles, move candidates through the pipeline, run interviews, send offers, and convert hires into employees — without a heavyweight ATS.")}</p>
+          {t("Open roles, move candidates through the pipeline, run interviews, send offers, and convert hires into employees, without a heavyweight ATS.")}</p>
       </div>
       {canManage ? (
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap">

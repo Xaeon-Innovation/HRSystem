@@ -769,7 +769,7 @@ export function interpolateAlertTemplate(
 ): string {
   return template.replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_, key: string) => {
     const value = vars[key];
-    if (value == null || value === "") return "—";
+    if (value == null || value === "") return "-";
     return String(value);
   });
 }

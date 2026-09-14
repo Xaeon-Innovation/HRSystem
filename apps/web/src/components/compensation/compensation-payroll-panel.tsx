@@ -83,7 +83,7 @@ export function CompensationPayrollPanel({
               <CardTitle className="text-base">{period.label} {t("payroll inputs")}</CardTitle>
               <p className="text-xs text-muted-foreground">
                 {t("Period")}{formatDate(period.start)} – {formatDate(period.end)} {t("· Cutoff")}{" "}
-                {formatDate(period.cutoff)}{t(". Ready for a payroll engine — no country tax calc yet.")}</p>
+                {formatDate(period.cutoff)}{t(". Ready for a payroll engine, no country tax calc yet.")}</p>
             </div>
             {isAdmin ? (
               <Button
@@ -150,7 +150,7 @@ export function CompensationPayrollPanel({
                       <td className="px-3 py-3 tabular-nums text-xs">
                         {r.payStructure === "hourly" || r.workedHours > 0
                           ? formatHours(r.workedHours)
-                          : "—"}
+                          : "-"}
                       </td>
                       <td className="px-3 py-3 tabular-nums">{formatMoney(r.baseSalary, r.currency)}</td>
                       <td className="px-3 py-3 tabular-nums">{formatMoney(r.allowances, r.currency)}</td>

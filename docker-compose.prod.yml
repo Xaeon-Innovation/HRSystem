@@ -1,13 +1,13 @@
 # Production stack for a shared Verpex VPS (coexists with other sites).
 # Full steps: docs/HOSTING.md
 #
-# Primary (shared VPS — keep existing website/CMS on 80/443):
+# Primary (shared VPS, keep existing website/CMS on 80/443):
 #   cp .env.production.example .env.production
 #   bash scripts/gen-prod-secrets.sh   # paste into .env.production + set YOURDOMAIN
 #   docker compose -f docker-compose.prod.yml --env-file .env.production up -d --build
 #   # then add Nginx/Apache/cPanel reverse proxy → 127.0.0.1:3000 and :4000
 #
-# Dedicated VPS only (takes over 80/443 — DO NOT use if other sites share this box):
+# Dedicated VPS only (takes over 80/443, DO NOT use if other sites share this box):
 #   docker compose -f docker-compose.prod.yml --env-file .env.production --profile tls up -d --build
 
 services:
@@ -20,7 +20,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-hr_system}
     volumes:
       - hr_pg_data_prod:/var/lib/postgresql/data
-    # No host ports — Postgres stays on the Docker network only
+    # No host ports, Postgres stays on the Docker network only
     healthcheck:
       test:
         [
@@ -60,6 +60,7 @@ services:
       PAYMOB_CURRENCY: ${PAYMOB_CURRENCY:-USD}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      ELEVORA_SUPPORT_EMAIL: ${ELEVORA_SUPPORT_EMAIL:-info@xaeons.com}
       SMTP_WEBHOOK_URL: ${SMTP_WEBHOOK_URL:-}
       FCM_SERVER_KEY: ${FCM_SERVER_KEY:-}
     # Bind localhost only so existing public sites are unaffected
@@ -97,7 +98,7 @@ services:
       - hr_internal
 
   # ONLY for a dedicated VPS with nothing else on 80/443.
-  # On a shared Verpex box (existing website + CMS), do NOT enable this profile —
+  # On a shared Verpex box (existing website + CMS), do NOT enable this profile -
   # use the host Nginx/Apache/cPanel reverse proxy instead (see docs/HOSTING.md).
   caddy:
     profiles: ["tls"]

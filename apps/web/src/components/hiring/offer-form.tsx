@@ -91,7 +91,7 @@ export function OfferForm({
             >
               {ready.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.fullName} — {c.appliedJobTitle}
+                  {c.fullName}, {c.appliedJobTitle}
                 </option>
               ))}
             </select>

@@ -644,7 +644,7 @@ export class LeaveStore {
           amount: next.requestedDays,
           requestId: next.id,
           source: "workflow",
-          note: "Approved — balance deducted",
+          note: "Approved, balance deducted",
           actor,
           at,
         });

@@ -226,7 +226,7 @@ export default function IntegrationDetailPage() {
         tab: "Endpoints" as Tab,
         hint: needsEndpoints
           ? "Add at least one resource path (e.g. /jobs) so polling knows what to fetch."
-          : "Webhook / manual mode — endpoints optional.",
+          : "Webhook / manual mode, endpoints optional.",
       },
       {
         id: "auth",
@@ -586,7 +586,7 @@ export default function IntegrationDetailPage() {
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       {isCmsGoalsPreset ? (
         <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-          {t("Connected to CMS Goals — tokens refresh automatically. Use")}{" "}
+          {t("Connected to CMS Goals, tokens refresh automatically. Use")}{" "}
           <strong>{t("Sync now")}</strong> {t("to pull the latest goals. Open Authentication only if the CMS password changes.")}</p>
       ) : null}
       <div className="flex flex-wrap gap-2">
@@ -632,7 +632,7 @@ export default function IntegrationDetailPage() {
                 </div>
                 {progress.allDone ? (
                   <p className="text-sm text-emerald-700">
-                    {t("Setup complete — you can sync and use Analytics.")}</p>
+                    {t("Setup complete, you can sync and use Analytics.")}</p>
                 ) : null}
               </div>
               <ul className="space-y-2 text-sm">
@@ -682,7 +682,7 @@ export default function IntegrationDetailPage() {
                 <p className="text-sm text-destructive">
                   {deadLetterCount} {t("record(s) could not be processed")}{isCmsGoalsPreset
                     ? t(". Open Mapping (advanced) or check that HR employees use the CMS UUID as external ID.")
-                    : t(". Usually missing field mappings or a mismatched source entity — fix under Mapping, then Replay.")}
+                    : t(". Usually missing field mappings or a mismatched source entity, fix under Mapping, then Replay.")}
                 </p>
               ) : null}
             </CardContent>
@@ -691,7 +691,7 @@ export default function IntegrationDetailPage() {
           <Card>
             <CardContent className="space-y-3 py-4 text-sm">
               <p>
-                {t("Base URL:")}{conn.baseUrl ?? "—"}{" "}
+                {t("Base URL:")}{conn.baseUrl ?? "-"}{" "}
                 <button
                   type="button"
                   className="text-xs text-muted-foreground underline hover:text-foreground"
@@ -703,7 +703,7 @@ export default function IntegrationDetailPage() {
                 <p className="font-medium">{t("Configured endpoints")}</p>
                 {configuredEntities.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    {t("None yet — add paths on the Endpoints tab before Sync.")}</p>
+                    {t("None yet, add paths on the Endpoints tab before Sync.")}</p>
                 ) : (
                   <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
                     {configuredEntities.map((ent) => (
@@ -795,7 +795,7 @@ export default function IntegrationDetailPage() {
                   ))}
                 </ul>
                 <p className="text-xs text-muted-foreground">
-                  {t("Base URL:")}{conn.baseUrl ?? "—"} {t("· Poll every")}{" "}
+                  {t("Base URL:")}{conn.baseUrl ?? "-"} {t("· Poll every")}{" "}
                   {conn.pollIntervalMinutes ?? 15} {t("minutes")}</p>
                 <Button
                   type="button"
@@ -810,7 +810,7 @@ export default function IntegrationDetailPage() {
               {isCmsGoalsPreset ? (
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm text-amber-700">
-                    {t("Advanced mode — changes can break the CMS Goals sync.")}</p>
+                    {t("Advanced mode, changes can break the CMS Goals sync.")}</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -821,7 +821,7 @@ export default function IntegrationDetailPage() {
                 </div>
               ) : null}
               <p className="text-sm text-muted-foreground">
-                {t("Base URL is the API root. Add one row per JSON collection the platform should poll — for example source entity")}<code>{t("job")}</code>{t(", path")}{" "}
+                {t("Base URL is the API root. Add one row per JSON collection the platform should poll, for example source entity")}<code>{t("job")}</code>{t(", path")}{" "}
                 <code>/api/jobs</code>{t(", and")}<code>itemsPath</code>{" "}
                 <code>{t("data")}</code> {t("if the array is nested under")}{" "}
                 <code>{`{ "data": [ ... ] }`}</code>.
@@ -835,7 +835,7 @@ export default function IntegrationDetailPage() {
                   placeholder="https://api.example.com/api/v1"
                 />
                 <p className="text-xs text-muted-foreground">
-                  {t("HTTPS API root only — resource paths below are appended to this.")}</p>
+                  {t("HTTPS API root only, resource paths below are appended to this.")}</p>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <div className="space-y-1">
@@ -1012,7 +1012,7 @@ export default function IntegrationDetailPage() {
             <form className="grid gap-3" onSubmit={saveAuth}>
               <p className="text-xs text-muted-foreground">
                 {t("Auth stored:")}{conn.hasAuth ? "yes" : "no"} {t("· Webhook secret:")}{" "}
-                {conn.hasWebhookSecret ? "yes" : "no"}{t(". Saving credentials does not activate the connection — use Activate on Overview when ready.")}</p>
+                {conn.hasWebhookSecret ? "yes" : "no"}{t(". Saving credentials does not activate the connection, use Activate on Overview when ready.")}</p>
               <div className="space-y-1">
                 <Label>{t("Auth type")}</Label>
                 <select
@@ -1130,7 +1130,7 @@ export default function IntegrationDetailPage() {
               {isCmsGoalsPreset ? (
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-amber-700">
-                    {t("Advanced mapping editor — incorrect changes can break sync.")}</p>
+                    {t("Advanced mapping editor, incorrect changes can break sync.")}</p>
                   <Button
                     type="button"
                     variant="outline"
@@ -1151,7 +1151,7 @@ export default function IntegrationDetailPage() {
                 {t("so Analytics can attribute work to HR employees.")}</p>
               {!hasIdentityMapping && mappings.length > 0 ? (
                 <p className="text-destructive">
-                  {t("No employee identity mapping yet — analytics will skip unmatched records.")}</p>
+                  {t("No employee identity mapping yet, analytics will skip unmatched records.")}</p>
               ) : null}
             </div>
             {mappings.length === 0 ? (
@@ -1203,7 +1203,7 @@ export default function IntegrationDetailPage() {
             <form className="grid gap-3 md:grid-cols-2" onSubmit={saveMappings}>
               {editingMappingId ? (
                 <p className="md:col-span-2 text-sm text-amber-700">
-                  {t("Editing an existing mapping — save to update it, or cancel.")}</p>
+                  {t("Editing an existing mapping, save to update it, or cancel.")}</p>
               ) : null}
               {sourceEntityOptions.length > 0 ? (
                 <select

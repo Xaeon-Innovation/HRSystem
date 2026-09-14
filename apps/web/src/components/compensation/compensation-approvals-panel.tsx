@@ -107,7 +107,7 @@ export function CompensationApprovalsPanel({
                       <ChangeStatusBadge status={r.status} />
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      {r.decidedByName ?? "—"}
+                      {r.decidedByName ?? "-"}
                       <p className="text-muted-foreground">{formatDateTime(r.decidedAt)}</p>
                     </td>
                   </tr>

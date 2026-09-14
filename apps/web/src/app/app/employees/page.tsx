@@ -475,12 +475,12 @@ export default function EmployeesPage() {
 
   function branchNameOf(id: string | null) {
     if (!id) return "Unassigned";
-    return org.find((b) => b.id === id)?.name ?? "—";
+    return org.find((b) => b.id === id)?.name ?? "-";
   }
 
   function managerNameOf(id: string | null | undefined) {
-    if (!id) return "—";
-    return employees.find((e) => e.id === id)?.name ?? "—";
+    if (!id) return "-";
+    return employees.find((e) => e.id === id)?.name ?? "-";
   }
 
   function managerOptions(excludeId?: string | null) {
@@ -817,7 +817,7 @@ export default function EmployeesPage() {
           <p className="mt-1 text-sm text-muted-foreground">
             {redesign
               ? t("Roster first. Job roles and branches live under Org setup.")
-              : t("Roster, access, and work zones — one table, less clutter.")}
+              : t("Roster, access, and work zones, one table, less clutter.")}
           </p>
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
@@ -982,11 +982,11 @@ export default function EmployeesPage() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-muted-foreground">
-                        {emp.jobTitle ?? "—"}
+                        {emp.jobTitle ?? "-"}
                       </td>
                       <td className="px-3 py-3">
                         {roles.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {shown.map((role) => (

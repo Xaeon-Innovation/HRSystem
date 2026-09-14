@@ -8,7 +8,7 @@ ENV_FILE="${ENV_FILE:-.env.production}"
 COMPOSE=(docker compose -f docker-compose.prod.yml --env-file "$ENV_FILE")
 
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "Missing $ENV_FILE — copy from .env.production.example and fill in domains/secrets."
+  echo "Missing $ENV_FILE, copy from .env.production.example and fill in domains/secrets."
   exit 1
 fi
 
@@ -33,7 +33,7 @@ for i in {1..30}; do
   fi
   sleep 2
   if [[ $i -eq 30 ]]; then
-    echo "API did not become healthy — check logs:"
+    echo "API did not become healthy, check logs:"
     "${COMPOSE[@]}" logs --tail=80 api
     exit 1
   fi

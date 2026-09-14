@@ -10,7 +10,7 @@ export type SendEmailResult =
   | { ok: false; reason: string };
 
 /**
- * Best-effort outbound email. Never throws — callers update delivery status from the result.
+ * Best-effort outbound email. Never throws, callers update delivery status from the result.
  * Prefer Resend when `RESEND_API_KEY` is set; otherwise `SMTP_WEBHOOK_URL` POST JSON.
  */
 export async function sendEmail(
@@ -20,7 +20,7 @@ export async function sendEmail(
     const resendKey = process.env.RESEND_API_KEY?.trim();
     if (resendKey) {
       const from =
-        process.env.EMAIL_FROM?.trim() || "HR Track <onboarding@resend.dev>";
+        process.env.EMAIL_FROM?.trim() || "Elevora <onboarding@resend.dev>";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {

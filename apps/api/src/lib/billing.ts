@@ -55,7 +55,7 @@ export async function assertSeatAvailable(
 export function subscriptionAllowsAccess(
   status: (typeof tenantSubscriptions.$inferSelect)["status"] | undefined,
 ): boolean {
-  if (!status) return true; // no sub yet — allow (trial assignment is preferred)
+  if (!status) return true; // no sub yet, allow (trial assignment is preferred)
   return (ACTIVE_SUB_STATUSES as readonly string[]).includes(status);
 }
 

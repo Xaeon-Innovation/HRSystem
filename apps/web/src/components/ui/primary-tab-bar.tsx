@@ -9,7 +9,7 @@ export type TabOption = {
   badge?: number;
 };
 
-/** Primary tabs + More menu — keeps existing TabsContent wiring via controlled value. */
+/** Primary tabs + More menu, keeps existing TabsContent wiring via controlled value. */
 export function PrimaryTabBar({
   tabs,
   value,

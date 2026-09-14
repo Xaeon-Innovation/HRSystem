@@ -30,19 +30,19 @@ export function CandidateResumePanel({
           <dl className="mt-3 grid grid-cols-2 gap-2">
             <div>
               <dt className="text-xs text-muted-foreground">{t("Name")}</dt>
-              <dd>{parsed.fullName ?? "—"}</dd>
+              <dd>{parsed.fullName ?? "-"}</dd>
             </div>
             <div>
               <dt className="text-xs text-muted-foreground">{t("Years")}</dt>
-              <dd>{parsed.yearsOfExperience ?? "—"}</dd>
+              <dd>{parsed.yearsOfExperience ?? "-"}</dd>
             </div>
             <div className="col-span-2">
               <dt className="text-xs text-muted-foreground">{t("Education")}</dt>
-              <dd>{parsed.education ?? "—"}</dd>
+              <dd>{parsed.education ?? "-"}</dd>
             </div>
             <div className="col-span-2">
               <dt className="text-xs text-muted-foreground">{t("Skills")}</dt>
-              <dd>{parsed.skills.join(", ") || "—"}</dd>
+              <dd>{parsed.skills.join(", ") || "-"}</dd>
             </div>
           </dl>
           <p className="mt-2 text-[11px] text-muted-foreground">

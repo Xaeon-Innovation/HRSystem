@@ -1,7 +1,7 @@
 {
-  "name": "HR Track",
-  "short_name": "HR Track",
-  "description": "Workforce clock-in and live field tracking",
+  "name": "Elevora",
+  "short_name": "Elevora",
+  "description": "HR, workforce clock-in, and live field tracking, a Xaeon product",
   "start_url": "/app/clock",
   "display": "standalone",
   "background_color": "#f4f8fb",

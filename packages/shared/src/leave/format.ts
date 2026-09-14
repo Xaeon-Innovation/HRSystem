@@ -40,9 +40,9 @@ export function daysBetween(from: string, to: string): number {
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = parseIsoDate(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -51,9 +51,9 @@ export function formatDate(value: string | null | undefined): string {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString(undefined, {
     month: "short",
     day: "numeric",
@@ -63,7 +63,7 @@ export function formatDateTime(value: string | null | undefined): string {
 }
 
 export function formatDays(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   const rounded = Math.round(value * 100) / 100;
   const n = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return `${n} ${Math.abs(rounded) === 1 ? "day" : "days"}`;

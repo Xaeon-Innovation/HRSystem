@@ -1,6 +1,6 @@
 # Example Nginx site configs for a SHARED Verpex VPS.
 # Copy onto the server (paths vary by OS / cPanel). Do NOT replace your
-# existing website or CMS vhosts — add these as two additional server blocks.
+# existing website or CMS vhosts, add these as two additional server blocks.
 #
 # After editing:
 #   sudo nginx -t && sudo systemctl reload nginx

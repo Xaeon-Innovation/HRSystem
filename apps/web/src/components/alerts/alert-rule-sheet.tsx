@@ -170,7 +170,7 @@ export function AlertRuleSheet({
             >
               {ALERT_FREQUENCIES.map((frequency) => (
                 <option key={frequency} value={frequency}>
-                  {ALERT_FREQUENCY_META[frequency].label} —{" "}
+                  {ALERT_FREQUENCY_META[frequency].label} -{" "}
                   {ALERT_FREQUENCY_META[frequency].hint}
                 </option>
               ))}

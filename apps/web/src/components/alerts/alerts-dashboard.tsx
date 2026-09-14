@@ -130,7 +130,7 @@ export function AlertsDashboard() {
         <p className="mt-1 text-sm text-muted-foreground">
           {isAdmin
             ? t("Inbox for live notices, plus routing for employee, leave, KPI, attendance, payroll, and system events.")
-            : t("Your HR notices — leave updates, deadlines, and anything that needs attention.")}
+            : t("Your HR notices, leave updates, deadlines, and anything that needs attention.")}
         </p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}

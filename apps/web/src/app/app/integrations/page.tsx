@@ -110,7 +110,7 @@ export default function IntegrationsPage() {
       <div>
         <h1 className="text-2xl font-semibold">{t("Integrations")}</h1>
         <p className="text-sm text-muted-foreground">
-          {t("Connect your CMS so employee goals flow into Analytics — no API wiring required for Creative Intelligent CMS.")}</p>
+          {t("Connect your CMS so employee goals flow into Analytics, no API wiring required for Creative Intelligent CMS.")}</p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
@@ -203,7 +203,7 @@ export default function IntegrationsPage() {
         ))}
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {t("No connections yet — use Connect CMS Goals above.")}</p>
+            {t("No connections yet, use Connect CMS Goals above.")}</p>
         ) : null}
       </div>
 

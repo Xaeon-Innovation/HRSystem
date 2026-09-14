@@ -71,7 +71,7 @@ export function CandidateForm({
     setForm(emptyDraft(store, actor));
     setError(null);
     setWarnings([]);
-    // Reset only when the sheet opens — not when actor identity is a new object each render.
+    // Reset only when the sheet opens, not when actor identity is a new object each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 

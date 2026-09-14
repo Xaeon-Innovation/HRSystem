@@ -43,7 +43,7 @@ function ScoreRing({ value }: { value: number | null }) {
         fontSize="18"
         fontWeight="700"
       >
-        {value == null ? "—" : Math.round(value)}
+        {value == null ? "-" : Math.round(value)}
       </text>
     </svg>
   );
@@ -54,7 +54,7 @@ function scoreWords(value: number | null): string {
   if (value >= 100) return "On or above target overall.";
   if (value >= 90) return "Close to target overall.";
   if (value >= 70) return "Below target on some metrics.";
-  return "Needs attention — several metrics are off target.";
+  return "Needs attention, several metrics are off target.";
 }
 
 export type KpiDrillFocus = "attention" | "on_track" | "missing";
@@ -78,7 +78,7 @@ export function KpiSummaryCards({
 }) {
   const met =
     summary.goalCompletionRate == null || summary.kpiCount === 0
-      ? "—"
+      ? "-"
       : `${Math.round((summary.goalCompletionRate / 100) * (summary.kpiCount - summary.incompleteCount))} of ${summary.kpiCount - summary.incompleteCount}`;
 
   const vsPrev =
@@ -126,7 +126,7 @@ export function KpiSummaryCards({
         <div className="grid grid-cols-3 gap-3 sm:w-72 sm:shrink-0">
           <Stat
             label="Hit target"
-            value={hasActuals ? met : "—"}
+            value={hasActuals ? met : "-"}
             active={activeFocus === "on_track"}
             onClick={onDrill ? () => onDrill("on_track") : undefined}
           />

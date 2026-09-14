@@ -12,7 +12,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 export type ApiOptions = RequestInit & {
   /** Skip the short-lived GET memory cache (live map, search, history). */
   skipCache?: boolean;
-  /** Background fetch — does not hold the navigation progress bar. */
+  /** Background fetch, does not hold the navigation progress bar. */
   silent?: boolean;
 };
 
@@ -30,6 +30,16 @@ export type AuthUser = {
 const TOKEN_KEY = "hr_access_token";
 const REFRESH_KEY = "hr_refresh_token";
 const USER_KEY = "hr_user";
+const SESSION_COOKIE = "hr_session";
+
+function writeSessionCookie(on: boolean) {
+  if (typeof document === "undefined") return;
+  if (on) {
+    document.cookie = `${SESSION_COOKIE}=1;path=/;max-age=604800;SameSite=Lax`;
+  } else {
+    document.cookie = `${SESSION_COOKIE}=;path=/;max-age=0;SameSite=Lax`;
+  }
+}
 
 /** Per-tab session so admin + employee can be tested side-by-side in two tabs. */
 function store() {
@@ -56,6 +66,7 @@ export function setSession(
   s.setItem(TOKEN_KEY, accessToken);
   s.setItem(REFRESH_KEY, refreshToken);
   s.setItem(USER_KEY, JSON.stringify(user));
+  writeSessionCookie(true);
 }
 
 export function clearSession() {
@@ -64,6 +75,7 @@ export function clearSession() {
   s.removeItem(TOKEN_KEY);
   s.removeItem(REFRESH_KEY);
   s.removeItem(USER_KEY);
+  writeSessionCookie(false);
   clearApiCache();
 }
 
@@ -118,7 +130,7 @@ async function request(url: string, init: RequestInit): Promise<Response> {
   }
 }
 
-/** In-flight `api()` count — used by NavigationProgress to wait for page data. */
+/** In-flight `api()` count, used by NavigationProgress to wait for page data. */
 let apiInflight = 0;
 
 function bumpApiInflight(delta: number) {

@@ -14,8 +14,8 @@ describe("t", () => {
     expect(t("Sign in")).toBe("تسجيل الدخول");
     expect(t("{n}m ago", { n: 10 })).toBe("منذ 10 د");
     expect(t("Dashboard")).toBe("لوحة التحكم");
-    expect(t("Arabic uses the same layout as English — only the words change.")).toBe(
-      "العربية تستخدم نفس التخطيط كالإنجليزية — تتغير الكلمات فقط.",
+    expect(t("Arabic uses the same layout as English, only the words change.")).toBe(
+      "العربية تستخدم نفس التخطيط كالإنجليزية, تتغير الكلمات فقط.",
     );
     setRuntimeLocale("en");
   });

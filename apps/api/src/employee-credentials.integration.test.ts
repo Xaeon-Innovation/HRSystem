@@ -69,14 +69,14 @@ describe("employee login credentials", () => {
       });
       if (empLogin.statusCode !== 200 || adminLogin.statusCode !== 200) {
         skip = true;
-        console.warn("Skipping employee credential tests — seed users missing");
+        console.warn("Skipping employee credential tests, seed users missing");
         return;
       }
       empToken = (empLogin.json() as { accessToken: string }).accessToken;
       adminToken = (adminLogin.json() as { accessToken: string }).accessToken;
     } catch {
       skip = true;
-      console.warn("Skipping employee credential tests — Postgres unavailable");
+      console.warn("Skipping employee credential tests, Postgres unavailable");
     }
   });
 

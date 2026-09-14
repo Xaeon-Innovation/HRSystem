@@ -87,7 +87,7 @@ describe("Paymob HMAC", () => {
 describe("seat limit helper contract", () => {
   it("blocks when used + additional exceeds limit", async () => {
     const { assertSeatAvailable } = await import("./lib/billing.js");
-    // Pure logic check via inline simulation — assertSeatAvailable needs DB.
+    // Pure logic check via inline simulation, assertSeatAvailable needs DB.
     // Keep a lightweight invariant test here.
     const seatsUsed = 10;
     const seatLimit = 10;

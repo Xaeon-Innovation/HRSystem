@@ -132,10 +132,10 @@ EXACT: dict[str, str] = {
     "Integrations & Analytics": "التكاملات والتحليلات",
     "are on the tenant admin account, not the platform super admin.": "متاحة لحساب مسؤول المستأجر، وليست للمسؤول العام للمنصة.",
     "Creative Multi Solutions": "كرييتف مالتي سوليوشنز",
-    "Mobile-first workforce clock-in, KPIs, and live field location for outdoor teams.": "تسجيل دوام ميداني، ومؤشرات أداء، وموقع مباشر للفرق الخارجية — مصمم للجوال أولاً.",
+    "Mobile-first workforce clock-in, KPIs, and live field location for outdoor teams.": "تسجيل دوام ميداني، ومؤشرات أداء، وموقع مباشر للفرق الخارجية, مصمم للجوال أولاً.",
     "Add a photo so teammates can recognize you on the roster and map.": "أضف صورة ليتعرّف عليك الزملاء في الكشف والخريطة.",
-    "JPEG, PNG, WebP, or GIF — photos are resized automatically": "JPEG أو PNG أو WebP أو GIF — يُعاد تحجيم الصور تلقائياً",
-    "Arabic uses the same layout as English — only the words change.": "العربية تستخدم نفس التخطيط الإنجليزي — تتغيّر الكلمات فقط.",
+    "JPEG, PNG, WebP, or GIF, photos are resized automatically": "JPEG أو PNG أو WebP أو GIF, يُعاد تحجيم الصور تلقائياً",
+    "Arabic uses the same layout as English, only the words change.": "العربية تستخدم نفس التخطيط الإنجليزي, تتغيّر الكلمات فقط.",
     "Profile photo updated.": "تم تحديث صورة الملف.",
     "Profile photo removed.": "تم حذف صورة الملف.",
     "Choose a photo under 12 MB.": "اختر صورة أصغر من 12 ميغابايت.",
@@ -345,8 +345,8 @@ EXACT: dict[str, str] = {
     "Close / correct": "إغلاق / تصحيح",
     "Missed clock-out": "خروج غير مسجّل",
     "On shift": "في الوردية",
-    "Off shift — clocked out": "خارج الوردية — مسجّل خروج",
-    "On shift — clocked in": "في الوردية — مسجّل دخول",
+    "Off shift, clocked out": "خارج الوردية, مسجّل خروج",
+    "On shift, clocked in": "في الوردية, مسجّل دخول",
     "Pick on map": "اختيار على الخريطة",
     "Use live position as center": "استخدام الموقع الحالي كمركز",
     "Save zone": "حفظ المنطقة",
@@ -644,9 +644,9 @@ EXACT: dict[str, str] = {
     "Manage your organization subscription": "إدارة اشتراك مؤسستك",
     "Platform super-admin provisioning": "توفير حسابات المسؤول العام",
     "Multi-tenant HR & workforce location tracking": "تتبع موارد بشرية ومواقع القوى العاملة متعدد المستأجرين",
-    "Live workforce first — then goals and leave that need attention.": "القوى العاملة المباشرة أولاً — ثم الأهداف والإجازات التي تحتاج انتباهاً.",
+    "Live workforce first, then goals and leave that need attention.": "القوى العاملة المباشرة أولاً, ثم الأهداف والإجازات التي تحتاج انتباهاً.",
     "Who is in, out, late, or on leave": "من داخل، خارج، متأخر، أو في إجازة",
-    "Your HR notices — leave updates, deadlines, and anything that needs attention.": "إشعاراتك — تحديثات الإجازة والمواعيد النهائية وأي أمر يحتاج انتباهاً.",
+    "Your HR notices, leave updates, deadlines, and anything that needs attention.": "إشعاراتك, تحديثات الإجازة والمواعيد النهائية وأي أمر يحتاج انتباهاً.",
     "Your overall score, what needs attention, and your metrics.": "درجتك الإجمالية، وما يحتاج انتباهاً، ومقاييسك.",
     "When your manager assigns targets, they will show up here.": "عندما يحدّد مديرك الأهداف ستظهر هنا.",
     "No KPIs assigned to you": "لا مؤشرات أداء معيّنة لك",
@@ -1065,7 +1065,7 @@ EXACT: dict[str, str] = {
     "Ack": "تأكيد",
     "Acked": "تم التأكيد",
     "Acknowledged": "تم الاطلاع",
-    "Got it — acknowledge all": "حسناً — تأكيد الكل",
+    "Got it, acknowledge all": "حسناً, تأكيد الكل",
     "← Analytics": "← التحليلات",
     "← Integrations": "← التكاملات",
     "← Tenants": "← المستأجرون",
@@ -1099,7 +1099,7 @@ PHRASES: list[tuple[str, str]] = [
 
 
 def unescape_js_string(raw: str) -> str:
-    """Decode JS string escapes without mangling UTF-8 punctuation (· … —)."""
+    """Decode JS string escapes without mangling UTF-8 punctuation (· … -)."""
     try:
         return ast.literal_eval(f'"{raw}"')
     except Exception:

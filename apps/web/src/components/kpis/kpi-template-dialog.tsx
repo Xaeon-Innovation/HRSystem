@@ -235,7 +235,7 @@ export function KpiTemplateDialog({
             <p className="mt-1 text-sm text-muted-foreground">
               {editing
                 ? t("Saving changes updates this metric for everyone who has it.")
-                : t("Your own name and target — not limited to the job packs.")}
+                : t("Your own name and target, not limited to the job packs.")}
             </p>
             <form className="mt-3 space-y-3" onSubmit={saveMetric}>
               <div className="space-y-1">
@@ -305,7 +305,7 @@ export function KpiTemplateDialog({
                       <span>
                         {k.name}
                         <span className="block text-[11px] text-muted-foreground">
-                          {t("target")}{k.targetValue ?? "—"} · {k.reviewPeriod}
+                          {t("target")}{k.targetValue ?? "-"} · {k.reviewPeriod}
                           {assigned ? t(" · assigned to this person") : ""}
                         </span>
                       </span>

@@ -225,7 +225,7 @@ export function OrgSetupPanel({
               {b.sites.length ? (
                 <span className="text-muted-foreground">
                   {" "}
-                  — {b.sites.map((s) => s.name).join(", ")}
+                 , {b.sites.map((s) => s.name).join(", ")}
                 </span>
               ) : null}
             </div>

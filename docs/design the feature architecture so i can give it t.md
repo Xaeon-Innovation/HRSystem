@@ -2,7 +2,7 @@
 
 # design the feature architecture so i can give it to cursor as a reference so he can build it
 
-Yes — and the right way to frame it for Cursor is as an **Integrations + Analytics Platform inside the HR system**, not a one-off CMS connector. The architecture should treat your HR app as the operational system of record for workforce activity, while external systems feed business context into an analytics layer through a controlled integration backbone. Since you're already comfortable with Next.js, TypeScript, Node-style backend patterns, and PostgreSQL/Drizzle, this design fits well into your existing stack and should be practical for Cursor to implement.[^1][^2][^3]
+Yes, and the right way to frame it for Cursor is as an **Integrations + Analytics Platform inside the HR system**, not a one-off CMS connector. The architecture should treat your HR app as the operational system of record for workforce activity, while external systems feed business context into an analytics layer through a controlled integration backbone. Since you're already comfortable with Next.js, TypeScript, Node-style backend patterns, and PostgreSQL/Drizzle, this design fits well into your existing stack and should be practical for Cursor to implement.[^1][^2][^3]
 
 ## Product definition
 
@@ -891,7 +891,7 @@ That order minimizes rework and follows the recommended practice of establishing
 
 ## Product advice
 
-Yes — this is a very strong feature, especially for enterprise or agency clients. It turns your HR tool from “attendance + GPS tracker” into a **workforce intelligence platform**, which is a much stronger positioning and upsell path. The key is to implement it as a layered architecture with source-of-truth rules, canonical data models, and focused admin dashboards rather than a loose “CMS integration” page.[^11][^12][^13][^1][^4][^2]
+Yes, this is a very strong feature, especially for enterprise or agency clients. It turns your HR tool from “attendance + GPS tracker” into a **workforce intelligence platform**, which is a much stronger positioning and upsell path. The key is to implement it as a layered architecture with source-of-truth rules, canonical data models, and focused admin dashboards rather than a loose “CMS integration” page.[^11][^12][^13][^1][^4][^2]
 
 I can also turn this into a **PRD + database schema + API spec document** formatted specifically for Cursor next.
 <span style="display:none">[^14][^15][^16][^17][^18]</span>

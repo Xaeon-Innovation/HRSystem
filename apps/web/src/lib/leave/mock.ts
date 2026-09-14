@@ -205,7 +205,7 @@ function basePolicy(
 }
 
 export const MOCK_POLICIES: LeavePolicy[] = [
-  basePolicy("pol-annual", T.annual, "Annual leave — default", {
+  basePolicy("pol-annual", T.annual, "Annual leave, default", {
     annualEntitlement: 21,
     accrual: {
       enabled: true,
@@ -234,7 +234,7 @@ export const MOCK_POLICIES: LeavePolicy[] = [
     longLeaveDaysThreshold: 5,
     probationLockoutDays: 90,
   }),
-  basePolicy("pol-sick", T.sick, "Sick leave — default", {
+  basePolicy("pol-sick", T.sick, "Sick leave, default", {
     annualEntitlement: 10,
     accrual: {
       enabled: true,
@@ -250,26 +250,26 @@ export const MOCK_POLICIES: LeavePolicy[] = [
     reservePendingDays: false,
     staffingLimit: 3,
   }),
-  basePolicy("pol-emergency", T.emergency, "Emergency leave — default", {
+  basePolicy("pol-emergency", T.emergency, "Emergency leave, default", {
     annualEntitlement: 3,
     minNoticeDays: 0,
     probationLockoutDays: 0,
     managerFirst: false,
     negativeAllowed: true,
   }),
-  basePolicy("pol-unpaid", T.unpaid, "Unpaid leave — default", {
+  basePolicy("pol-unpaid", T.unpaid, "Unpaid leave, default", {
     annualEntitlement: 0,
     minNoticeDays: 14,
     managerFirst: true,
     multiLevelEnabled: true,
     longLeaveDaysThreshold: 3,
   }),
-  basePolicy("pol-comp", T.comp, "Compensatory leave — default", {
+  basePolicy("pol-comp", T.comp, "Compensatory leave, default", {
     annualEntitlement: 5,
     minNoticeDays: 3,
     probationLockoutDays: 0,
   }),
-  basePolicy("pol-maternity", T.maternity, "Maternity leave — default", {
+  basePolicy("pol-maternity", T.maternity, "Maternity leave, default", {
     annualEntitlement: 90,
     minNoticeDays: 30,
     probationLockoutDays: 0,
@@ -278,12 +278,12 @@ export const MOCK_POLICIES: LeavePolicy[] = [
     longLeaveDaysThreshold: 1,
     staffingLimit: 4,
   }),
-  basePolicy("pol-paternity", T.paternity, "Paternity leave — default", {
+  basePolicy("pol-paternity", T.paternity, "Paternity leave, default", {
     annualEntitlement: 15,
     minNoticeDays: 14,
     probationLockoutDays: 0,
   }),
-  basePolicy("pol-wfh", T.wfh, "Work from home — default", {
+  basePolicy("pol-wfh", T.wfh, "Work from home, default", {
     annualEntitlement: 0,
     minNoticeDays: 1,
     probationLockoutDays: 0,
@@ -684,7 +684,7 @@ export function seedRequests(): LeaveRequest[] {
       ],
       audit: [
         audit("lr-omar-pending", "submitted", "Omar Farid", "2026-08-25T08:00:00.000Z", "Submitted", "emp-omar"),
-        audit("lr-omar-pending", "approved", "Nour Adel", "2026-08-25T14:00:00.000Z", "Manager approved — waiting on people ops", "emp-nour"),
+        audit("lr-omar-pending", "approved", "Nour Adel", "2026-08-25T14:00:00.000Z", "Manager approved, waiting on people ops", "emp-nour"),
         audit("lr-omar-pending", "reminder_sent", "System", "2026-08-26T08:00:00.000Z", "Reminder: pending admin approval", "system"),
       ],
       conflicts: [],
@@ -724,7 +724,7 @@ export function seedRequests(): LeaveRequest[] {
       handoverNotes: "Tariq owns the morning dispatch board.",
       coverageEmployeeId: "emp-tariq",
       coverageEmployeeName: "Tariq Mansour",
-      internalHrNote: "Long leave — two-step approval completed.",
+      internalHrNote: "Long leave, two-step approval completed.",
       comments: [],
       approvalSteps: [
         {
@@ -793,7 +793,7 @@ export function seedRequests(): LeaveRequest[] {
       rejectedAt: "2026-08-19T09:30:00.000Z",
       cancelledAt: null,
       decisionDate: "2026-08-19T09:30:00.000Z",
-      rejectionReason: "Quarter close — Sales cannot drop below two people that week. Please pick dates after 8 Sep.",
+      rejectionReason: "Quarter close, Sales cannot drop below two people that week. Please pick dates after 8 Sep.",
       approverId: "emp-karim",
       approverName: "Karim Said",
       handoverNotes: "",
@@ -830,7 +830,7 @@ export function seedRequests(): LeaveRequest[] {
       ],
       audit: [
         audit("lr-maya-rejected", "submitted", "Maya Soliman", "2026-08-18T12:00:00.000Z", "Submitted", "emp-maya"),
-        audit("lr-maya-rejected", "rejected", "Karim Said", "2026-08-19T09:30:00.000Z", "Rejected — no balance change."),
+        audit("lr-maya-rejected", "rejected", "Karim Said", "2026-08-19T09:30:00.000Z", "Rejected, no balance change."),
       ],
       conflicts: [],
       createdAt: "2026-08-18T12:00:00.000Z",
@@ -1017,7 +1017,7 @@ export function seedRequests(): LeaveRequest[] {
           kind: "approver",
           authorId: "emp-karim",
           authorName: "Karim Said",
-          body: "Please attach a clinic note — sick leave over two days requires it.",
+          body: "Please attach a clinic note, sick leave over two days requires it.",
           createdAt: "2026-08-24T15:00:00.000Z",
         },
       ],
@@ -1079,7 +1079,7 @@ export function seedRequests(): LeaveRequest[] {
       handoverNotes: "",
       coverageEmployeeId: "emp-tariq",
       coverageEmployeeName: "Tariq Mansour",
-      internalHrNote: "Cancelled before start — 2 days restored.",
+      internalHrNote: "Cancelled before start, 2 days restored.",
       comments: [],
       approvalSteps: [
         {

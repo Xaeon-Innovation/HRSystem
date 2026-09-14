@@ -78,7 +78,7 @@ export function CompensationHistoryPanel({
                   </td>
                   <td className="px-3 py-3 text-xs">{formatDate(h.effectiveDate)}</td>
                   <td className="px-4 py-3 text-xs">
-                    <p>{h.approvedByName ?? "—"}</p>
+                    <p>{h.approvedByName ?? "-"}</p>
                     <p className="text-muted-foreground">
                       {h.reviewCycleName ?? t("No review cycle")}
                     </p>

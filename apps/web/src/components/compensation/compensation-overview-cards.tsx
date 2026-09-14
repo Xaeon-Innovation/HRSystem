@@ -68,7 +68,7 @@ export function CompensationOverviewCards({ summary }: { summary: OverviewSummar
       label: t("Avg by department"),
       value: summary.avgByDepartment[0]
         ? formatMoney(summary.avgByDepartment[0].average, summary.currency, { compact: true })
-        : "—",
+        : "-",
       hint: summary.avgByDepartment[0]
         ? `Highest: ${summary.avgByDepartment[0].department}`
         : "No departments",

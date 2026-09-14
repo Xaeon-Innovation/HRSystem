@@ -203,37 +203,37 @@ function basePolicy(
 }
 
 export const DEFAULT_LEAVE_POLICIES: LeavePolicy[] = [
-  basePolicy("pol-annual", T.annual, "Annual leave — default", {
+  basePolicy("pol-annual", T.annual, "Annual leave, default", {
     annualEntitlement: 21,
     minNoticeDays: 7,
   }),
-  basePolicy("pol-sick", T.sick, "Sick leave — default", {
+  basePolicy("pol-sick", T.sick, "Sick leave, default", {
     annualEntitlement: 10,
     minNoticeDays: 0,
     reservePendingDays: false,
   }),
-  basePolicy("pol-emergency", T.emergency, "Emergency leave — default", {
+  basePolicy("pol-emergency", T.emergency, "Emergency leave, default", {
     annualEntitlement: 3,
     minNoticeDays: 0,
     negativeAllowed: true,
   }),
-  basePolicy("pol-unpaid", T.unpaid, "Unpaid leave — default", {
+  basePolicy("pol-unpaid", T.unpaid, "Unpaid leave, default", {
     annualEntitlement: 0,
     minNoticeDays: 14,
   }),
-  basePolicy("pol-comp", T.comp, "Compensatory leave — default", {
+  basePolicy("pol-comp", T.comp, "Compensatory leave, default", {
     annualEntitlement: 5,
     minNoticeDays: 3,
   }),
-  basePolicy("pol-maternity", T.maternity, "Maternity leave — default", {
+  basePolicy("pol-maternity", T.maternity, "Maternity leave, default", {
     annualEntitlement: 90,
     minNoticeDays: 30,
   }),
-  basePolicy("pol-paternity", T.paternity, "Paternity leave — default", {
+  basePolicy("pol-paternity", T.paternity, "Paternity leave, default", {
     annualEntitlement: 15,
     minNoticeDays: 14,
   }),
-  basePolicy("pol-wfh", T.wfh, "Work from home — default", {
+  basePolicy("pol-wfh", T.wfh, "Work from home, default", {
     annualEntitlement: 0,
     minNoticeDays: 1,
     reminderHours: 0,

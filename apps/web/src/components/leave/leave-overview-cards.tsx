@@ -48,7 +48,7 @@ export function LeaveOverviewCards({
     : [
         {
           label: t("Your remaining"),
-          value: remaining == null ? "—" : formatDays(remaining),
+          value: remaining == null ? "-" : formatDays(remaining),
           hint: t("Annual leave available"),
           icon: Palmtree,
         },

@@ -30,9 +30,9 @@ import type {
 } from "./types";
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const formatted = formatDateEn(value);
-  if (formatted === "—") return formatted;
+  if (formatted === "-") return formatted;
   const d = new Date(`${value.slice(0, 10)}T00:00:00`);
   if (Number.isNaN(d.getTime())) return formatted;
   return d.toLocaleDateString(
@@ -42,9 +42,9 @@ export function formatDate(value: string | null | undefined): string {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString(
     intlLocale(),
     intlDateOptions({
@@ -57,7 +57,7 @@ export function formatDateTime(value: string | null | undefined): string {
 }
 
 export function formatDays(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   const rounded = Math.round(value * 100) / 100;
   const n = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return Math.abs(rounded) === 1 ? t("{n} day", { n }) : t("{n} days", { n });

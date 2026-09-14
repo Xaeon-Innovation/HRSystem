@@ -131,7 +131,7 @@ export default function BillingPage() {
           <CardContent className="text-sm">
             {data.subscription?.currentPeriodEnd
               ? new Date(data.subscription.currentPeriodEnd).toLocaleDateString()
-              : "—"}
+              : "-"}
           </CardContent>
         </Card>
       </div>

@@ -80,9 +80,9 @@ export function hoursBetween(fromIso: string, toIso: string): number {
 }
 
 export function formatDate(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = parseIsoDate(value.slice(0, 10));
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleDateString(intlLocale(), intlDateOptions({
     month: "short",
     day: "numeric",
@@ -91,9 +91,9 @@ export function formatDate(value: string | null | undefined): string {
 }
 
 export function formatDateTime(value: string | null | undefined): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) return "-";
   return d.toLocaleString(intlLocale(), intlDateOptions({
     month: "short",
     day: "numeric",
@@ -107,7 +107,7 @@ export function formatMoney(
   currency = "EGP",
   opts?: { compact?: boolean },
 ): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   if (opts?.compact && Math.abs(value) >= 1000) {
     return `${currency} ${(value / 1000).toFixed(value >= 10_000 ? 0 : 1)}k`;
   }
@@ -115,7 +115,7 @@ export function formatMoney(
 }
 
 export function formatDays(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   const rounded = Math.round(value * 10) / 10;
   const n = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
   return Math.abs(rounded) === 1
@@ -124,7 +124,7 @@ export function formatDays(value: number | null | undefined): string {
 }
 
 export function formatPercent(value: number | null | undefined): string {
-  if (value == null || !Number.isFinite(value)) return "—";
+  if (value == null || !Number.isFinite(value)) return "-";
   return `${Math.round(value * 100)}%`;
 }
 

@@ -14,6 +14,7 @@ import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import { createDb } from "@hr/db";
+import { publicRoutes } from "./routes/public.js";
 import { authRoutes } from "./routes/auth.js";
 import { uploadRoutes } from "./routes/uploads.js";
 import { tenantRoutes } from "./routes/tenants.js";
@@ -71,6 +72,7 @@ async function main() {
   } satisfies AppEnv);
 
   await app.register(healthRoutes);
+  await app.register(publicRoutes, { prefix: "/v1/public" });
   await app.register(authRoutes, { prefix: "/v1/auth" });
   await app.register(uploadRoutes, { prefix: "/v1/uploads" });
   await app.register(tenantRoutes, { prefix: "/v1/tenants" });

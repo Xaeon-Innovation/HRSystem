@@ -25,7 +25,7 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
       setBrand(on ? next : DEFAULT_BRAND);
     };
 
-    /** Local cache only — used after save / cache write (avoids refetch loops). */
+    /** Local cache only, used after save / cache write (avoids refetch loops). */
     const applyLocal = () => {
       const user = getUser();
       const on = isUiRedesignEnabled(user);

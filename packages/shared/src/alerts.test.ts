@@ -34,7 +34,7 @@ describe("interpolateAlertTemplate", () => {
         "{{employee_name}} has {{metric_value}} days ({{unknown}})",
         { employee_name: "Amina", metric_value: 2 },
       ),
-    ).toBe("Amina has 2 days (—)");
+    ).toBe("Amina has 2 days (-)");
   });
 });
 

@@ -272,7 +272,7 @@ function CategoryBars({ categories }: { categories: CategoryScore[] }) {
               fill={PALETTE[i % PALETTE.length]}
             />
             <text x={572} y={y + 13} fontSize="11" className="fill-muted-foreground">
-              {c.score == null ? "—" : c.score.toFixed(0)}
+              {c.score == null ? "-" : c.score.toFixed(0)}
             </text>
           </g>
         );

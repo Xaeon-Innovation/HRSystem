@@ -31,7 +31,7 @@ export function useUiRedesign() {
 
 /**
  * For routes that only exist under redesign.
- * Waits until the flag is known before redirecting — otherwise the first
+ * Waits until the flag is known before redirecting, otherwise the first
  * render (enabled=false) immediately bounces users away from Settings / Leave
  * subroutes even when UI v2 is on.
  */

@@ -48,7 +48,7 @@ export const BRAND_PRESETS: Record<
 
 export const DEFAULT_BRAND: TenantBrand = {
   preset: "neutral",
-  brandingName: "HR Track",
+  brandingName: "Elevora",
   logoUrl: null,
 };
 

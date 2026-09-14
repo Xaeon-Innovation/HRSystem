@@ -1,11 +1,13 @@
-# HR Track
+# Elevora
 
 Multi-tenant HR and field workforce platform: clock/GPS presence, performance (KPIs and CMS goals), leave, and tenant administration.
+
+Elevora is a Xaeon product. Support: info@xaeons.com.
 
 ## Language
 
 **Tenant**:
-An organization that uses HR Track under its own roster, settings, and subscription.
+An organization that uses Elevora under its own roster, settings, and subscription.
 _Avoid_: Company, account, client (when meaning the org)
 
 **Employee**:
@@ -37,7 +39,7 @@ The weighted roll-up of complete KPI results for a person (or filtered set) in t
 _Avoid_: KPI result (that is a single metric actual)
 
 **Performance scorecard**:
-A per-person view of local KPIs and, when connected, CMS Goals — shown as separate sections with separate totals, never one blended number.
+A per-person view of local KPIs and, when connected, CMS Goals, shown as separate sections with separate totals, never one blended number.
 _Avoid_: Merged score, combined performance index
 
 **Goal / Target (CMS)**:

@@ -152,7 +152,7 @@ export default function ProfilePage() {
             ) : null}
           </div>
           <p className="text-xs text-muted-foreground">
-            {t("JPEG, PNG, WebP, or GIF — photos are resized automatically")}</p>
+            {t("JPEG, PNG, WebP, or GIF, photos are resized automatically")}</p>
           {message ? (
             <p className="text-sm text-teal-800">{t(message)}</p>
           ) : null}
@@ -167,7 +167,7 @@ export default function ProfilePage() {
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             {t(
-              "Arabic uses the same layout as English — only the words change.",
+              "Arabic uses the same layout as English, only the words change.",
             )}
           </p>
           <LanguageToggle className="w-full sm:w-auto" />

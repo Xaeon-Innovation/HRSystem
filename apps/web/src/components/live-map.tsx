@@ -52,7 +52,7 @@ const OSM_ATTRIBUTION =
 const ESRI_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://www.esri.com/">Esri</a>';
 
-// Keyless tile CDNs only — CARTO watermarks "API key required"; OSM.fr/hot is slow.
+// Keyless tile CDNs only, CARTO watermarks "API key required"; OSM.fr/hot is slow.
 const TILE_LAYERS: Record<
   MapTileStyle,
   {

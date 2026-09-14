@@ -113,7 +113,7 @@ export function KpiPersonScorecard({
                   <SheetDescription>
                     {person.jobTitle || t("Scorecard")} {t("· Overall")}{" "}
                     {person.overall == null
-                      ? "—"
+                      ? "-"
                       : formatNumber(person.overall, 0)}
                   </SheetDescription>
                 </div>
@@ -141,7 +141,7 @@ export function KpiPersonScorecard({
                       }
                     }}
                   >
-                    {ackBusy ? t("Saving…") : t("Got it — acknowledge all")}
+                    {ackBusy ? t("Saving…") : t("Got it, acknowledge all")}
                   </Button>
                 </div>
               ) : null}
@@ -187,7 +187,7 @@ export function KpiPersonScorecard({
                 <section>
                   <h3 className="text-sm font-semibold">{t("CMS Goals")}</h3>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t("From Creative Intelligent — separate from local KPI overall")}{cms.total?.completionRate != null
+                    {t("From Creative Intelligent, separate from local KPI overall")}{cms.total?.completionRate != null
                       ? ` · CMS completion ${formatNumber(cms.total.completionRate, 0)}%`
                       : ""}
                   </p>

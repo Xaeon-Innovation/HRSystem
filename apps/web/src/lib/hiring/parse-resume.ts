@@ -91,12 +91,12 @@ export function extractFieldsFromText(
   const education = educationMatch?.[1]?.trim() ?? null;
   const skills = extractSkills(text, extraSkills);
 
-  if (!email) warnings.push("No email found — add it before saving.");
-  if (!phone) warnings.push("No phone number found — add it if you have one.");
-  if (!fullName) warnings.push("Name was unclear — check the full name field.");
-  if (skills.length === 0) warnings.push("No skills detected — type a few comma-separated skills.");
+  if (!email) warnings.push("No email found, add it before saving.");
+  if (!phone) warnings.push("No phone number found, add it if you have one.");
+  if (!fullName) warnings.push("Name was unclear, check the full name field.");
+  if (skills.length === 0) warnings.push("No skills detected, type a few comma-separated skills.");
   if (text.length < 80) {
-    warnings.push("Very little text extracted. This may be a scanned CV — fill fields manually.");
+    warnings.push("Very little text extracted. This may be a scanned CV, fill fields manually.");
   }
 
   const summary = `Extracted from CV${fullName ? ` for ${fullName}` : ""}. Review before saving.`;

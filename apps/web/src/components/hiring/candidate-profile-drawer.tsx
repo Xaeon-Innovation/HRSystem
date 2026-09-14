@@ -231,13 +231,13 @@ export function CandidateProfileDrawer({
               <FitScoreBreakdown result={fit} />
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <Fact label="Email" value={candidate.email} />
-                <Fact label="Phone" value={candidate.phone || "—"} />
+                <Fact label="Phone" value={candidate.phone || "-"} />
                 <Fact label="Experience" value={`${candidate.yearsOfExperience} years`} />
-                <Fact label="Rating" value={candidate.rating ? `${candidate.rating}/5` : "—"} />
+                <Fact label="Rating" value={candidate.rating ? `${candidate.rating}/5` : "-"} />
                 <Fact label="Expected salary" value={formatMoney(candidate.expectedSalary)} />
-                <Fact label="Notice" value={candidate.noticePeriod || "—"} />
-                <Fact label="Availability" value={candidate.availability || "—"} />
-                <Fact label="Location" value={candidate.locationPreference || "—"} />
+                <Fact label="Notice" value={candidate.noticePeriod || "-"} />
+                <Fact label="Availability" value={candidate.availability || "-"} />
+                <Fact label="Location" value={candidate.locationPreference || "-"} />
               </dl>
               <div className="flex flex-wrap gap-1">
                 {candidate.skills.map((s) => (
@@ -340,7 +340,7 @@ export function CandidateProfileDrawer({
                 <div className="space-y-2">
                   <textarea
                     className={TEXTAREA_CLASS}
-                    placeholder={t("Internal note — @mentions are stored as text for now")}
+                    placeholder={t("Internal note, @mentions are stored as text for now")}
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                   />

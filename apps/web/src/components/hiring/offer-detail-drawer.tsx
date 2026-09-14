@@ -57,7 +57,7 @@ export function OfferDetailDrawer({
                 <Fact label={t("Offer date")} value={formatDate(offer.offerDate)} />
                 <Fact label={t("Expiry")} value={formatDate(offer.expiryDate)} />
                 <Fact label={t("Join date")} value={formatDate(offer.expectedJoinDate)} />
-                <Fact label={t("Approved by")} value={offer.approvedByName ?? "—"} />
+                <Fact label={t("Approved by")} value={offer.approvedByName ?? "-"} />
               </dl>
               {offer.benefitsNotes ? (
                 <p className="text-sm">{offer.benefitsNotes}</p>

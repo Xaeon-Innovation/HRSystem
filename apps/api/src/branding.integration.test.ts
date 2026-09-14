@@ -74,7 +74,7 @@ describe("tenant branding logos", () => {
       });
       if (empLogin.statusCode !== 200 || adminLogin.statusCode !== 200) {
         skip = true;
-        console.warn("Skipping branding logo tests — seed users missing");
+        console.warn("Skipping branding logo tests, seed users missing");
         return;
       }
       const empBody = empLogin.json() as { accessToken: string };
@@ -87,11 +87,11 @@ describe("tenant branding logos", () => {
       tenantId = adminBody.user.tenantId ?? "";
       if (!tenantId) {
         skip = true;
-        console.warn("Skipping branding logo tests — tenant missing");
+        console.warn("Skipping branding logo tests, tenant missing");
       }
     } catch (err) {
       skip = true;
-      console.warn("Skipping branding logo tests — database unavailable", err);
+      console.warn("Skipping branding logo tests, database unavailable", err);
     }
   });
 

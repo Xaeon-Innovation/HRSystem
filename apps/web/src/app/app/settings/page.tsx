@@ -39,7 +39,7 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{t("Settings")}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          {t("Org structure, branding, and map appearance — day-to-day People work stays under Employees and Leave.")}</p>
+          {t("Org structure, branding, and map appearance, day-to-day People work stays under Employees and Leave.")}</p>
       </div>
 
       <div className="grid gap-3">

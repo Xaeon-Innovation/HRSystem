@@ -14,9 +14,9 @@ export function LeaveReportsPanel({ summary }: { summary: LeaveReportSummary }) 
     { label: t("Upcoming absences"), value: String(summary.upcomingAbsences) },
     {
       label: t("Avg. approval time"),
-      value: summary.avgApprovalHours == null ? "—" : `${summary.avgApprovalHours}h`,
+      value: summary.avgApprovalHours == null ? "-" : `${summary.avgApprovalHours}h`,
     },
-    { label: t("Most-used type"), value: summary.mostUsedLeaveType ?? "—" },
+    { label: t("Most-used type"), value: summary.mostUsedLeaveType ?? "-" },
     { label: t("Unused leave total"), value: formatDays(summary.unusedLeaveTotal) },
   ];
 

@@ -24,7 +24,7 @@ export function KpiCategoryPanel({
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Category breakdown")}</CardTitle>
         <p className="text-xs text-muted-foreground">
-          {t("Weighted score by KPI group — click to filter the table")}</p>
+          {t("Weighted score by KPI group, click to filter the table")}</p>
       </CardHeader>
       <CardContent className="space-y-2">
         {categories.length === 0 ? (
@@ -49,7 +49,7 @@ export function KpiCategoryPanel({
                   </p>
                 </div>
                 <p className="text-lg font-semibold tabular-nums">
-                  {c.score == null ? "—" : c.score.toFixed(0)}
+                  {c.score == null ? "-" : c.score.toFixed(0)}
                 </p>
               </button>
             );

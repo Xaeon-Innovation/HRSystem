@@ -69,7 +69,7 @@ export function verifySubscriptionHmac(
 }
 
 /**
- * Transaction callback HMAC — ordered field concatenation used by Paymob
+ * Transaction callback HMAC, ordered field concatenation used by Paymob
  * transaction notifications (common Accept order).
  */
 export function verifyTransactionHmac(

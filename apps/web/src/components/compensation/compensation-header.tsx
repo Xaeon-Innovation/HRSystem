@@ -27,7 +27,7 @@ export function CompensationHeader({
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
           {isAdmin
-            ? t("Manage pay structures, approve salary changes, and prepare payroll inputs — without running a full tax engine yet.")
+            ? t("Manage pay structures, approve salary changes, and prepare payroll inputs, without running a full tax engine yet.")
             : isManager
               ? t("Review compensation for your direct reports and propose changes for HR approval.")
               : t("Compensation records for your organization.")}
