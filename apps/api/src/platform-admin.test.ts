@@ -4,13 +4,30 @@ import { verifySubscriptionHmac } from "./lib/paymob.js";
 import { subscriptionAllowsAccess } from "./lib/billing.js";
 
 describe("subscription access", () => {
-  it("allows trialing, active, past_due", () => {
-    expect(subscriptionAllowsAccess("trialing")).toBe(true);
+  it("allows active and past_due; blocks canceled/expired/missing", () => {
     expect(subscriptionAllowsAccess("active")).toBe(true);
     expect(subscriptionAllowsAccess("past_due")).toBe(true);
     expect(subscriptionAllowsAccess("canceled")).toBe(false);
     expect(subscriptionAllowsAccess("expired")).toBe(false);
-    expect(subscriptionAllowsAccess(undefined)).toBe(true);
+    expect(subscriptionAllowsAccess(undefined)).toBe(false);
+    expect(subscriptionAllowsAccess(null)).toBe(false);
+  });
+
+  it("allows trialing only while trialEndsAt is in the future", () => {
+    const future = new Date(Date.now() + 60_000);
+    const past = new Date(Date.now() - 60_000);
+    expect(
+      subscriptionAllowsAccess({ status: "trialing", trialEndsAt: future }),
+    ).toBe(true);
+    expect(
+      subscriptionAllowsAccess({ status: "trialing", trialEndsAt: past }),
+    ).toBe(false);
+    expect(
+      subscriptionAllowsAccess({ status: "trialing", trialEndsAt: null }),
+    ).toBe(false);
+    expect(
+      subscriptionAllowsAccess({ status: "active", trialEndsAt: past }),
+    ).toBe(true);
   });
 });
 

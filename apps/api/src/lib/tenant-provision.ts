@@ -10,6 +10,11 @@ import {
 import type { CreateTenantInput } from "@hr/shared";
 import { startTrialForTenant } from "./billing.js";
 
+export type ProvisionTenantOptions = {
+  /** When false, skip trial (paid Start now flow). Default true. */
+  startTrial?: boolean;
+};
+
 export type ProvisionedTenant = {
   tenant: typeof tenants.$inferSelect;
   admin: typeof users.$inferSelect;
@@ -20,10 +25,13 @@ export type ProvisionedTenant = {
 export async function provisionTenant(
   db: Db,
   data: CreateTenantInput,
+  options: ProvisionTenantOptions = {},
 ): Promise<
   | { ok: true; result: ProvisionedTenant }
   | { ok: false; status: 409; error: string }
 > {
+  const startTrial = options.startTrial !== false;
+
   const existingSlug = await db.query.tenants.findFirst({
     where: eq(tenants.slug, data.slug),
   });
@@ -75,7 +83,9 @@ export async function provisionTenant(
     })
     .returning();
 
-  const subscription = await startTrialForTenant(db, tenant.id);
+  const subscription = startTrial
+    ? await startTrialForTenant(db, tenant.id)
+    : null;
 
   return {
     ok: true,

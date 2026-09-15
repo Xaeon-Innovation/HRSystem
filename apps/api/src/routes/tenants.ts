@@ -12,6 +12,7 @@ import {
 import { writeAudit } from "../lib/audit.js";
 import {
   countActiveSeats,
+  effectiveSeatLimit,
   getTenantSubscription,
 } from "../lib/billing.js";
 import {
@@ -49,7 +50,10 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
                 id: current.plan.id,
                 code: current.plan.code,
                 name: current.plan.name,
-                seatLimit: current.plan.seatLimit,
+                seatLimit: effectiveSeatLimit(
+                  current.subscription,
+                  current.plan,
+                ),
               }
             : null,
           seatsUsed,
@@ -98,7 +102,7 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       subscription: current?.subscription ?? null,
       plan: current?.plan ?? null,
       seatsUsed,
-      seatLimit: current?.plan?.seatLimit ?? null,
+      seatLimit: effectiveSeatLimit(current?.subscription, current?.plan),
       integrationHealth: {
         connections: Number(connCount?.n ?? 0),
         active: Number(activeCount?.n ?? 0),

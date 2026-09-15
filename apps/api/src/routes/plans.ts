@@ -1,13 +1,20 @@
 import type { FastifyPluginAsync } from "fastify";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { plans } from "@hr/db";
-import { createPlanSchema, updatePlanSchema, type JwtPayload } from "@hr/shared";
+import {
+  createPlanSchema,
+  updatePlanSchema,
+  type JwtPayload,
+} from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import {
-  createPaymobSubscriptionPlan,
-  getPaymobConfig,
-} from "../lib/paymob.js";
+  createPolarClient,
+  createPolarProductForPlan,
+  getPolarConfig,
+} from "../lib/polar.js";
 import { requireRoles } from "../types.js";
+
+const BILLABLE_CODES = ["field", "people", "ops", "scale"] as const;
 
 export const planRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireRoles("super_admin"));
@@ -17,6 +24,80 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
       orderBy: (t, { asc }) => [asc(t.amountCents), asc(t.name)],
     });
     return { plans: rows };
+  });
+
+  /** Idempotent: create Polar products for catalog plans missing polar_product_id. */
+  app.post("/sync-polar", async (request, reply) => {
+    const config = getPolarConfig();
+    if (!config) {
+      return reply.code(503).send({
+        error: "Polar is not configured. Set POLAR_ACCESS_TOKEN.",
+      });
+    }
+
+    const catalog = await app.db.query.plans.findMany({
+      where: and(
+        eq(plans.active, true),
+        inArray(plans.code, [...BILLABLE_CODES]),
+      ),
+    });
+
+    const polar = createPolarClient(config);
+    const results: Array<{
+      code: string;
+      polarProductId: string;
+      created: boolean;
+    }> = [];
+
+    for (const plan of catalog) {
+      if (plan.polarProductId) {
+        results.push({
+          code: plan.code,
+          polarProductId: plan.polarProductId,
+          created: false,
+        });
+        continue;
+      }
+      if (plan.amountCents <= 0) continue;
+
+      try {
+        const created = await createPolarProductForPlan(polar, {
+          code: plan.code,
+          name: plan.name,
+          description: plan.description,
+          amountCents: plan.amountCents,
+          currency: plan.currency,
+        });
+        await app.db
+          .update(plans)
+          .set({ polarProductId: created.id, updatedAt: new Date() })
+          .where(eq(plans.id, plan.id));
+        results.push({
+          code: plan.code,
+          polarProductId: created.id,
+          created: true,
+        });
+      } catch (err) {
+        return reply.code(502).send({
+          error:
+            err instanceof Error
+              ? err.message
+              : `Failed to sync plan ${plan.code} with Polar`,
+          results,
+        });
+      }
+    }
+
+    const actor = request.user as JwtPayload;
+    await writeAudit(app, {
+      actor,
+      action: "plans.sync_polar",
+      resourceType: "plan",
+      metadata: { results },
+      request,
+    });
+
+    return { results };
   });
 
   app.post("/", async (request, reply) => {
@@ -32,30 +113,32 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(409).send({ error: "Plan code already exists" });
     }
 
-    let paymobPlanId: number | null = null;
-    const syncPaymob = data.syncPaymob === true && data.amountCents > 0;
-    if (syncPaymob) {
-      const config = getPaymobConfig();
+    let polarProductId: string | null = null;
+    const syncPolar = data.syncPolar === true && data.amountCents > 0;
+    if (syncPolar) {
+      const config = getPolarConfig();
       if (!config) {
         return reply.code(503).send({
           error:
-            "Paymob is not configured. Set PAYMOB_* env vars or create with syncPaymob:false",
+            "Polar is not configured. Set POLAR_ACCESS_TOKEN or create with syncPolar:false",
         });
       }
       try {
-        const created = await createPaymobSubscriptionPlan(config, {
+        const polar = createPolarClient(config);
+        const created = await createPolarProductForPlan(polar, {
+          code: data.code,
           name: data.name,
+          description: data.description ?? null,
           amountCents: data.amountCents,
           currency: data.currency,
-          frequencyDays: data.intervalDays,
         });
-        paymobPlanId = created.id;
+        polarProductId = created.id;
       } catch (err) {
         return reply.code(502).send({
           error:
             err instanceof Error
               ? err.message
-              : "Failed to sync plan with Paymob",
+              : "Failed to sync plan with Polar",
         });
       }
     }
@@ -72,7 +155,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
         seatLimit: data.seatLimit ?? null,
         active: data.active ?? true,
         features: data.features ?? {},
-        paymobPlanId,
+        polarProductId,
       })
       .returning();
 
@@ -82,7 +165,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
       action: "plan.create",
       resourceType: "plan",
       resourceId: plan.id,
-      metadata: { code: plan.code, paymobPlanId },
+      metadata: { code: plan.code, polarProductId },
       request,
     });
 
@@ -100,33 +183,36 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!current) return reply.code(404).send({ error: "Not found" });
 
-    let paymobPlanId = current.paymobPlanId;
+    let polarProductId = current.polarProductId;
     const nextAmount = parsed.data.amountCents ?? current.amountCents;
-    const syncPaymob =
-      parsed.data.syncPaymob === true &&
-      !current.paymobPlanId &&
+    const syncPolar =
+      parsed.data.syncPolar === true &&
+      !current.polarProductId &&
       nextAmount > 0;
-    if (syncPaymob) {
-      const config = getPaymobConfig();
+    if (syncPolar) {
+      const config = getPolarConfig();
       if (!config) {
-        return reply
-          .code(503)
-          .send({ error: "Paymob is not configured" });
+        return reply.code(503).send({ error: "Polar is not configured" });
       }
       try {
-        const created = await createPaymobSubscriptionPlan(config, {
+        const polar = createPolarClient(config);
+        const created = await createPolarProductForPlan(polar, {
+          code: current.code,
           name: parsed.data.name ?? current.name,
+          description:
+            parsed.data.description === undefined
+              ? current.description
+              : parsed.data.description,
           amountCents: nextAmount,
           currency: parsed.data.currency ?? current.currency,
-          frequencyDays: parsed.data.intervalDays ?? current.intervalDays,
         });
-        paymobPlanId = created.id;
+        polarProductId = created.id;
       } catch (err) {
         return reply.code(502).send({
           error:
             err instanceof Error
               ? err.message
-              : "Failed to sync plan with Paymob",
+              : "Failed to sync plan with Polar",
         });
       }
     }
@@ -148,7 +234,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
             : parsed.data.seatLimit,
         active: parsed.data.active ?? current.active,
         features: parsed.data.features ?? current.features,
-        paymobPlanId,
+        polarProductId,
         updatedAt: new Date(),
       })
       .where(eq(plans.id, id))

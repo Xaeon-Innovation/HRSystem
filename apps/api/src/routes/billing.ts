@@ -3,21 +3,28 @@ import { and, eq } from "drizzle-orm";
 import { plans, tenantSubscriptions, users } from "@hr/db";
 import {
   billingCheckoutSchema,
+  billingSeatsSchema,
+  isSeatQuoteCode,
+  SEAT_QUOTES,
+  validateSeatCount,
   type JwtPayload,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import {
   countActiveSeats,
+  effectiveSeatLimit,
   getTenantSubscription,
   subscriptionAllowsAccess,
 } from "../lib/billing.js";
 import {
-  checkoutUrlFromIntention,
-  createPaymobIntention,
-  cancelPaymobSubscription,
-  getPaymobConfig,
-  isPaymobConfigured,
-} from "../lib/paymob.js";
+  cancelPolarSubscriptionAtPeriodEnd,
+  createPolarCheckout,
+  createPolarClient,
+  createPolarCustomerPortalSession,
+  getPolarConfig,
+  isPolarConfigured,
+  updatePolarSubscriptionSeats,
+} from "../lib/polar.js";
 import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
 
 export const billingRoutes: FastifyPluginAsync = async (app) => {
@@ -32,13 +39,16 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       where: and(eq(plans.active, true)),
       orderBy: (t, { asc }) => [asc(t.amountCents)],
     });
+    const seatLimit = effectiveSeatLimit(current?.subscription, current?.plan);
     return {
       subscription: current?.subscription ?? null,
       plan: current?.plan ?? null,
       seatsUsed,
-      seatLimit: current?.plan?.seatLimit ?? null,
-      accessAllowed: subscriptionAllowsAccess(current?.subscription?.status),
-      paymobConfigured: isPaymobConfigured(),
+      seatLimit,
+      purchasedSeats: current?.subscription?.purchasedSeats ?? null,
+      accessAllowed: subscriptionAllowsAccess(current?.subscription ?? null),
+      polarConfigured: isPolarConfigured(),
+      seatQuotes: SEAT_QUOTES,
       availablePlans: catalog.filter(
         (p) => p.code !== "trial" && p.amountCents > 0,
       ),
@@ -53,7 +63,7 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
 
-    const config = getPaymobConfig();
+    const config = getPolarConfig();
     if (!config) {
       return reply.code(503).send({
         error: "Billing is not configured. Contact platform support.",
@@ -64,9 +74,25 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       where: and(eq(plans.id, parsed.data.planId), eq(plans.active, true)),
     });
     if (!plan) return reply.code(404).send({ error: "Plan not found" });
-    if (!plan.paymobPlanId || plan.amountCents <= 0) {
+    if (!plan.polarProductId || plan.amountCents <= 0) {
       return reply.code(400).send({
-        error: "Plan is not billable via Paymob",
+        error: "Plan is not billable via Polar",
+      });
+    }
+
+    const seatError = validateSeatCount(plan.code, parsed.data.seats);
+    if (seatError) {
+      return reply.code(400).send({ error: seatError });
+    }
+
+    const seats = isSeatQuoteCode(plan.code)
+      ? parsed.data.seats!
+      : undefined;
+
+    const seatsUsed = await countActiveSeats(app.db, tenantId);
+    if (seats != null && seats < seatsUsed) {
+      return reply.code(400).send({
+        error: `Cannot subscribe with ${seats} seats while ${seatsUsed} employees are active`,
       });
     }
 
@@ -75,75 +101,26 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!admin) return reply.code(401).send({ error: "Unauthorized" });
 
-    const nameParts = admin.name.trim().split(/\s+/);
-    const firstName = nameParts[0] || "Admin";
-    const lastName = nameParts.slice(1).join(" ") || "User";
-    const specialReference = `tenant:${tenantId}:plan:${plan.id}:${Date.now()}`;
-
-    let intention;
+    const polar = createPolarClient(config);
+    let checkout;
     try {
-      intention = await createPaymobIntention(config, {
-        amountCents: plan.amountCents,
-        currency: plan.currency,
-        subscriptionPlanId: plan.paymobPlanId,
-        specialReference,
-        customer: {
-          firstName,
-          lastName,
-          email: admin.email,
-          phone: parsed.data.billingData?.phone ?? "0000000000",
-        },
-        billingData: parsed.data.billingData,
-      });
-    } catch (err) {
-      return reply.code(502).send({
-        error:
-          err instanceof Error ? err.message : "Failed to start Paymob checkout",
-      });
-    }
-
-    const orderId = String(
-      intention.intention_order_id ??
-        intention.order?.id ??
-        intention.id ??
-        "",
-    );
-
-    const existing = await app.db.query.tenantSubscriptions.findFirst({
-      where: eq(tenantSubscriptions.tenantId, tenantId),
-    });
-    if (existing) {
-      await app.db
-        .update(tenantSubscriptions)
-        .set({
-          planId: plan.id,
-          paymobOrderId: orderId || existing.paymobOrderId,
-          updatedAt: new Date(),
-        })
-        .where(eq(tenantSubscriptions.id, existing.id));
-    } else {
-      const now = new Date();
-      await app.db.insert(tenantSubscriptions).values({
+      checkout = await createPolarCheckout(polar, config, {
+        productId: plan.polarProductId,
+        seats,
         tenantId,
         planId: plan.id,
-        status: "trialing",
-        paymobOrderId: orderId || null,
-        currentPeriodStart: now,
-        currentPeriodEnd: new Date(
-          now.getTime() + plan.intervalDays * 24 * 60 * 60 * 1000,
-        ),
+        customerEmail: admin.email,
+        customerName: admin.name,
       });
-    }
-
-    let checkoutUrl: string;
-    try {
-      checkoutUrl = checkoutUrlFromIntention(config, intention);
     } catch (err) {
       return reply.code(502).send({
         error:
-          err instanceof Error ? err.message : "Missing Paymob checkout URL",
+          err instanceof Error ? err.message : "Failed to start Polar checkout",
       });
     }
+
+    // Do not update planId / seats until Polar confirms payment via webhook.
+    // Abandoned checkouts must not unlock paid entitlements.
 
     await writeAudit(app, {
       actor,
@@ -151,16 +128,133 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       tenantId,
       resourceType: "plan",
       resourceId: plan.id,
-      metadata: { specialReference, orderId, amountCents: plan.amountCents },
+      metadata: {
+        polarCheckoutId: checkout.id,
+        seats: seats ?? null,
+        amountCents: plan.amountCents,
+      },
       request,
     });
 
     return {
-      checkoutUrl,
-      clientSecret: intention.client_secret ?? null,
-      publicKey: config.publicKey || null,
-      orderId: orderId || null,
+      checkoutUrl: checkout.url,
+      checkoutId: checkout.id,
     };
+  });
+
+  app.post("/seats", async (request, reply) => {
+    const tenantId = tenantIdOf(request);
+    const actor = request.user as JwtPayload;
+    const parsed = billingSeatsSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+
+    const config = getPolarConfig();
+    if (!config) {
+      return reply.code(503).send({
+        error: "Billing is not configured. Contact platform support.",
+      });
+    }
+
+    const current = await getTenantSubscription(app.db, tenantId);
+    if (!current?.subscription || !current.plan) {
+      return reply.code(404).send({ error: "No subscription" });
+    }
+    if (!isSeatQuoteCode(current.plan.code)) {
+      return reply.code(400).send({
+        error: "This plan does not support changeable seats",
+      });
+    }
+    if (!current.subscription.polarSubscriptionId) {
+      return reply.code(400).send({
+        error: "Subscription is not linked to Polar yet",
+      });
+    }
+
+    const seatError = validateSeatCount(current.plan.code, parsed.data.seats);
+    if (seatError) {
+      return reply.code(400).send({ error: seatError });
+    }
+
+    const seatsUsed = await countActiveSeats(app.db, tenantId);
+    if (parsed.data.seats < seatsUsed) {
+      return reply.code(400).send({
+        error: `Cannot reduce below ${seatsUsed} active employees`,
+      });
+    }
+
+    const polar = createPolarClient(config);
+    try {
+      await updatePolarSubscriptionSeats(
+        polar,
+        current.subscription.polarSubscriptionId,
+        parsed.data.seats,
+      );
+    } catch (err) {
+      return reply.code(502).send({
+        error:
+          err instanceof Error ? err.message : "Failed to update Polar seats",
+      });
+    }
+
+    const [updated] = await app.db
+      .update(tenantSubscriptions)
+      .set({
+        purchasedSeats: parsed.data.seats,
+        updatedAt: new Date(),
+      })
+      .where(eq(tenantSubscriptions.id, current.subscription.id))
+      .returning();
+
+    await writeAudit(app, {
+      actor,
+      action: "subscription.seats",
+      tenantId,
+      resourceType: "subscription",
+      resourceId: updated.id,
+      metadata: { seats: parsed.data.seats, seatsUsed },
+      request,
+    });
+
+    return {
+      subscription: updated,
+      seatsUsed,
+      seatLimit: parsed.data.seats,
+    };
+  });
+
+  app.post("/portal", async (request, reply) => {
+    const tenantId = tenantIdOf(request);
+    const config = getPolarConfig();
+    if (!config) {
+      return reply.code(503).send({
+        error: "Billing is not configured. Contact platform support.",
+      });
+    }
+
+    const current = await getTenantSubscription(app.db, tenantId);
+    if (!current?.subscription?.polarCustomerId) {
+      return reply.code(400).send({
+        error: "No Polar customer on this subscription yet",
+      });
+    }
+
+    const polar = createPolarClient(config);
+    try {
+      const session = await createPolarCustomerPortalSession(polar, {
+        customerId: current.subscription.polarCustomerId,
+        returnUrl: `${config.webAppUrl}/app/billing`,
+      });
+      return { portalUrl: session.customerPortalUrl };
+    } catch (err) {
+      return reply.code(502).send({
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to open Polar customer portal",
+      });
+    }
   });
 
   app.post("/cancel", async (request, reply) => {
@@ -171,16 +265,17 @@ export const billingRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(404).send({ error: "No subscription" });
     }
 
-    if (current.subscription.paymobSubscriptionId) {
-      const config = getPaymobConfig();
+    if (current.subscription.polarSubscriptionId) {
+      const config = getPolarConfig();
       if (config) {
         try {
-          await cancelPaymobSubscription(
-            config,
-            current.subscription.paymobSubscriptionId,
+          const polar = createPolarClient(config);
+          await cancelPolarSubscriptionAtPeriodEnd(
+            polar,
+            current.subscription.polarSubscriptionId,
           );
         } catch (err) {
-          app.log.warn({ err }, "Paymob cancel failed");
+          app.log.warn({ err }, "Polar cancel failed");
         }
       }
     }

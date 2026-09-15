@@ -11,9 +11,9 @@ import {
 } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
+import { requireActiveSubscription } from "../lib/features.js";
 import {
   requireRoles,
-  requireTenantScope,
   tenantIdOf,
 } from "../types.js";
 import { createNotification } from "../services/notifications.js";
@@ -23,7 +23,7 @@ import {
 } from "../services/alert-rules.js";
 
 export const notificationRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.get("/", async (request, reply) => {
     const tenantId = tenantIdOf(request);

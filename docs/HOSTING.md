@@ -32,7 +32,7 @@ Use two hostnames (recommended):
 | Hostname | Role |
 |----------|------|
 | `app.YOURDOMAIN` | HR Track web UI |
-| `api.YOURDOMAIN` | API + WebSocket + Paymob webhook |
+| `api.YOURDOMAIN` | API + WebSocket + Polar webhook |
 
 Replace `YOURDOMAIN` with the real domain (new subdomains are fine even if the main site stays on another name).
 
@@ -327,15 +327,17 @@ Browser:
 
 ---
 
-## 12. Paymob (when ready)
+## 12. Polar billing (when ready)
 
-Uncomment Paymob vars in `.env.production`, then:
+Uncomment Polar vars in `.env.production`, then:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env.production up -d --force-recreate api
 ```
 
-Register webhook: `https://api.YOURDOMAIN/v1/webhooks/paymob`  
+1. Register webhook: `https://api.YOURDOMAIN/v1/webhooks/polar`
+2. As super admin, open `/app/plans` → **Sync all to Polar**
+
 Details: [BILLING.md](./BILLING.md).
 
 ---

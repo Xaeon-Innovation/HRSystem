@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
-import { requireRoles, requireTenantScope } from "../types.js";
+import { requireRoles } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
 
 type NominatimItem = {
   place_id: number;
@@ -13,7 +14,7 @@ type NominatimItem = {
 };
 
 export const placesRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
   app.addHook("preHandler", requireRoles("tenant_admin"));
 
   app.get("/places/search", async (request, reply) => {

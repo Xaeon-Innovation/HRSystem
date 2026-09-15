@@ -21,9 +21,9 @@ import type { App } from "../types.js";
 import {
   requireModuleRole,
   requireRoles,
-  requireTenantScope,
   tenantIdOf,
 } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
 import { createNotification } from "../services/notifications.js";
 import { broadcastToTenant } from "../ws-hub.js";
 
@@ -63,7 +63,7 @@ async function assertWithinGeofence(
 }
 
 export const attendanceRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.post("/clock-in", async (request, reply) => {
     const tenantId = tenantIdOf(request);
@@ -118,47 +118,53 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
 
-    await app.db
-      .insert(employeeLiveLocations)
-      .values({
-        employeeId: user.employeeId,
-        tenantId,
-        lat: parsed.data.lat,
-        lng: parsed.data.lng,
-        updatedAt: now,
-        isClockedIn: true,
-      })
-      .onConflictDoUpdate({
-        target: employeeLiveLocations.employeeId,
-        set: {
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const hasFieldOps = planFeatureEnabled(features, "fieldOps");
+
+    // People plan: clock with a geofence point, but no live GPS trail.
+    if (hasFieldOps) {
+      await app.db
+        .insert(employeeLiveLocations)
+        .values({
+          employeeId: user.employeeId,
+          tenantId,
           lat: parsed.data.lat,
           lng: parsed.data.lng,
           updatedAt: now,
           isClockedIn: true,
-          tenantId,
-        },
+        })
+        .onConflictDoUpdate({
+          target: employeeLiveLocations.employeeId,
+          set: {
+            lat: parsed.data.lat,
+            lng: parsed.data.lng,
+            updatedAt: now,
+            isClockedIn: true,
+            tenantId,
+          },
+        });
+
+      await app.db.insert(locationPings).values({
+        tenantId,
+        employeeId: user.employeeId,
+        lat: parsed.data.lat,
+        lng: parsed.data.lng,
+        recordedAt: now,
+        clientPingId: parsed.data.clientEventId ?? null,
       });
 
-    await app.db.insert(locationPings).values({
-      tenantId,
-      employeeId: user.employeeId,
-      lat: parsed.data.lat,
-      lng: parsed.data.lng,
-      recordedAt: now,
-      clientPingId: parsed.data.clientEventId ?? null,
-    });
-
-    if (user.role === "employee") {
-      broadcastToTenant(tenantId, {
-        type: "location.update",
-        payload: {
-          employeeId: user.employeeId,
-          lat: parsed.data.lat,
-          lng: parsed.data.lng,
-          updatedAt: now.toISOString(),
-          isClockedIn: true,
-        },
-      });
+      if (user.role === "employee") {
+        broadcastToTenant(tenantId, {
+          type: "location.update",
+          payload: {
+            employeeId: user.employeeId,
+            lat: parsed.data.lat,
+            lng: parsed.data.lng,
+            updatedAt: now.toISOString(),
+            isClockedIn: true,
+          },
+        });
+      }
     }
 
     await createNotification(app, {
@@ -219,41 +225,46 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       )
       .returning();
 
-    await app.db
-      .update(employeeLiveLocations)
-      .set({
-        isClockedIn: false,
-        lat: parsed.data.lat,
-        lng: parsed.data.lng,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(employeeLiveLocations.employeeId, user.employeeId),
-          eq(employeeLiveLocations.tenantId, tenantId),
-        ),
-      );
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const hasFieldOps = planFeatureEnabled(features, "fieldOps");
 
-    await app.db.insert(locationPings).values({
-      tenantId,
-      employeeId: user.employeeId,
-      lat: parsed.data.lat,
-      lng: parsed.data.lng,
-      recordedAt: now,
-      clientPingId: parsed.data.clientEventId ?? null,
-    });
-
-    if (user.role === "employee") {
-      broadcastToTenant(tenantId, {
-        type: "location.update",
-        payload: {
-          employeeId: user.employeeId,
+    if (hasFieldOps) {
+      await app.db
+        .update(employeeLiveLocations)
+        .set({
+          isClockedIn: false,
           lat: parsed.data.lat,
           lng: parsed.data.lng,
-          updatedAt: now.toISOString(),
-          isClockedIn: false,
-        },
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(employeeLiveLocations.employeeId, user.employeeId),
+            eq(employeeLiveLocations.tenantId, tenantId),
+          ),
+        );
+
+      await app.db.insert(locationPings).values({
+        tenantId,
+        employeeId: user.employeeId,
+        lat: parsed.data.lat,
+        lng: parsed.data.lng,
+        recordedAt: now,
+        clientPingId: parsed.data.clientEventId ?? null,
       });
+
+      if (user.role === "employee") {
+        broadcastToTenant(tenantId, {
+          type: "location.update",
+          payload: {
+            employeeId: user.employeeId,
+            lat: parsed.data.lat,
+            lng: parsed.data.lng,
+            updatedAt: now.toISOString(),
+            isClockedIn: false,
+          },
+        });
+      }
     }
 
     await createNotification(app, {

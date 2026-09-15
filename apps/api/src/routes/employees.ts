@@ -22,7 +22,8 @@ import {
   loadJobRolesByEmployeeIds,
   replaceEmployeeJobRoles,
 } from "../lib/job-roles.js";
-import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
+import { requireRoles, tenantIdOf } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
 
 function asDateOnly(value: unknown): string | null {
   if (value == null) return null;
@@ -100,7 +101,7 @@ function serializeEmployee<T extends Record<string, unknown>>(row: T) {
 }
 
 export const employeeRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   async function resolveBranchId(
     tenantId: string,

@@ -8,12 +8,14 @@ import {
 import { writeAudit } from "../lib/audit.js";
 import {
   countActiveSeats,
+  effectiveSeatLimit,
   listSubscriptionsWithDetails,
 } from "../lib/billing.js";
 import {
-  cancelPaymobSubscription,
-  getPaymobConfig,
-} from "../lib/paymob.js";
+  cancelPolarSubscriptionAtPeriodEnd,
+  createPolarClient,
+  getPolarConfig,
+} from "../lib/polar.js";
 import { requireRoles } from "../types.js";
 
 export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
@@ -33,7 +35,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
             ? { id: tenant.id, name: tenant.name, slug: tenant.slug, status: tenant.status }
             : null,
           seatsUsed,
-          seatLimit: row.plan?.seatLimit ?? null,
+          seatLimit: effectiveSeatLimit(row, row.plan),
         };
       }),
     );
@@ -57,17 +59,21 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
 
     if (
       cancelRequested &&
-      current.paymobSubscriptionId &&
+      current.polarSubscriptionId &&
       parsed.data.status === "canceled"
     ) {
-      const config = getPaymobConfig();
+      const config = getPolarConfig();
       if (config) {
         try {
-          await cancelPaymobSubscription(config, current.paymobSubscriptionId);
+          const polar = createPolarClient(config);
+          await cancelPolarSubscriptionAtPeriodEnd(
+            polar,
+            current.polarSubscriptionId,
+          );
         } catch (err) {
           app.log.warn(
             { err },
-            "Paymob cancel failed; applying local override",
+            "Polar cancel failed; applying local override",
           );
         }
       }

@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/marketing/reveal";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
+import {
+  isSeatQuoteCode,
+  quoteForSeats,
+  SEAT_QUOTES,
+  type SeatQuoteCode,
+} from "@hr/shared";
 
 type PublicPlan = {
   code: string;
@@ -109,47 +115,6 @@ const FALLBACK_PLANS: PublicPlan[] = [
 
 const PLAN_ORDER = ["field", "people", "ops", "scale", "enterprise"] as const;
 
-/**
- * Floor + overage seat quotes (marketing). Keeps the ladder honest:
- * - Fewer seats never discount below list (Ops $249 / Scale $599).
- * - Scale starts at 100 seats so it cannot undercut Ops at the same headcount.
- * - Extra seats above the included band cost more than the next tier's floor.
- */
-type SeatQuote = {
-  min: number;
-  max: number;
-  step: number;
-  included: number;
-  floorCents: number;
-  overageCents: number;
-};
-
-const SEAT_QUOTES: Record<"ops" | "scale", SeatQuote> = {
-  ops: {
-    min: 25,
-    max: 100,
-    step: 5,
-    included: 50,
-    floorCents: 24900,
-    overageCents: 600, // $6 / seat above 50 → 100 seats = $549 (< Scale floor)
-  },
-  scale: {
-    min: 100,
-    max: 250,
-    step: 10,
-    included: 150,
-    floorCents: 59900,
-    overageCents: 450, // $4.50 / seat above 150
-  },
-};
-
-function quoteForSeats(code: "ops" | "scale", seats: number): number {
-  const q = SEAT_QUOTES[code];
-  const clamped = Math.min(q.max, Math.max(q.min, seats));
-  if (clamped <= q.included) return q.floorCents;
-  return q.floorCents + (clamped - q.included) * q.overageCents;
-}
-
 function formatMoney(
   amountCents: number,
   currency: string,
@@ -177,18 +142,14 @@ function formatPrice(
   if (plan.code === "enterprise" || plan.amountCents === 0) {
     return t("Custom");
   }
-  if (
-    seats != null &&
-    (plan.code === "ops" || plan.code === "scale") &&
-    SEAT_QUOTES[plan.code]
-  ) {
+  if (seats != null && isSeatQuoteCode(plan.code)) {
     return formatMoney(quoteForSeats(plan.code, seats), plan.currency, t);
   }
   return formatMoney(plan.amountCents, plan.currency, t);
 }
 
 function quoteHint(
-  code: "ops" | "scale",
+  code: SeatQuoteCode,
   seats: number,
   t: (s: string, v?: Record<string, string | number>) => string,
 ): string {
@@ -361,7 +322,7 @@ export default function PricingPage() {
           </h1>
           <p className="mt-3 text-muted-foreground">
             {t(
-              "Start free for 14 days with both packs. Pick Field, People, or the Ops bundle when you are ready.",
+              "Subscribe to start immediately. A 14-day free trial is available once on signup — no credit card required.",
             )}
           </p>
         </div>
@@ -377,10 +338,9 @@ export default function PricingPage() {
         <div className="flex w-max min-w-full gap-3 lg:grid lg:w-full lg:grid-cols-5 lg:gap-3 lg:overflow-visible xl:gap-4">
           {displayPlans.map((plan, i) => {
             const highlighted = plan.code === "ops";
-            const quote =
-              plan.code === "ops" || plan.code === "scale"
-                ? SEAT_QUOTES[plan.code]
-                : null;
+            const quote = isSeatQuoteCode(plan.code)
+              ? SEAT_QUOTES[plan.code]
+              : null;
             const seats = seatsFor(plan.code);
             const ctaHref =
               plan.code === "enterprise"
@@ -391,7 +351,7 @@ export default function PricingPage() {
             const ctaLabel =
               plan.code === "enterprise"
                 ? t("Request demo")
-                : t("Start free trial");
+                : t("Start now");
             const lines = featureLines(plan, t, Boolean(quote));
             return (
               <Reveal
@@ -449,11 +409,7 @@ export default function PricingPage() {
                         t={t}
                       />
                       <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                        {quoteHint(
-                          plan.code as "ops" | "scale",
-                          seats,
-                          t,
-                        )}
+                        {quoteHint(plan.code as SeatQuoteCode, seats, t)}
                       </p>
                     </div>
                   ) : null}

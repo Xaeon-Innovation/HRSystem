@@ -16,6 +16,7 @@ import {
   DEFAULT_INTEGRATION_RAW_RETENTION_DAYS,
 } from "@hr/shared";
 import { getTenantPlanFeatures, resolveLocationRetentionDays } from "./lib/features.js";
+import { expirePastTrials } from "./lib/billing.js";
 import { drainPendingRawEvents } from "./integrations/process-raw.js";
 import { runConnectionSync } from "./routes/integrations.js";
 import {
@@ -245,12 +246,24 @@ export function startJobs(app: FastifyInstance) {
     }
   };
 
+  const expireTrials = async () => {
+    try {
+      const expired = await expirePastTrials(app.db);
+      if (expired.length) {
+        app.log.info({ count: expired.length }, "expired past trials");
+      }
+    } catch (err) {
+      app.log.error(err, "trial expiry job failed");
+    }
+  };
+
   setTimeout(() => {
     void retention();
     void missedClockOuts();
     void drainRaw();
     void operational();
     void leaveMaintenance();
+    void expireTrials();
   }, 5_000);
 
   setInterval(() => {
@@ -271,6 +284,10 @@ export function startJobs(app: FastifyInstance) {
 
   setInterval(() => {
     void leaveMaintenance();
+  }, hourMs);
+
+  setInterval(() => {
+    void expireTrials();
   }, hourMs);
 
   setInterval(() => {

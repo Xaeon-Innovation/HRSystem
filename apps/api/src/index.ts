@@ -37,6 +37,7 @@ import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { billingRoutes } from "./routes/billing.js";
 import { auditRoutes } from "./routes/audits.js";
 import { paymobWebhookRoutes } from "./routes/webhooks-paymob.js";
+import { polarWebhookRoutes } from "./routes/webhooks-polar.js";
 import { integrationWebhookRoutes } from "./routes/webhooks-integrations.js";
 import { integrationRoutes } from "./routes/integrations.js";
 import { analyticsRoutes } from "./routes/analytics.js";
@@ -81,6 +82,7 @@ async function main() {
   await app.register(billingRoutes, { prefix: "/v1/billing" });
   await app.register(auditRoutes, { prefix: "/v1/audits" });
   await app.register(paymobWebhookRoutes, { prefix: "/v1/webhooks/paymob" });
+  await app.register(polarWebhookRoutes, { prefix: "/v1/webhooks/polar" });
   await app.register(integrationWebhookRoutes, {
     prefix: "/v1/webhooks/integrations",
   });

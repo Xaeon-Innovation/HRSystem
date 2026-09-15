@@ -63,8 +63,21 @@ export const createTenantSchema = z.object({
   adminName: z.string().min(2).max(120),
 });
 
+/** Billable self-serve codes that can be selected from pricing Start now. */
+export const PUBLIC_CHECKOUT_PLAN_CODES = [
+  "field",
+  "people",
+  "ops",
+  "scale",
+] as const;
+export type PublicCheckoutPlanCode =
+  (typeof PUBLIC_CHECKOUT_PLAN_CODES)[number];
+
 export const publicSignupSchema = createTenantSchema.extend({
   acceptTerms: z.literal(true),
+  /** Optional paid plan intent — does not grant entitlements until Polar confirms. */
+  planCode: z.enum(PUBLIC_CHECKOUT_PLAN_CODES).optional(),
+  seats: z.number().int().positive().optional(),
 });
 
 export const publicDemoRequestSchema = z.object({
@@ -401,6 +414,8 @@ export const jwtPayloadSchema = z.object({
     .transform((roles) => normalizeSystemModuleRoles(roles)),
 });
 
+export const PLAN_INTERVAL_DAYS = [7, 15, 30, 60, 90, 180, 360] as const;
+
 export const createPlanSchema = z.object({
   code: z
     .string()
@@ -412,19 +427,24 @@ export const createPlanSchema = z.object({
   amountCents: z.number().int().min(0),
   currency: z.string().length(3).default("USD"),
   intervalDays: z.number().int().refine(
-    (v) => (PAYMOB_INTERVAL_DAYS as readonly number[]).includes(v),
-    { message: "Invalid Paymob interval" },
+    (v) =>
+      (PLAN_INTERVAL_DAYS as readonly number[]).includes(v) ||
+      (PAYMOB_INTERVAL_DAYS as readonly number[]).includes(v),
+    { message: "Invalid billing interval" },
   ),
   seatLimit: z.number().int().positive().nullable().optional(),
   active: z.boolean().optional().default(true),
   features: z.record(z.union([z.boolean(), z.number(), z.string()])).optional(),
+  /** @deprecated Prefer syncPolar */
   syncPaymob: z.boolean().optional(),
+  syncPolar: z.boolean().optional(),
 });
 
 export const updatePlanSchema = createPlanSchema.partial().omit({ code: true });
 
 export const billingCheckoutSchema = z.object({
   planId: z.string().uuid(),
+  seats: z.number().int().positive().optional(),
   billingData: z
     .object({
       firstName: z.string().min(1).max(100).optional(),
@@ -434,6 +454,10 @@ export const billingCheckoutSchema = z.object({
       country: z.string().max(60).optional(),
     })
     .optional(),
+});
+
+export const billingSeatsSchema = z.object({
+  seats: z.number().int().positive(),
 });
 
 export const updateSubscriptionSchema = z.object({
@@ -466,6 +490,7 @@ export type NotificationTypeInput = (typeof NOTIFICATION_TYPES)[number];
 export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
 export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
+export type BillingSeatsInput = z.infer<typeof billingSeatsSchema>;
 export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
 export type UpdateAlertRuleInput = z.infer<typeof updateAlertRuleSchema>;
 export type CreateCustomAlertRuleInput = z.infer<typeof createCustomAlertRuleSchema>;

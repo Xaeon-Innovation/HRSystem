@@ -27,8 +27,9 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET/POST | `/v1/plans` | Catalog; POST may sync Paymob |
-| PATCH | `/v1/plans/:id` | Activate / sync Paymob |
+| GET/POST | `/v1/plans` | Catalog; POST may sync Polar (`syncPolar`) |
+| POST | `/v1/plans/sync-polar` | Idempotent create Polar products for Field/People/Ops/Scale |
+| PATCH | `/v1/plans/:id` | Activate / sync Polar |
 | GET | `/v1/subscriptions` | Cross-tenant list |
 | PATCH | `/v1/subscriptions/:id` | Manual override / cancel |
 | GET | `/v1/audits` | Filters: `tenantId`, `actorUserId`, `action`, `from`, `to`, `limit`, `offset` |
@@ -39,15 +40,18 @@ Public catalog: `GET /v1/public/plans` (active plans only). Self-serve SKUs are 
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/v1/billing/current` | Plan, seats, available plans |
-| POST | `/v1/billing/checkout` | `{ planId }` → Paymob checkout URL |
+| GET | `/v1/billing/current` | Plan, seats, seat quotes, available plans |
+| POST | `/v1/billing/checkout` | `{ planId, seats? }` → Polar checkout URL |
+| POST | `/v1/billing/seats` | `{ seats }` → resize Ops/Scale (Polar proration) |
+| POST | `/v1/billing/portal` | Polar customer portal URL |
 | POST | `/v1/billing/cancel` | Cancel at period end |
 
 ## Webhooks
 
 | Method | Path | Notes |
 |--------|------|-------|
-| POST | `/v1/webhooks/paymob` | HMAC-verified; no JWT |
+| POST | `/v1/webhooks/polar` | Standard Webhooks signature; no JWT |
+| POST | `/v1/webhooks/paymob` | Legacy; unused on live path |
 | POST | `/v1/webhooks/integrations/:connectionId` | Tenant connection HMAC; stores raw events then canonicalizes |
 
 See [BILLING.md](./BILLING.md).

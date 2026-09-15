@@ -32,6 +32,9 @@ export type AuthUser = {
   } | null;
   planFeatures?: Record<string, boolean | number | string>;
   pingIntervalSec?: number;
+  accessAllowed?: boolean;
+  subscriptionStatus?: string | null;
+  trialEndsAt?: string | null;
 };
 
 const TOKEN_KEY = "hr_access_token";
@@ -132,7 +135,7 @@ async function request(url: string, init: RequestInit): Promise<Response> {
     return await fetch(url, init);
   } catch {
     throw new Error(
-      "Could not reach the server. Try a smaller photo, or check your connection.",
+      "Could not reach the server. Check your connection and try again.",
     );
   }
 }

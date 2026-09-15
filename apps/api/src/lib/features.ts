@@ -1,4 +1,7 @@
-import { getTenantSubscription } from "./billing.js";
+import {
+  getTenantSubscription,
+  subscriptionAllowsAccess,
+} from "./billing.js";
 import type { Db, PlanFeatures } from "@hr/db";
 import {
   DEFAULT_LOCATION_RETENTION_DAYS,
@@ -20,7 +23,9 @@ export async function getTenantPlanFeatures(
   tenantId: string,
 ): Promise<PlanFeatures> {
   const current = await getTenantSubscription(db, tenantId);
-  return (current?.plan?.features ?? {}) as PlanFeatures;
+  if (!current?.subscription) return {};
+  if (!subscriptionAllowsAccess(current.subscription)) return {};
+  return (current.plan?.features ?? {}) as PlanFeatures;
 }
 
 export async function tenantHasFeature(
@@ -82,7 +87,7 @@ export function resolveLocationRetentionDays(
 
 export function requirePlanFeature(feature: PlanFeatureKey) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    await requireTenantScope()(request, reply);
+    await requireActiveSubscription()(request, reply);
     if (reply.sent) return;
     const tenantId = tenantIdOf(request);
     const ok = await tenantHasFeature(request.server.db, tenantId, feature);
@@ -91,5 +96,24 @@ export function requirePlanFeature(feature: PlanFeatureKey) {
         error: `This plan does not include ${feature}. ${FEATURE_UPGRADE_HINT[feature]}`,
       });
     }
+  };
+}
+
+/**
+ * Block tenant product routes when trial/subscription is not live.
+ * Billing routes must not use this so admins can still subscribe.
+ */
+export function requireActiveSubscription() {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    await requireTenantScope()(request, reply);
+    if (reply.sent) return;
+    const tenantId = tenantIdOf(request);
+    const current = await getTenantSubscription(request.server.db, tenantId);
+    if (subscriptionAllowsAccess(current?.subscription ?? null)) return;
+    return reply.code(402).send({
+      error:
+        "Subscription required. Your trial has ended or payment is pending. Open Billing to subscribe.",
+      code: "subscription_required",
+    });
   };
 }

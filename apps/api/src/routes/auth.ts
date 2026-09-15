@@ -15,7 +15,7 @@ import {
   toAuthUser,
   toJwtPayload,
 } from "../lib/auth-tokens.js";
-import { getTenantSubscription } from "../lib/billing.js";
+import { getTenantSubscription, subscriptionAllowsAccess } from "../lib/billing.js";
 import {
   getTenantPlanFeatures,
   resolvePingIntervalSec,
@@ -181,6 +181,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       where: eq(tenants.id, user.tenantId),
       columns: { settings: true },
     });
+    const accessAllowed = subscriptionAllowsAccess(
+      current?.subscription ?? null,
+    );
     return {
       ...authUser,
       plan: current?.plan
@@ -191,6 +194,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           }
         : null,
       planFeatures: features,
+      accessAllowed,
+      subscriptionStatus: current?.subscription?.status ?? null,
+      trialEndsAt: current?.subscription?.trialEndsAt?.toISOString() ?? null,
       pingIntervalSec: resolvePingIntervalSec(
         tenant?.settings.pingIntervalSec,
         features,

@@ -632,6 +632,28 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           redesign && "space-y-0 md:p-8",
         )}
       >
+        {user.accessAllowed === false && user.role === "tenant_admin" ? (
+          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="min-w-0 text-sm text-foreground">
+              {t(
+                "Your subscription has ended. Choose a plan to restore access.",
+              )}
+            </p>
+            {pathname !== "/app/billing" ? (
+              <Button asChild className="w-full shrink-0 sm:w-auto">
+                <Link href="/app/billing">{t("Billing")}</Link>
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {user.accessAllowed === false && user.role === "employee" ? (
+          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+            <p className="font-medium">{t("Subscription ended")}</p>
+            <p className="mt-1 text-muted-foreground">
+              {t("Contact your admin to renew the subscription.")}
+            </p>
+          </div>
+        ) : null}
         <NavigationProgress />
         <PageTransition>{children}</PageTransition>
       </main>

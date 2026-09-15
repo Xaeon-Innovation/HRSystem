@@ -9,10 +9,11 @@ import {
   type JwtPayload,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
-import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
+import { requireRoles, tenantIdOf } from "../types.js";
 
 export const branchRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);
@@ -143,7 +144,7 @@ export const branchRoutes: FastifyPluginAsync = async (app) => {
 };
 
 export const siteRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);

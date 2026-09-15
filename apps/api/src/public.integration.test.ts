@@ -107,6 +107,50 @@ describe("public plans / signup / demo", () => {
     expect(body.user.role).toBe("tenant_admin");
     expect(body.tenant.slug).toBe(slug);
     expect(body.subscription?.status).toBe("trialing");
+    expect(body.checkoutIntent).toBeNull();
+  });
+
+  it("paid plan signup skips trial until Polar confirms", async () => {
+    if (skip || !app) return;
+    const paidSlug = `paid-${Date.now().toString(36)}`;
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/public/signup",
+      payload: {
+        name: "Paid Start Co",
+        slug: paidSlug,
+        adminEmail: `${paidSlug}@example.com`,
+        adminPassword: "SignupTest123!",
+        adminName: "Paid Admin",
+        acceptTerms: true,
+        planCode: "field",
+      },
+    });
+    expect(res.statusCode).toBe(201);
+    const body = res.json();
+    expect(body.subscription).toBeNull();
+    expect(body.checkoutIntent).toEqual({
+      planCode: "field",
+      seats: null,
+    });
+  });
+
+  it("rejects ops signup without seats", async () => {
+    if (skip || !app) return;
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/public/signup",
+      payload: {
+        name: "Ops Missing Seats",
+        slug: `ops-bad-${Date.now().toString(36)}`,
+        adminEmail: `ops-bad-${Date.now().toString(36)}@example.com`,
+        adminPassword: "SignupTest123!",
+        adminName: "Ops Admin",
+        acceptTerms: true,
+        planCode: "ops",
+      },
+    });
+    expect(res.statusCode).toBe(400);
   });
 
   it("rejects duplicate slug", async () => {

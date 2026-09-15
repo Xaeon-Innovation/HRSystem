@@ -12,7 +12,8 @@ import {
   detectImageMime,
   logoUrlFor,
 } from "../lib/avatar.js";
-import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
+import { requireRoles, tenantIdOf } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
 
 const PRESETS = new Set(["neutral", "teal", "forest", "slate"]);
 
@@ -37,7 +38,7 @@ function brandingOf(tenant: TenantRow) {
 }
 
 export const brandingRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.get("/branding", async (request) => {
     const tenantId = tenantIdOf(request);

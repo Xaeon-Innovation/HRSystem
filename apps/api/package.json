@@ -17,6 +17,7 @@
     "@fastify/websocket": "^11.0.1",
     "@hr/db": "workspace:*",
     "@hr/shared": "workspace:*",
+    "@polar-sh/sdk": "^0.49.0",
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",

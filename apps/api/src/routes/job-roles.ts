@@ -7,14 +7,15 @@ import {
   type JwtPayload,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
-import { requireRoles, requireTenantScope, tenantIdOf } from "../types.js";
+import { requireRoles, tenantIdOf } from "../types.js";
+import { requireActiveSubscription } from "../lib/features.js";
 
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ");
 }
 
 export const jobRoleRoutes: FastifyPluginAsync = async (app) => {
-  app.addHook("preHandler", requireTenantScope());
+  app.addHook("preHandler", requireActiveSubscription());
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);

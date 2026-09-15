@@ -785,6 +785,7 @@ export const plans = pgTable(
     intervalDays: integer("interval_days").notNull().default(30),
     seatLimit: integer("seat_limit"),
     paymobPlanId: integer("paymob_plan_id"),
+    polarProductId: text("polar_product_id"),
     active: boolean("active").notNull().default(true),
     features: jsonb("features").$type<PlanFeatures>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -794,7 +795,10 @@ export const plans = pgTable(
       .notNull()
       .defaultNow(),
   },
-  (t) => [uniqueIndex("plans_code_uidx").on(t.code)],
+  (t) => [
+    uniqueIndex("plans_code_uidx").on(t.code),
+    uniqueIndex("plans_polar_product_uidx").on(t.polarProductId),
+  ],
 );
 
 export const tenantSubscriptions = pgTable(
@@ -810,6 +814,10 @@ export const tenantSubscriptions = pgTable(
     status: subscriptionStatusEnum("status").notNull().default("trialing"),
     paymobSubscriptionId: text("paymob_subscription_id"),
     paymobOrderId: text("paymob_order_id"),
+    polarSubscriptionId: text("polar_subscription_id"),
+    polarCustomerId: text("polar_customer_id"),
+    /** Billed seat quantity from Polar (Ops/Scale). Null = use plan.seatLimit. */
+    purchasedSeats: integer("purchased_seats"),
     currentPeriodStart: timestamp("current_period_start", {
       withTimezone: true,
     }),
@@ -827,6 +835,7 @@ export const tenantSubscriptions = pgTable(
     uniqueIndex("tenant_subscriptions_tenant_uidx").on(t.tenantId),
     index("tenant_subscriptions_status_idx").on(t.status),
     index("tenant_subscriptions_paymob_uidx").on(t.paymobSubscriptionId),
+    uniqueIndex("tenant_subscriptions_polar_uidx").on(t.polarSubscriptionId),
   ],
 );
 

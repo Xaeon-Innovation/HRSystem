@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, lt } from "drizzle-orm";
 import {
   employees,
   plans,
@@ -11,6 +11,12 @@ export const ACTIVE_SUB_STATUSES = [
   "active",
   "past_due",
 ] as const;
+
+export type SubscriptionAccessRow = {
+  status: (typeof tenantSubscriptions.$inferSelect)["status"];
+  trialEndsAt?: Date | null;
+  currentPeriodEnd?: Date | null;
+};
 
 export async function countActiveSeats(db: Db, tenantId: string) {
   const [row] = await db
@@ -40,7 +46,7 @@ export async function assertSeatAvailable(
 ): Promise<{ ok: true; seatsUsed: number; seatLimit: number | null } | { ok: false; error: string; seatsUsed: number; seatLimit: number | null }> {
   const current = await getTenantSubscription(db, tenantId);
   const seatsUsed = await countActiveSeats(db, tenantId);
-  const seatLimit = current?.plan?.seatLimit ?? null;
+  const seatLimit = effectiveSeatLimit(current?.subscription, current?.plan);
   if (seatLimit != null && seatsUsed + additionalSeats > seatLimit) {
     return {
       ok: false,
@@ -52,17 +58,50 @@ export async function assertSeatAvailable(
   return { ok: true, seatsUsed, seatLimit };
 }
 
+/** Prefer purchased_seats from Polar; fall back to catalog seat_limit. */
+export function effectiveSeatLimit(
+  subscription: { purchasedSeats?: number | null } | null | undefined,
+  plan: { seatLimit?: number | null } | null | undefined,
+): number | null {
+  if (subscription?.purchasedSeats != null) {
+    return subscription.purchasedSeats;
+  }
+  return plan?.seatLimit ?? null;
+}
+
+/**
+ * Whether the tenant currently has live product access.
+ * - `active` / `past_due`: yes
+ * - `trialing`: yes only while trialEndsAt is in the future
+ * - missing subscription: no (paid signup before Polar confirms)
+ * - expired / canceled: no
+ */
 export function subscriptionAllowsAccess(
-  status: (typeof tenantSubscriptions.$inferSelect)["status"] | undefined,
+  subscription:
+    | SubscriptionAccessRow
+    | (typeof tenantSubscriptions.$inferSelect)["status"]
+    | null
+    | undefined,
 ): boolean {
-  if (!status) return true; // no sub yet, allow (trial assignment is preferred)
-  return (ACTIVE_SUB_STATUSES as readonly string[]).includes(status);
+  if (subscription == null) return false;
+  if (typeof subscription === "string") {
+    // Legacy status-only callers (tests / simple checks).
+    if (subscription === "trialing") return true;
+    return (ACTIVE_SUB_STATUSES as readonly string[]).includes(subscription);
+  }
+  const { status, trialEndsAt } = subscription;
+  if (status === "active" || status === "past_due") return true;
+  if (status === "trialing") {
+    if (!trialEndsAt) return false;
+    return trialEndsAt.getTime() > Date.now();
+  }
+  return false;
 }
 
 export async function startTrialForTenant(
   db: Db,
   tenantId: string,
-  trialDays = 14,
+  trialDays?: number,
 ) {
   const trialPlan = await db.query.plans.findFirst({
     where: and(eq(plans.code, "trial"), eq(plans.active, true)),
@@ -74,8 +113,15 @@ export async function startTrialForTenant(
   });
   if (existing) return existing;
 
+  const features = (trialPlan.features ?? {}) as Record<string, unknown>;
+  const fromPlan =
+    typeof features.trialDays === "number" && Number.isFinite(features.trialDays)
+      ? features.trialDays
+      : 14;
+  const days = trialDays ?? fromPlan;
+
   const now = new Date();
-  const trialEnds = new Date(now.getTime() + trialDays * 24 * 60 * 60 * 1000);
+  const trialEnds = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
   const [created] = await db
     .insert(tenantSubscriptions)
     .values({
@@ -88,6 +134,22 @@ export async function startTrialForTenant(
     })
     .returning();
   return created;
+}
+
+/** Mark past-due trials as expired. Does not suspend the tenant. */
+export async function expirePastTrials(db: Db) {
+  const now = new Date();
+  const updated = await db
+    .update(tenantSubscriptions)
+    .set({ status: "expired", updatedAt: now })
+    .where(
+      and(
+        eq(tenantSubscriptions.status, "trialing"),
+        lt(tenantSubscriptions.trialEndsAt, now),
+      ),
+    )
+    .returning({ id: tenantSubscriptions.id, tenantId: tenantSubscriptions.tenantId });
+  return updated;
 }
 
 export async function listSubscriptionsWithDetails(db: Db) {

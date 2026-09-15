@@ -17,13 +17,14 @@ type Plan = {
   currency: string;
   intervalDays: number;
   seatLimit: number | null;
-  paymobPlanId: number | null;
+  polarProductId: string | null;
   active: boolean;
 };
 
 export default function PlansPage() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
   const [form, setForm] = useState({
     code: "",
     name: "",
@@ -32,7 +33,7 @@ export default function PlansPage() {
     currency: "USD",
     intervalDays: 30,
     seatLimit: 25,
-    syncPaymob: false,
+    syncPolar: false,
   });
 
   async function load() {
@@ -63,7 +64,7 @@ export default function PlansPage() {
         currency: "USD",
         intervalDays: 30,
         seatLimit: 25,
-        syncPaymob: false,
+        syncPolar: false,
       });
       await load();
     } catch (err) {
@@ -71,35 +72,67 @@ export default function PlansPage() {
     }
   }
 
+  async function syncAllPolar() {
+    setBusy(true);
+    setError(null);
+    try {
+      await api("/v1/plans/sync-polar", { method: "POST", body: "{}" });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Polar sync failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Plans")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Subscription catalog (Paymob sync optional)")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold">{t("Plans")}</h1>
+          <p className="text-sm text-muted-foreground">
+            {t("Subscription catalog (Polar sync optional)")}
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          className="w-full sm:w-auto"
+          disabled={busy}
+          onClick={() => void syncAllPolar()}
+        >
+          {t("Sync all to Polar")}
+        </Button>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
       <div className="space-y-2">
         {plans.map((p) => (
           <Card key={p.id}>
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div>
+            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="min-w-0">
                 <p className="font-medium">
                   {p.name}{" "}
-                  <span className="text-xs text-muted-foreground">({p.code})</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({p.code})
+                  </span>
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {(p.amountCents / 100).toFixed(2)} {p.currency} / {p.intervalDays}{t("d · seats")}{p.seatLimit ?? "∞"}
-                  {p.paymobPlanId ? ` · Paymob #${p.paymobPlanId}` : t(" · not synced")}
+                  {(p.amountCents / 100).toFixed(2)} {p.currency} /{" "}
+                  {p.intervalDays}
+                  {t("d · seats")}
+                  {p.seatLimit ?? "∞"}
+                  {p.polarProductId
+                    ? ` · Polar ${p.polarProductId.slice(0, 8)}…`
+                    : t(" · not synced")}
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 <span className="text-xs uppercase">
                   {p.active ? "active" : "inactive"}
                 </span>
                 <Button
                   size="sm"
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() =>
                     api(`/v1/plans/${p.id}`, {
                       method: "PATCH",
@@ -109,20 +142,22 @@ export default function PlansPage() {
                 >
                   {p.active ? t("Deactivate") : t("Activate")}
                 </Button>
-                {!p.paymobPlanId && p.amountCents > 0 ? (
+                {!p.polarProductId && p.amountCents > 0 ? (
                   <Button
                     size="sm"
                     variant="outline"
+                    className="w-full sm:w-auto"
                     onClick={() =>
                       api(`/v1/plans/${p.id}`, {
                         method: "PATCH",
-                        body: JSON.stringify({ syncPaymob: true }),
+                        body: JSON.stringify({ syncPolar: true }),
                       })
                         .then(load)
                         .catch((e) => setError(e.message))
                     }
                   >
-                    {t("Sync Paymob")}</Button>
+                    {t("Sync Polar")}
+                  </Button>
                 ) : null}
               </div>
             </CardContent>
@@ -170,14 +205,17 @@ export default function PlansPage() {
             <label className="flex items-center gap-2 text-sm md:col-span-2">
               <input
                 type="checkbox"
-                checked={form.syncPaymob}
+                checked={form.syncPolar}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, syncPaymob: e.target.checked }))
+                  setForm((f) => ({ ...f, syncPolar: e.target.checked }))
                 }
               />
-              {t("Sync to Paymob on create")}</label>
+              {t("Sync to Polar on create")}
+            </label>
             <div className="md:col-span-2">
-              <Button type="submit">{t("Create plan")}</Button>
+              <Button type="submit" className="w-full sm:w-auto">
+                {t("Create plan")}
+              </Button>
             </div>
           </form>
         </CardContent>

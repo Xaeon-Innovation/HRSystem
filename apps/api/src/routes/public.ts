@@ -1,9 +1,11 @@
 import type { FastifyPluginAsync } from "fastify";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { plans } from "@hr/db";
 import {
+  isSeatQuoteCode,
   publicDemoRequestSchema,
   publicSignupSchema,
+  validateSeatCount,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import {
@@ -63,8 +65,30 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const { acceptTerms: _accept, ...tenantInput } = parsed.data;
-    const provisioned = await provisionTenant(app.db, tenantInput);
+    const {
+      acceptTerms: _accept,
+      planCode,
+      seats,
+      ...tenantInput
+    } = parsed.data;
+
+    if (planCode) {
+      const seatError = validateSeatCount(planCode, seats);
+      if (seatError) {
+        return reply.code(400).send({ error: seatError });
+      }
+      const plan = await app.db.query.plans.findFirst({
+        where: and(eq(plans.code, planCode), eq(plans.active, true)),
+      });
+      if (!plan || plan.amountCents <= 0) {
+        return reply.code(400).send({ error: "Plan is not available for checkout" });
+      }
+    }
+
+    const startTrial = !planCode;
+    const provisioned = await provisionTenant(app.db, tenantInput, {
+      startTrial,
+    });
     if (!provisioned.ok) {
       return reply.code(provisioned.status).send({ error: provisioned.error });
     }
@@ -83,59 +107,119 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
         slug: tenant.slug,
         adminEmail: admin.email,
         trialSubscriptionId: subscription?.id ?? null,
+        planCode: planCode ?? null,
+        seats: seats ?? null,
         source: "public",
       },
       request,
     });
 
     const loginUrl = `${WEB_APP_URL}/login?slug=${encodeURIComponent(tenant.slug)}`;
-    void sendEmail({
-      to: admin.email,
-      subject: "Welcome to Elevora, your trial is ready",
-      text: [
-        `Hi ${admin.name},`,
-        "",
-        `Your Elevora workspace “${tenant.name}” is ready.`,
-        `Organization slug: ${tenant.slug}`,
-        `Sign in: ${loginUrl}`,
-        "",
-        "You are on a 14-day free trial. Upgrade anytime from Billing.",
-        "",
-        "Elevora (a Xaeon product)",
-        SUPPORT_EMAIL,
-      ].join("\n"),
-      html: `<p>Hi ${admin.name},</p>
+
+    if (startTrial) {
+      void sendEmail({
+        to: admin.email,
+        subject: "Welcome to Elevora, your trial is ready",
+        text: [
+          `Hi ${admin.name},`,
+          "",
+          `Your Elevora workspace “${tenant.name}” is ready.`,
+          `Organization slug: ${tenant.slug}`,
+          `Sign in: ${loginUrl}`,
+          "",
+          "You are on a 14-day free trial. Upgrade anytime from Billing.",
+          "",
+          "Elevora (a Xaeon product)",
+          SUPPORT_EMAIL,
+        ].join("\n"),
+        html: `<p>Hi ${admin.name},</p>
 <p>Your Elevora workspace <strong>${tenant.name}</strong> is ready.</p>
 <p>Organization slug: <code>${tenant.slug}</code><br/>
 <a href="${loginUrl}">Sign in to Elevora</a></p>
 <p>You are on a 14-day free trial. Upgrade anytime from Billing.</p>
 <p>- Elevora (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
-    });
+      });
 
-    void sendEmail({
-      to: SUPPORT_EMAIL,
-      subject: `[Elevora] New trial signup: ${tenant.name}`,
-      text: [
-        `New self-serve trial`,
-        `Org: ${tenant.name}`,
-        `Slug: ${tenant.slug}`,
-        `Admin: ${admin.name} <${admin.email}>`,
-        `Tenant id: ${tenant.id}`,
-      ].join("\n"),
-      html: `<p>New self-serve trial</p>
+      void sendEmail({
+        to: SUPPORT_EMAIL,
+        subject: `[Elevora] New trial signup: ${tenant.name}`,
+        text: [
+          `New self-serve trial`,
+          `Org: ${tenant.name}`,
+          `Slug: ${tenant.slug}`,
+          `Admin: ${admin.name} <${admin.email}>`,
+          `Tenant id: ${tenant.id}`,
+        ].join("\n"),
+        html: `<p>New self-serve trial</p>
 <ul>
 <li>Org: ${tenant.name}</li>
 <li>Slug: ${tenant.slug}</li>
 <li>Admin: ${admin.name} &lt;${admin.email}&gt;</li>
 <li>Tenant id: ${tenant.id}</li>
 </ul>`,
-    });
+      });
+    } else {
+      const planLabel = planCode ?? "plan";
+      void sendEmail({
+        to: admin.email,
+        subject: "Welcome to Elevora — complete checkout to activate",
+        text: [
+          `Hi ${admin.name},`,
+          "",
+          `Your Elevora workspace “${tenant.name}” is ready.`,
+          `Organization slug: ${tenant.slug}`,
+          `Sign in: ${loginUrl}`,
+          "",
+          `Complete checkout to activate the ${planLabel} plan. Features unlock after payment confirms.`,
+          "",
+          "Elevora (a Xaeon product)",
+          SUPPORT_EMAIL,
+        ].join("\n"),
+        html: `<p>Hi ${admin.name},</p>
+<p>Your Elevora workspace <strong>${tenant.name}</strong> is ready.</p>
+<p>Organization slug: <code>${tenant.slug}</code><br/>
+<a href="${loginUrl}">Sign in to Elevora</a></p>
+<p>Complete checkout to activate the <strong>${planLabel}</strong> plan. Features unlock after payment confirms.</p>
+<p>- Elevora (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
+      });
+
+      void sendEmail({
+        to: SUPPORT_EMAIL,
+        subject: `[Elevora] New paid signup: ${tenant.name} (${planLabel})`,
+        text: [
+          `New self-serve paid signup`,
+          `Org: ${tenant.name}`,
+          `Slug: ${tenant.slug}`,
+          `Plan: ${planLabel}`,
+          seats != null ? `Seats: ${seats}` : null,
+          `Admin: ${admin.name} <${admin.email}>`,
+          `Tenant id: ${tenant.id}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        html: `<p>New self-serve paid signup</p>
+<ul>
+<li>Org: ${tenant.name}</li>
+<li>Slug: ${tenant.slug}</li>
+<li>Plan: ${planLabel}</li>
+${seats != null ? `<li>Seats: ${seats}</li>` : ""}
+<li>Admin: ${admin.name} &lt;${admin.email}&gt;</li>
+<li>Tenant id: ${tenant.id}</li>
+</ul>`,
+      });
+    }
 
     return reply.code(201).send({
       ...tokens,
       user: toAuthUser(admin, employeeId),
       tenant: { id: tenant.id, name: tenant.name, slug: tenant.slug },
       subscription,
+      checkoutIntent: planCode
+        ? {
+            planCode,
+            seats: isSeatQuoteCode(planCode) ? seats ?? null : null,
+          }
+        : null,
     });
   });
 

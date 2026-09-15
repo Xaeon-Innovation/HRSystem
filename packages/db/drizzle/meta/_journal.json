@@ -120,6 +120,13 @@
       "when": 1790300000000,
       "tag": "0016_user_login_password",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790500000000,
+      "tag": "0017_polar_billing",
+      "breakpoints": true
     }
   ]
 }
