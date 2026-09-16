@@ -1,12 +1,13 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
-import { employees, tenants, users } from "@hr/db";
+import { employees, plans, tenants, users } from "@hr/db";
 import {
   loginSchema,
   refreshSchema,
   uploadAvatarSchema,
   type JwtPayload,
+  type WorkspaceMode,
 } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
 import { decodeBase64Image, detectImageMime } from "../lib/avatar.js";
@@ -14,6 +15,7 @@ import {
   signTokens,
   toAuthUser,
   toJwtPayload,
+  moduleRolesOf,
 } from "../lib/auth-tokens.js";
 import { getTenantSubscription, subscriptionAllowsAccess } from "../lib/billing.js";
 import {
@@ -68,6 +70,16 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
     const ok = await bcrypt.compare(password, resolved.passwordHash);
     if (!ok) return reply.code(401).send({ error: "Invalid credentials" });
+
+    const superOnly =
+      process.env.PLATFORM_LOGIN_SUPER_ADMIN_ONLY === "1" ||
+      process.env.PLATFORM_LOGIN_SUPER_ADMIN_ONLY === "true";
+    if (superOnly && resolved.role !== "super_admin") {
+      return reply.code(403).send({
+        error:
+          "Access is limited to platform administrators while Elevora is in test mode",
+      });
+    }
 
     if (resolved.role !== "super_admin") {
       if (!resolved.tenantId) {
@@ -127,18 +139,35 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       });
       if (!user) return reply.code(401).send({ error: "Invalid refresh token" });
 
+      const effectiveTenantId =
+        user.role === "super_admin"
+          ? (payload.tenantId ?? null)
+          : user.tenantId;
+
       let employeeId: string | null = payload.employeeId ?? null;
-      if (user.tenantId) {
+      if (effectiveTenantId && user.role !== "super_admin") {
         const emp = await app.db.query.employees.findFirst({
           where: and(
             eq(employees.userId, user.id),
-            eq(employees.tenantId, user.tenantId),
+            eq(employees.tenantId, effectiveTenantId),
           ),
         });
         employeeId = emp?.id ?? null;
+      } else if (user.role === "super_admin") {
+        employeeId = null;
       }
 
-      return signTokens(app, toJwtPayload(user, employeeId));
+      return signTokens(app, {
+        sub: user.id,
+        role: user.role,
+        tenantId: effectiveTenantId,
+        employeeId,
+        systemModuleRoles: moduleRolesOf(user),
+        workspaceMode:
+          user.role === "super_admin" ? payload.workspaceMode : undefined,
+        previewPlanId:
+          user.role === "super_admin" ? (payload.previewPlanId ?? null) : null,
+      });
     } catch {
       return reply.code(401).send({ error: "Invalid refresh token" });
     }
@@ -161,29 +190,63 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
     if (!user) return reply.code(404).send({ error: "Not found" });
 
+    const effectiveTenantId =
+      user.role === "super_admin"
+        ? (payload.tenantId ?? null)
+        : user.tenantId;
+
     let employeeId: string | null = payload.employeeId ?? null;
-    if (user.tenantId) {
+    if (effectiveTenantId && user.role !== "super_admin") {
       const emp = await app.db.query.employees.findFirst({
         where: and(
           eq(employees.userId, user.id),
-          eq(employees.tenantId, user.tenantId),
+          eq(employees.tenantId, effectiveTenantId),
         ),
       });
       employeeId = emp?.id ?? null;
+    } else if (user.role === "super_admin") {
+      employeeId = null;
     }
 
-    const authUser = toAuthUser(user, employeeId);
-    if (!user.tenantId) return authUser;
+    const authUser = {
+      ...toAuthUser(user, employeeId),
+      tenantId: effectiveTenantId,
+    };
+    if (!effectiveTenantId) return authUser;
 
-    const current = await getTenantSubscription(app.db, user.tenantId);
-    const features = await getTenantPlanFeatures(app.db, user.tenantId);
+    const current = await getTenantSubscription(app.db, effectiveTenantId);
     const tenant = await app.db.query.tenants.findFirst({
-      where: eq(tenants.id, user.tenantId),
-      columns: { settings: true },
+      where: eq(tenants.id, effectiveTenantId),
+      columns: { settings: true, name: true, slug: true },
     });
-    const accessAllowed = subscriptionAllowsAccess(
-      current?.subscription ?? null,
+    const workspace =
+      user.role === "super_admin"
+        ? {
+            mode: (payload.workspaceMode ?? "unlock_all") as WorkspaceMode,
+            previewPlanId: payload.previewPlanId ?? null,
+            isPlatformLab: tenant?.settings.platformLab === true,
+          }
+        : null;
+    const featuresFinal = await getTenantPlanFeatures(
+      app.db,
+      effectiveTenantId,
+      workspace,
     );
+    const accessAllowed =
+      user.role === "super_admin"
+        ? true
+        : subscriptionAllowsAccess(current?.subscription ?? null);
+
+    let previewPlan: { id: string; code: string; name: string } | null = null;
+    if (workspace?.mode === "preview_plan" && workspace.previewPlanId) {
+      const plan = await app.db.query.plans.findFirst({
+        where: eq(plans.id, workspace.previewPlanId),
+      });
+      if (plan) {
+        previewPlan = { id: plan.id, code: plan.code, name: plan.name };
+      }
+    }
+
     return {
       ...authUser,
       plan: current?.plan
@@ -193,14 +256,27 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
             seatLimit: current.plan.seatLimit,
           }
         : null,
-      planFeatures: features,
+      planFeatures: featuresFinal,
       accessAllowed,
       subscriptionStatus: current?.subscription?.status ?? null,
       trialEndsAt: current?.subscription?.trialEndsAt?.toISOString() ?? null,
       pingIntervalSec: resolvePingIntervalSec(
         tenant?.settings.pingIntervalSec,
-        features,
+        featuresFinal,
       ),
+      ...(user.role === "super_admin" && workspace
+        ? {
+            workspace: {
+              mode: workspace.mode,
+              previewPlanId: previewPlan?.id ?? null,
+              previewPlanCode: previewPlan?.code ?? null,
+              previewPlanName: previewPlan?.name ?? null,
+              platformLab: tenant?.settings.platformLab === true,
+              tenantSlug: tenant?.slug ?? null,
+              tenantName: tenant?.name ?? null,
+            },
+          }
+        : {}),
     };
   });
 

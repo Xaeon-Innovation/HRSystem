@@ -15,6 +15,7 @@ import type { LastKnownPosition } from "@/lib/offline-queue";
 type AttendanceStatus = {
   clockedIn: boolean;
   liveTracking?: boolean;
+  complianceTracking?: boolean;
   pingIntervalSec?: number;
 };
 
@@ -36,6 +37,7 @@ export function ClockStatusProvider({
 }) {
   const [clockedIn, setClockedIn] = useState(false);
   const [liveTracking, setLiveTracking] = useState(false);
+  const [complianceTracking, setComplianceTracking] = useState(false);
   const [pingIntervalSec, setPingIntervalSec] = useState<number | undefined>();
   const [locationError, setLocationError] = useState<string | null>(null);
   const [lastKnownPosition, setLastKnownPosition] =
@@ -46,6 +48,7 @@ export function ClockStatusProvider({
       const status = await api<AttendanceStatus>("/v1/attendance/status");
       setClockedIn(status.clockedIn);
       setLiveTracking(status.liveTracking === true);
+      setComplianceTracking(status.complianceTracking === true);
       if (typeof status.pingIntervalSec === "number") {
         setPingIntervalSec(status.pingIntervalSec);
       }
@@ -64,7 +67,7 @@ export function ClockStatusProvider({
     return () => window.removeEventListener("online", onOnline);
   }, [refreshStatus]);
 
-  useLocationStream(clockedIn && liveTracking, {
+  useLocationStream(clockedIn && (liveTracking || complianceTracking), {
     pingIntervalSec,
     onError: (msg) => setLocationError(msg),
     onFix: (pos) => setLastKnownPosition(pos),

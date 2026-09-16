@@ -127,6 +127,34 @@
       "when": 1790500000000,
       "tag": "0017_polar_billing",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790700000000,
+      "tag": "0018_leads",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790900000000,
+      "tag": "0019_platform_modules",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791100000000,
+      "tag": "0020_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791300000000,
+      "tag": "0021_shifts",
+      "breakpoints": true
     }
   ]
 }

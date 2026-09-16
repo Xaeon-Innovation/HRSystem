@@ -1,11 +1,13 @@
 import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { and, eq, isNull } from "drizzle-orm";
+import { defaultModulesForPlanCode, MODULE_DEFINITIONS } from "@hr/shared";
 import {
   createDb,
   employees,
   jobRoles,
   plans,
+  platformModules,
   tenantSubscriptions,
   tenants,
   users,
@@ -19,6 +21,20 @@ import {
 const connectionString =
   process.env.DATABASE_URL ?? "postgresql://hr:hr@localhost:5432/hr_system";
 
+function planFeatures(
+  code: string,
+  limits: {
+    pingIntervalSec: number;
+    locationRetentionDays: number;
+    trialDays?: number;
+  },
+) {
+  return {
+    ...defaultModulesForPlanCode(code),
+    ...limits,
+  };
+}
+
 const DEFAULT_PLANS = [
   {
     code: "trial",
@@ -29,15 +45,11 @@ const DEFAULT_PLANS = [
     intervalDays: 15,
     seatLimit: 10,
     active: true,
-    features: {
+    features: planFeatures("trial", {
       trialDays: 14,
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: false,
       pingIntervalSec: 60,
       locationRetentionDays: 30,
-    },
+    }),
   },
   {
     code: "field",
@@ -48,14 +60,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 25,
     active: true,
-    features: {
-      fieldOps: true,
-      peopleOps: false,
-      analytics: false,
-      integrations: false,
+    features: planFeatures("field", {
       pingIntervalSec: 60,
       locationRetentionDays: 30,
-    },
+    }),
   },
   {
     code: "people",
@@ -66,14 +74,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 25,
     active: true,
-    features: {
-      fieldOps: false,
-      peopleOps: true,
-      analytics: false,
-      integrations: false,
+    features: planFeatures("people", {
       pingIntervalSec: 60,
       locationRetentionDays: 30,
-    },
+    }),
   },
   {
     code: "ops",
@@ -84,14 +88,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 50,
     active: true,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: false,
+    features: planFeatures("ops", {
       pingIntervalSec: 30,
       locationRetentionDays: 60,
-    },
+    }),
   },
   {
     code: "scale",
@@ -102,14 +102,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 150,
     active: true,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: true,
+    features: planFeatures("scale", {
       pingIntervalSec: 20,
       locationRetentionDays: 90,
-    },
+    }),
   },
   {
     code: "enterprise",
@@ -120,14 +116,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: null,
     active: true,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: true,
+    features: planFeatures("enterprise", {
       pingIntervalSec: 15,
       locationRetentionDays: 90,
-    },
+    }),
   },
   // Legacy catalog — inactive, kept so existing subscriptions keep resolving.
   {
@@ -139,14 +131,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 25,
     active: false,
-    features: {
-      fieldOps: true,
-      peopleOps: false,
-      analytics: false,
-      integrations: false,
+    features: planFeatures("starter", {
       pingIntervalSec: 60,
       locationRetentionDays: 30,
-    },
+    }),
   },
   {
     code: "pro",
@@ -157,14 +145,10 @@ const DEFAULT_PLANS = [
     intervalDays: 30,
     seatLimit: 100,
     active: false,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: true,
+    features: planFeatures("pro", {
       pingIntervalSec: 30,
       locationRetentionDays: 60,
-    },
+    }),
   },
 ] as const;
 
@@ -177,18 +161,34 @@ async function main() {
     process.env.SEED_SUPER_ADMIN_PASSWORD ?? "SuperAdmin123!";
 
   const existingSuper = await db.query.users.findFirst({
-    where: eq(users.email, superEmail),
+    where: and(eq(users.role, "super_admin"), isNull(users.tenantId)),
   });
 
+  const passwordHash = await bcrypt.hash(superPassword, 10);
   if (!existingSuper) {
     await db.insert(users).values({
       tenantId: null,
       email: superEmail,
       name: "Platform Super Admin",
       role: "super_admin",
-      passwordHash: await bcrypt.hash(superPassword, 10),
+      passwordHash,
     });
     console.log(`Created super admin ${superEmail}`);
+  } else if (
+    existingSuper.email !== superEmail ||
+    !(await bcrypt.compare(superPassword, existingSuper.passwordHash))
+  ) {
+    await db
+      .update(users)
+      .set({
+        email: superEmail,
+        passwordHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, existingSuper.id));
+    console.log(
+      `Updated platform super admin credentials (${existingSuper.email} → ${superEmail})`,
+    );
   }
 
   for (const plan of DEFAULT_PLANS) {
@@ -226,6 +226,7 @@ async function main() {
     name: string,
     adminEmail: string,
     adminPassword: string,
+    opts?: { platformLab?: boolean; planCode?: string },
   ) {
     let tenant = await db.query.tenants.findFirst({
       where: eq(tenants.slug, slug),
@@ -243,11 +244,22 @@ async function main() {
             missedClockOutHours: 12,
             brandingName: name,
             defaultHourlyCost: 15,
+            ...(opts?.platformLab ? { platformLab: true } : {}),
           },
         })
         .returning();
       tenant = created;
       console.log(`Created tenant ${slug}`);
+    } else if (opts?.platformLab && !tenant.settings.platformLab) {
+      await db
+        .update(tenants)
+        .set({
+          settings: { ...tenant.settings, platformLab: true },
+          updatedAt: new Date(),
+        })
+        .where(eq(tenants.id, tenant.id));
+      tenant = { ...tenant, settings: { ...tenant.settings, platformLab: true } };
+      console.log(`Marked tenant ${slug} as platform Lab`);
     }
 
     let admin = await db.query.users.findFirst({
@@ -332,18 +344,27 @@ async function main() {
       const existingSub = await db.query.tenantSubscriptions.findFirst({
         where: eq(tenantSubscriptions.tenantId, tenant.id),
       });
-      if (!existingSub) {
+      const planRow =
+        opts?.planCode != null
+          ? await db.query.plans.findFirst({
+              where: eq(plans.code, opts.planCode),
+            })
+          : trialPlan;
+      if (!existingSub && planRow) {
         const now = new Date();
         const trialEnds = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+        const isLab = opts?.platformLab === true;
         await db.insert(tenantSubscriptions).values({
           tenantId: tenant.id,
-          planId: trialPlan.id,
-          status: "trialing",
+          planId: planRow.id,
+          status: isLab ? "active" : "trialing",
           currentPeriodStart: now,
-          currentPeriodEnd: trialEnds,
-          trialEndsAt: trialEnds,
+          currentPeriodEnd: isLab
+            ? new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000)
+            : trialEnds,
+          trialEndsAt: isLab ? null : trialEnds,
         });
-        console.log(`Created trial subscription for ${slug}`);
+        console.log(`Created subscription for ${slug} (${planRow.code})`);
       }
     }
 
@@ -362,6 +383,26 @@ async function main() {
     "admin@acme.local",
     "Admin123!",
   );
+  const lab = await ensureTenant(
+    "elevora-lab",
+    "Elevora Lab",
+    "admin@elevora-lab.local",
+    "Admin123!",
+    { platformLab: true, planCode: "enterprise" },
+  );
+
+  for (const def of MODULE_DEFINITIONS) {
+    const existing = await db.query.platformModules.findFirst({
+      where: eq(platformModules.key, def.key),
+    });
+    if (!existing) {
+      await db.insert(platformModules).values({
+        key: def.key,
+        launchStatus: def.defaultLaunch,
+      });
+      console.log(`Seeded platform module ${def.key}`);
+    }
+  }
 
   async function ensureBranch(
     tenantId: string,
@@ -387,6 +428,7 @@ async function main() {
   }
 
   await ensureBranch(cms.id, "Cairo HQ", "cairo");
+  await ensureBranch(lab.id, "Lab HQ", "lab");
 
   async function ensureJobRoles(tenantId: string, names: string[]) {
     for (const name of names) {

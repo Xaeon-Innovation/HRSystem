@@ -17,21 +17,32 @@ JWT claims: `sub`, `role`, `tenantId`, `employeeId`
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/v1/tenants` | Includes subscription + seat summary |
-| GET | `/v1/tenants/:id` | Detail + settings + seats |
+| GET | `/v1/tenants` | Includes subscription + seat summary; query `q`, `status`, `limit`, `offset` |
+| GET | `/v1/tenants/:id` | Detail + settings + seats + recent payment events + linked leads |
 | POST | `/v1/tenants` | Creates tenant + trial subscription |
 | PATCH | `/v1/tenants/:id` | |
 | DELETE | `/v1/tenants/:id` | Soft delete |
+
+## Platform overview / leads / payments (super_admin)
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/platform/overview` | MRR estimate, tenant/sub counts, funnel, recent leads & payments |
+| GET | `/v1/leads` | Filters: `status`, `source`, `q`, `tenantId`, `limit`, `offset` |
+| PATCH | `/v1/leads/:id` | Update `status` / `notes` |
+| GET | `/v1/payment-events` | Filters: `tenantId`, `provider`, `triggerType`, `limit`, `offset` |
+
+Public demo/signup also persist rows into `leads` (email notifications still sent).
 
 ## Plans / subscriptions / audits (super_admin)
 
 | Method | Path | Notes |
 |--------|------|-------|
 | GET/POST | `/v1/plans` | Catalog; POST may sync Polar (`syncPolar`) |
-| POST | `/v1/plans/sync-polar` | Idempotent create Polar products for Field/People/Ops/Scale |
-| PATCH | `/v1/plans/:id` | Activate / sync Polar |
-| GET | `/v1/subscriptions` | Cross-tenant list |
-| PATCH | `/v1/subscriptions/:id` | Manual override / cancel |
+| POST | `/v1/plans/sync-polar` | Create missing Polar products; body `{ updateExisting: true }` also updates prices |
+| PATCH | `/v1/plans/:id` | Edit catalog; `syncPolar: true` creates or updates Polar product |
+| GET | `/v1/subscriptions` | Cross-tenant list; query `q`, `status`, `limit`, `offset` |
+| PATCH | `/v1/subscriptions/:id` | Manual override / cancel; force `active` also unsuspends tenant |
 | GET | `/v1/audits` | Filters: `tenantId`, `actorUserId`, `action`, `from`, `to`, `limit`, `offset` |
 
 Public catalog: `GET /v1/public/plans` (active plans only). Self-serve SKUs are **Field / People / Ops / Scale**; **Enterprise** is sales-only (`amountCents = 0`). Feature packs on `plans.features`: `fieldOps`, `peopleOps`, `analytics`, `integrations`, plus numeric `pingIntervalSec` / `locationRetentionDays` caps. See [BILLING.md](./BILLING.md).
@@ -69,8 +80,10 @@ See [BILLING.md](./BILLING.md).
 
 | Method | Path | Notes |
 |--------|------|-------|
-| GET | `/v1/integrations/catalog` | Providers + canonical field lists |
-| GET/POST | `/v1/integrations/connections` | Secrets encrypted at rest; never returned |
+| GET | `/v1/integrations/catalog` | Providers, connector packs, canonical field lists |
+| POST | `/v1/integrations/oauth/start` | Start OAuth for a pack (e.g. HubSpot); returns `authorizeUrl` |
+| GET | `/v1/integrations/oauth/callback` | Public OAuth redirect; exchanges code, activates connection |
+| GET/POST | `/v1/integrations/connections` | Secrets encrypted at rest; never returned. Preset packs (e.g. `creative_cms_goals`) auto-configure |
 | GET/PATCH | `/v1/integrations/connections/:id` | |
 | POST | `/v1/integrations/connections/:id/test` | SSRF-safe REST probe |
 | POST | `/v1/integrations/connections/:id/sync` | Poll + transform |
@@ -129,6 +142,30 @@ Attendance rate = clocked-in / active employees (no roster). Labor cost uses ten
 | GET | `/v1/attendance/history` |
 | GET | `/v1/attendance/open` |
 | PATCH | `/v1/attendance/:id/correct` |
+
+## Shifts
+
+Per-employee recurring patterns (`daily` / `weekly` / `monthly`), break policies, overtime prompts, and left-zone auto clock-out incidents.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| GET | `/v1/shifts/today` | Employee: today’s instance, break, pending left-zone |
+| GET | `/v1/shifts/patterns` | tenant_admin |
+| POST | `/v1/shifts/patterns` | tenant_admin. Daily must be set before the work day |
+| PATCH | `/v1/shifts/patterns/:id` | tenant_admin |
+| GET | `/v1/shifts/instances` | tenant_admin. Query: `employeeId`, `from`, `to` |
+| POST | `/v1/shifts/instances/:id/cancel` | tenant_admin |
+| POST | `/v1/shifts/instances/:id/overtime` | Employee: `{ stay: boolean }` |
+| GET | `/v1/shifts/break-policies` | tenant_admin |
+| PUT | `/v1/shifts/break-policies` | tenant_admin. Global (`employeeId` null) or per-employee |
+| POST | `/v1/shifts/breaks/start` | Employee (clocked in) |
+| POST | `/v1/shifts/breaks/end` | Employee |
+| GET | `/v1/shifts/left-zone-incidents` | tenant_admin. Optional `status` |
+| POST | `/v1/shifts/left-zone-incidents/:id/resolve` | `{ resolution: approved_emergency \| day_deduction }` |
+| GET | `/v1/shifts/settings/left-zone` | tenant_admin |
+| PATCH | `/v1/shifts/settings/left-zone` | `{ leftZoneAutoClockOut?, leftZoneResolution? }` |
+
+Attendance `GET /v1/attendance/status` also returns `complianceTracking` when clocked in with a geofence (GPS pings for left-zone enforcement without requiring live map).
 
 ## Live map
 

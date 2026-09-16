@@ -27,7 +27,7 @@ const MAX_HISTORY_MS = 24 * 60 * 60 * 1000;
 
 export const liveMapRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
-  app.addHook("preHandler", requirePlanFeature("fieldOps"));
+  app.addHook("preHandler", requirePlanFeature("liveMap"));
   app.addHook("preHandler", requireRoles("tenant_admin"));
 
   app.get("/map-settings", async (request) => {

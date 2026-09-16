@@ -278,6 +278,27 @@ export const polarWebhookRoutes: FastifyPluginAsync = async (app) => {
         event.data as PolarSubscriptionLike,
         inserted[0]?.id,
       );
+    } else if (
+      (event.type === "order.paid" || event.type === "checkout.updated") &&
+      inserted[0]?.id
+    ) {
+      const data = asRecord(event.data) ?? {};
+      const metadata = asRecord(data.metadata) ?? {};
+      const customerMeta = asRecord(
+        asRecord(data.customer)?.metadata,
+      ) ?? {};
+      const tenantId =
+        metaString(metadata, "tenantId") ??
+        metaString(customerMeta, "tenantId") ??
+        (typeof data.externalCustomerId === "string"
+          ? data.externalCustomerId
+          : null);
+      if (tenantId) {
+        await app.db
+          .update(paymentEvents)
+          .set({ tenantId })
+          .where(eq(paymentEvents.id, inserted[0].id));
+      }
     }
 
     return { ok: true };

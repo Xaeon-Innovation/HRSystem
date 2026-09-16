@@ -151,72 +151,79 @@ html[data-locale="ar"] :is(h1, h2, h3, h4, p, li, label, blockquote, figcaption)
   }
 }
 
-/* --- Sidebar nav scrollbar (follows tenant --primary) --- */
-.app-sidebar-nav {
-  --sidebar-scroll-thumb: hsl(var(--primary) / 0.45);
-  --sidebar-scroll-thumb-hover: hsl(var(--primary) / 0.75);
-  --sidebar-scroll-track: hsl(var(--foreground) / 0.06);
+/* --- Branded scrollbars (sheets, modals, pages, sidebar) --- */
+:root {
+  --scroll-thumb: hsl(var(--primary) / 0.45);
+  --scroll-thumb-hover: hsl(var(--primary) / 0.75);
+  --scroll-track: hsl(var(--foreground) / 0.06);
 }
 
-.dark .app-sidebar-nav {
+.dark {
   /* Brand primaries are often dark; mix with white so the thumb stays visible. */
-  --sidebar-scroll-thumb: color-mix(in srgb, hsl(var(--primary)) 58%, white);
-  --sidebar-scroll-thumb-hover: color-mix(in srgb, hsl(var(--primary)) 82%, white);
-  --sidebar-scroll-track: hsl(var(--foreground) / 0.08);
+  --scroll-thumb: color-mix(in srgb, hsl(var(--primary)) 58%, white);
+  --scroll-thumb-hover: color-mix(in srgb, hsl(var(--primary)) 82%, white);
+  --scroll-track: hsl(var(--foreground) / 0.08);
 }
 
-/* Firefox (no ::-webkit-scrollbar). Do not set scrollbar-width on Chromium -
+/* Firefox (no ::-webkit-scrollbar). Do not set scrollbar-width on Chromium —
    it replaces the branded WebKit thumb with the native OS bar. */
 @supports not selector(::-webkit-scrollbar) {
-  .app-sidebar-nav {
+  * {
     scrollbar-width: thin;
-    scrollbar-color: var(--sidebar-scroll-thumb) var(--sidebar-scroll-track);
+    scrollbar-color: var(--scroll-thumb) var(--scroll-track);
   }
 }
 
-.app-sidebar-nav::-webkit-scrollbar {
+*::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
-.app-sidebar-nav::-webkit-scrollbar-track {
-  background: var(--sidebar-scroll-track);
+*::-webkit-scrollbar-track {
+  background: var(--scroll-track);
   border-radius: 999px;
-  margin-block: 8px;
+  margin-block: 4px;
   margin-inline: 2px;
 }
 
-.app-sidebar-nav::-webkit-scrollbar-thumb {
-  background-color: var(--sidebar-scroll-thumb);
+*::-webkit-scrollbar-thumb {
+  background-color: var(--scroll-thumb);
   background-clip: padding-box;
   border: 2px solid transparent;
   border-radius: 999px;
 }
 
-.app-sidebar-nav:hover::-webkit-scrollbar-thumb,
-.app-sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background-color: var(--sidebar-scroll-thumb-hover);
+*:hover::-webkit-scrollbar-thumb,
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scroll-thumb-hover);
 }
 
-.app-sidebar-nav::-webkit-scrollbar-thumb:active {
+*::-webkit-scrollbar-thumb:active {
   background-color: hsl(var(--primary));
 }
 
-.app-sidebar-nav::-webkit-scrollbar-button,
-.app-sidebar-nav::-webkit-scrollbar-button:start:decrement,
-.app-sidebar-nav::-webkit-scrollbar-button:end:increment,
-.app-sidebar-nav::-webkit-scrollbar-button:vertical:start:decrement,
-.app-sidebar-nav::-webkit-scrollbar-button:vertical:end:increment,
-.app-sidebar-nav::-webkit-scrollbar-button:horizontal:start:decrement,
-.app-sidebar-nav::-webkit-scrollbar-button:horizontal:end:increment {
+*::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button:start:decrement,
+*::-webkit-scrollbar-button:end:increment,
+*::-webkit-scrollbar-button:vertical:start:decrement,
+*::-webkit-scrollbar-button:vertical:end:increment,
+*::-webkit-scrollbar-button:horizontal:start:decrement,
+*::-webkit-scrollbar-button:horizontal:end:increment {
   display: none;
   width: 0;
   height: 0;
   background: transparent;
 }
 
-.app-sidebar-nav::-webkit-scrollbar-corner {
+*::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Back-compat aliases used by sidebar nav class */
+.app-sidebar-nav {
+  --sidebar-scroll-thumb: var(--scroll-thumb);
+  --sidebar-scroll-thumb-hover: var(--scroll-thumb-hover);
+  --sidebar-scroll-track: var(--scroll-track);
 }
 
 /* --- App navigation & content motion --- */

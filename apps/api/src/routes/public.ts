@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from "fastify";
 import { and, eq } from "drizzle-orm";
-import { plans } from "@hr/db";
+import { leads, plans } from "@hr/db";
 import {
   isSeatQuoteCode,
   publicDemoRequestSchema,
@@ -81,7 +81,9 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
         where: and(eq(plans.code, planCode), eq(plans.active, true)),
       });
       if (!plan || plan.amountCents <= 0) {
-        return reply.code(400).send({ error: "Plan is not available for checkout" });
+        return reply
+          .code(400)
+          .send({ error: "Plan is not available for checkout" });
       }
     }
 
@@ -96,6 +98,19 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
     const { tenant, admin, employeeId, subscription } = provisioned.result;
     const payload = toJwtPayload(admin, employeeId);
     const tokens = signTokens(app, payload);
+
+    await app.db.insert(leads).values({
+      source: startTrial ? "signup_trial" : "signup_paid",
+      status: "new",
+      name: admin.name,
+      company: tenant.name,
+      email: admin.email,
+      tenantId: tenant.id,
+      planCode: planCode ?? (startTrial ? "trial" : null),
+      message: startTrial
+        ? `Self-serve trial signup (${tenant.slug})`
+        : `Self-serve paid signup (${planCode}, seats=${seats ?? "-"})`,
+    });
 
     await writeAudit(app, {
       actor: payload,
@@ -229,6 +244,23 @@ ${seats != null ? `<li>Seats: ${seats}</li>` : ""}
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
     const data = parsed.data;
+    const messageLower = (data.message ?? "").toLowerCase();
+    const source =
+      messageLower.includes("enterprise") || messageLower.includes("custom")
+        ? ("enterprise" as const)
+        : ("demo" as const);
+
+    await app.db.insert(leads).values({
+      source,
+      status: "new",
+      name: data.name,
+      company: data.company,
+      email: data.email,
+      phone: data.phone ?? null,
+      message: data.message ?? null,
+      planCode: source === "enterprise" ? "enterprise" : null,
+    });
+
     const sent = await sendEmail({
       to: SUPPORT_EMAIL,
       subject: `[Elevora] Demo request: ${data.company}`,

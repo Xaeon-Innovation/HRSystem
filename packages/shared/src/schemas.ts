@@ -13,6 +13,9 @@ import {
   NOTIFICATION_TYPES,
   PAYMOB_INTERVAL_DAYS,
   REVIEW_PERIODS,
+  LEAD_SOURCES,
+  LEAD_STATUSES,
+  PLAN_LIMIT_KEYS,
   ROLES,
   SYSTEM_MODULE_ROLES,
   normalizeSystemModuleRoles,
@@ -21,7 +24,21 @@ import {
   CANONICAL_TARGET_ENTITIES,
   BRANCH_STATUSES,
   ANALYTICS_ALERT_STATUSES,
+  TASK_PRIORITIES,
+  TASK_STATUSES,
+  TASK_ASSIGNMENT_MODES,
+  TASK_DELIVERABLE_TYPES,
+  SHIFT_CADENCES,
+  BREAK_PERIOD_MODES,
+  LEFT_ZONE_RESOLUTIONS,
+  LEFT_ZONE_INCIDENT_RESOLUTIONS,
 } from "./constants.js";
+import {
+  MODULE_KEYS,
+  MODULE_LAUNCH_STATUSES,
+  WORKSPACE_MODES,
+  PLAN_FEATURE_KEYS,
+} from "./modules.js";
 import {
   ALERT_CATEGORIES,
   ALERT_CHANNELS,
@@ -61,6 +78,13 @@ export const createTenantSchema = z.object({
   adminEmail: z.string().email(),
   adminPassword: z.string().min(8),
   adminName: z.string().min(2).max(120),
+  /** Optional catalog plan (e.g. enterprise) instead of default trial. */
+  planCode: z.string().min(2).max(40).optional(),
+  purchasedSeats: z.number().int().min(1).max(10000).optional().nullable(),
+  featureOverrides: z
+    .record(z.enum(MODULE_KEYS), z.boolean())
+    .optional(),
+  leadId: z.string().uuid().optional(),
 });
 
 /** Billable self-serve codes that can be selected from pricing Start now. */
@@ -151,7 +175,12 @@ export const updateTenantSchema = z.object({
       integrationRawRetentionDays: z.number().int().min(30).max(90).optional(),
       latenessGraceMinutes: z.number().int().min(0).max(180).optional(),
       shiftStartHour: z.number().int().min(0).max(23).optional(),
+      leftZoneAutoClockOut: z.boolean().optional(),
+      leftZoneResolution: z.enum(LEFT_ZONE_RESOLUTIONS).optional(),
       map: updateMapAppearanceSchema.optional(),
+      featureOverrides: z
+        .record(z.enum(PLAN_FEATURE_KEYS), z.boolean().nullable())
+        .optional(),
     })
     .partial()
     .optional(),
@@ -412,6 +441,8 @@ export const jwtPayloadSchema = z.object({
     .max(SYSTEM_MODULE_ROLES.length)
     .optional()
     .transform((roles) => normalizeSystemModuleRoles(roles)),
+  workspaceMode: z.enum(WORKSPACE_MODES).optional(),
+  previewPlanId: z.string().uuid().nullable().optional(),
 });
 
 export const PLAN_INTERVAL_DAYS = [7, 15, 30, 60, 90, 180, 360] as const;
@@ -434,7 +465,27 @@ export const createPlanSchema = z.object({
   ),
   seatLimit: z.number().int().positive().nullable().optional(),
   active: z.boolean().optional().default(true),
-  features: z.record(z.union([z.boolean(), z.number(), z.string()])).optional(),
+  features: z
+    .object({
+      // Module keys
+      liveMap: z.boolean().optional(),
+      teamToday: z.boolean().optional(),
+      leave: z.boolean().optional(),
+      hiring: z.boolean().optional(),
+      kpis: z.boolean().optional(),
+      compensation: z.boolean().optional(),
+      tasks: z.boolean().optional(),
+      analytics: z.boolean().optional(),
+      integrations: z.boolean().optional(),
+      // Legacy packs (expanded on sanitize)
+      fieldOps: z.boolean().optional(),
+      peopleOps: z.boolean().optional(),
+      pingIntervalSec: z.number().int().positive().optional(),
+      locationRetentionDays: z.number().int().positive().optional(),
+      trialDays: z.number().int().positive().optional(),
+    })
+    .partial()
+    .optional(),
   /** @deprecated Prefer syncPolar */
   syncPaymob: z.boolean().optional(),
   syncPolar: z.boolean().optional(),
@@ -463,9 +514,50 @@ export const billingSeatsSchema = z.object({
 export const updateSubscriptionSchema = z.object({
   status: z.enum(SUBSCRIPTION_STATUSES).optional(),
   planId: z.string().uuid().optional(),
+  purchasedSeats: z.number().int().min(1).max(10000).optional().nullable(),
   cancelAtPeriodEnd: z.boolean().optional(),
   currentPeriodEnd: z.string().datetime().optional().nullable(),
   trialEndsAt: z.string().datetime().optional().nullable(),
+});
+
+export const syncPolarSchema = z.object({
+  updateExisting: z.boolean().optional().default(false),
+});
+
+export const updateLeadSchema = z.object({
+  status: z.enum(LEAD_STATUSES).optional(),
+  notes: z.string().max(5000).optional().nullable(),
+});
+
+export const leadQuerySchema = z.object({
+  status: z.enum(LEAD_STATUSES).optional(),
+  source: z.enum(LEAD_SOURCES).optional(),
+  q: z.string().max(200).optional(),
+  tenantId: z.string().uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export const paymentEventQuerySchema = z.object({
+  tenantId: z.string().uuid().optional(),
+  provider: z.string().min(1).max(40).optional(),
+  triggerType: z.string().min(1).max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export const tenantListQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  status: z.enum(TENANT_STATUSES).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(200),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export const subscriptionListQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  status: z.enum(SUBSCRIPTION_STATUSES).optional(),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(200),
+  offset: z.coerce.number().int().min(0).optional().default(0),
 });
 
 export const auditQuerySchema = z.object({
@@ -491,8 +583,27 @@ export type CreatePlanInput = z.infer<typeof createPlanSchema>;
 export type UpdatePlanInput = z.infer<typeof updatePlanSchema>;
 export type BillingCheckoutInput = z.infer<typeof billingCheckoutSchema>;
 export type BillingSeatsInput = z.infer<typeof billingSeatsSchema>;
-export type UpdateSubscriptionInput = z.infer<typeof updateSubscriptionSchema>;
-export type UpdateAlertRuleInput = z.infer<typeof updateAlertRuleSchema>;
+export const enterTenantSchema = z.object({
+  tenantId: z.string().uuid(),
+  workspaceMode: z.enum(WORKSPACE_MODES).optional().default("unlock_all"),
+  previewPlanId: z.string().uuid().optional().nullable(),
+});
+
+export type EnterTenantInput = z.infer<typeof enterTenantSchema>;
+
+export const workspacePreviewSchema = z.object({
+  workspaceMode: z.enum(WORKSPACE_MODES),
+  previewPlanId: z.string().uuid().optional().nullable(),
+});
+
+export type WorkspacePreviewInput = z.infer<typeof workspacePreviewSchema>;
+
+export const updateModuleLaunchSchema = z.object({
+  launchStatus: z.enum(MODULE_LAUNCH_STATUSES),
+});
+
+export type UpdateModuleLaunchInput = z.infer<typeof updateModuleLaunchSchema>;
+
 export type CreateCustomAlertRuleInput = z.infer<typeof createCustomAlertRuleSchema>;
 
 export const createJobRoleSchema = z.object({
@@ -575,7 +686,12 @@ export const createIntegrationConnectionSchema = z.object({
   syncMode: z.enum(INTEGRATION_SYNC_MODES).optional(),
   pollIntervalMinutes: z.number().int().min(5).max(1440).optional().nullable(),
   connectorConfig: integrationConnectorConfigSchema.optional(),
-  preset: z.enum(["creative_cms_goals"]).optional(),
+  preset: z.enum(["creative_cms_goals", "hubspot_crm"]).optional(),
+});
+
+export const startIntegrationOAuthSchema = z.object({
+  preset: z.enum(["hubspot_crm"]),
+  name: z.string().min(1).max(120).optional(),
 });
 
 export const updateIntegrationConnectionSchema =
@@ -727,3 +843,196 @@ export const leaveAdjustBalanceSchema = z.object({
 
 export type LeaveRequestDraftInput = z.infer<typeof leaveRequestDraftSchema>;
 export type LeaveDecideInput = z.infer<typeof leaveDecideSchema>;
+
+const taskFileAttachmentSchema = z.object({
+  kind: z.literal("file"),
+  name: z.string().trim().min(1).max(240),
+  mime: z.string().trim().min(1).max(120),
+  size: z.number().int().min(0).max(Math.floor(1.5 * 1024 * 1024)),
+  dataUrl: z.string().min(1).max(2_200_000),
+});
+
+const taskLinkAttachmentSchema = z.object({
+  kind: z.literal("link"),
+  name: z.string().trim().min(1).max(240),
+  url: z.string().url().max(2000),
+});
+
+export const taskAttachmentInputSchema = z.discriminatedUnion("kind", [
+  taskFileAttachmentSchema,
+  taskLinkAttachmentSchema,
+]);
+
+export const taskDeliverableRequirementInputSchema = z.object({
+  type: z.enum(TASK_DELIVERABLE_TYPES),
+  label: z.string().trim().max(120).nullable().optional(),
+});
+
+export const createTaskSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(10000).optional().default(""),
+    priority: z.enum(TASK_PRIORITIES).optional().default("medium"),
+    dueAt: z.string().datetime().nullable().optional(),
+    requiresReview: z.boolean().optional().default(false),
+    assignmentMode: z.enum(TASK_ASSIGNMENT_MODES).optional().default("shared"),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20).optional().default([]),
+    employeeIds: z.array(z.string().uuid()).max(200).optional().default([]),
+    jobRoleIds: z.array(z.string().uuid()).max(50).optional().default([]),
+    branchIds: z.array(z.string().uuid()).max(50).optional().default([]),
+    attachments: z.array(taskAttachmentInputSchema).max(3).optional().default([]),
+    deliverableRequirements: z
+      .array(taskDeliverableRequirementInputSchema)
+      .max(10)
+      .optional()
+      .default([]),
+  })
+  .superRefine((data, ctx) => {
+    if (
+      !data.employeeIds.length &&
+      !data.jobRoleIds.length &&
+      !data.branchIds.length
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Select at least one employee, job role, or branch",
+        path: ["employeeIds"],
+      });
+    }
+  });
+
+export const updateTaskSchema = z.object({
+  title: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().max(10000).optional(),
+  priority: z.enum(TASK_PRIORITIES).optional(),
+  dueAt: z.string().datetime().nullable().optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+});
+
+export const taskReviewSchema = z.object({
+  decision: z.enum(["approve", "send_back"]),
+  note: z.string().trim().max(2000).optional().default(""),
+});
+
+export const taskDeliverableSubmitSchema = z.object({
+  requirementId: z.string().uuid(),
+  attachment: taskAttachmentInputSchema,
+});
+
+export const taskListQuerySchema = z.object({
+  status: z.enum(TASK_STATUSES).optional(),
+  priority: z.enum(TASK_PRIORITIES).optional(),
+  batchId: z.string().uuid().optional(),
+  assigneeEmployeeId: z.string().uuid().optional(),
+  tag: z.string().trim().max(40).optional(),
+  q: z.string().trim().max(200).optional(),
+});
+
+export type CreateTaskInput = z.infer<typeof createTaskSchema>;
+export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type TaskReviewInput = z.infer<typeof taskReviewSchema>;
+export type TaskDeliverableSubmitInput = z.infer<
+  typeof taskDeliverableSubmitSchema
+>;
+
+const localTime = z
+  .string()
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM");
+
+export const createShiftPatternSchema = z
+  .object({
+    employeeId: z.string().uuid(),
+    cadence: z.enum(SHIFT_CADENCES),
+    workDate: isoDate.optional().nullable(),
+    weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+    monthDays: z.array(z.number().int().min(1).max(31)).max(31).optional(),
+    startTime: localTime,
+    endTime: localTime,
+    effectiveFrom: isoDate.optional().nullable(),
+    effectiveUntil: isoDate.optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.cadence === "daily" && !data.workDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Daily shifts require a work date",
+        path: ["workDate"],
+      });
+    }
+    if (data.cadence === "weekly" && !(data.weekdays?.length)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Weekly shifts require at least one weekday",
+        path: ["weekdays"],
+      });
+    }
+    if (data.cadence === "monthly" && !(data.monthDays?.length)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Monthly shifts require at least one day of month",
+        path: ["monthDays"],
+      });
+    }
+    if (data.startTime === data.endTime) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "End time must differ from start time",
+        path: ["endTime"],
+      });
+    }
+  });
+
+export const updateShiftPatternSchema = z.object({
+  active: z.boolean().optional(),
+  startTime: localTime.optional(),
+  endTime: localTime.optional(),
+  weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  monthDays: z.array(z.number().int().min(1).max(31)).max(31).optional(),
+  effectiveFrom: isoDate.optional().nullable(),
+  effectiveUntil: isoDate.optional().nullable(),
+});
+
+export const shiftInstanceListQuerySchema = z.object({
+  employeeId: z.string().uuid().optional(),
+  from: isoDate.optional(),
+  to: isoDate.optional(),
+});
+
+export const overtimeRespondSchema = z.object({
+  stay: z.boolean(),
+});
+
+export const upsertBreakPolicySchema = z
+  .object({
+    employeeId: z.string().uuid().optional().nullable(),
+    enabled: z.boolean().default(true),
+    durationMinutes: z.number().int().min(5).max(480),
+    periodMode: z.enum(BREAK_PERIOD_MODES),
+    fixedStartTime: localTime.optional().nullable(),
+    fixedEndTime: localTime.optional().nullable(),
+    maxBreaksPerShift: z.number().int().min(1).max(8).default(1),
+  })
+  .superRefine((data, ctx) => {
+    if (data.periodMode === "fixed") {
+      if (!data.fixedStartTime || !data.fixedEndTime) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Fixed break mode requires start and end times",
+          path: ["fixedStartTime"],
+        });
+      }
+    }
+  });
+
+export const resolveLeftZoneIncidentSchema = z.object({
+  resolution: z.enum(LEFT_ZONE_INCIDENT_RESOLUTIONS),
+  note: z.string().trim().max(2000).optional().default(""),
+});
+
+export type CreateShiftPatternInput = z.infer<typeof createShiftPatternSchema>;
+export type UpdateShiftPatternInput = z.infer<typeof updateShiftPatternSchema>;
+export type UpsertBreakPolicyInput = z.infer<typeof upsertBreakPolicySchema>;
+export type ResolveLeftZoneIncidentInput = z.infer<
+  typeof resolveLeftZoneIncidentSchema
+>;
+export type TaskAttachmentInput = z.infer<typeof taskAttachmentInputSchema>;

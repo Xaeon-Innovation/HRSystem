@@ -8,9 +8,11 @@ import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { t } from "@/i18n";
 import {
+  derivePackFlags,
   isSeatQuoteCode,
   quoteForSeats,
   SEAT_QUOTES,
+  type ModuleKey,
   type SeatQuote,
   type SeatQuoteCode,
 } from "@hr/shared";
@@ -58,12 +60,15 @@ type BillingCurrent = {
 
 function packSummary(features?: PlanFeatures): string {
   if (!features) return "";
-  const packs: string[] = [];
-  if (features.fieldOps === true) packs.push(t("Field ops"));
-  if (features.peopleOps === true) packs.push(t("People ops"));
-  if (features.analytics === true) packs.push(t("Analytics"));
-  if (features.integrations === true) packs.push(t("Integrations"));
-  return packs.join(" · ");
+  const packs = derivePackFlags(
+    features as Partial<Record<ModuleKey, boolean>>,
+  );
+  const labels: string[] = [];
+  if (packs.fieldOps) labels.push(t("Field ops"));
+  if (packs.peopleOps) labels.push(t("People ops"));
+  if (packs.analytics) labels.push(t("Analytics"));
+  if (packs.integrations) labels.push(t("Integrations"));
+  return labels.join(" · ");
 }
 
 function formatMoney(amountCents: number, currency: string) {

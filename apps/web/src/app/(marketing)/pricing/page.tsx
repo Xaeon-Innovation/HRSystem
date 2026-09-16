@@ -8,9 +8,11 @@ import { Reveal } from "@/components/marketing/reveal";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
 import {
+  derivePackFlags,
   isSeatQuoteCode,
   quoteForSeats,
   SEAT_QUOTES,
+  type ModuleKey,
   type SeatQuoteCode,
 } from "@hr/shared";
 
@@ -175,22 +177,30 @@ function featureLines(
       lines.push(t("Up to {n} seats", { n: plan.seatLimit }));
     }
   }
-  if (plan.features?.fieldOps) {
+  const packs = derivePackFlags(
+    (plan.features ?? {}) as Partial<Record<ModuleKey, boolean>>,
+  );
+  // Legacy pack booleans still work via expand in derive when modules absent
+  const fieldOps =
+    packs.fieldOps || plan.features?.fieldOps === true;
+  const peopleOps =
+    packs.peopleOps || plan.features?.peopleOps === true;
+  if (fieldOps) {
     lines.push(t("Field ops: clock, live map, GPS presence"));
   } else {
     lines.push(t("Clock-in without live GPS trail"));
   }
-  if (plan.features?.peopleOps) {
+  if (peopleOps) {
     lines.push(t("People ops: leave, KPIs, hiring, compensation"));
   }
-  if (plan.features?.analytics) {
+  if (packs.analytics || plan.features?.analytics === true) {
     lines.push(t("Analytics dashboards"));
   }
-  if (plan.features?.integrations) {
+  if (packs.integrations || plan.features?.integrations === true) {
     lines.push(t("Integrations hub"));
   }
   const ping = plan.features?.pingIntervalSec;
-  if (plan.features?.fieldOps && typeof ping === "number") {
+  if (fieldOps && typeof ping === "number") {
     lines.push(t("GPS every {n}s", { n: ping }));
   }
   if (plan.code === "scale" || plan.code === "enterprise") {

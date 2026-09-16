@@ -12,7 +12,7 @@ export function authHeaders(
     const header = cfg.apiKeyHeader || cfg.headerName || "X-API-Key";
     return cfg.apiKey ? { [header]: cfg.apiKey } : {};
   }
-  if (authType === "bearer") {
+  if (authType === "bearer" || authType === "oauth2") {
     return cfg.bearerToken ? { Authorization: `Bearer ${cfg.bearerToken}` } : {};
   }
   if (authType === "basic" && cfg.username && cfg.password) {

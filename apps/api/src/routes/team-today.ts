@@ -4,6 +4,7 @@ import {
   attendanceRecords,
   employees,
   leaveStates,
+  shiftInstances,
   tenants,
   users,
 } from "@hr/db";
@@ -72,7 +73,7 @@ async function assertTeamTodayAccess(
 
 export const teamTodayRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
-  app.addHook("preHandler", requirePlanFeature("fieldOps"));
+  app.addHook("preHandler", requirePlanFeature("teamToday"));
 
   app.get(
     "/team-today",
@@ -152,6 +153,18 @@ export const teamTodayRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+      const todayShifts = await app.db.query.shiftInstances.findMany({
+        where: and(
+          eq(shiftInstances.tenantId, tenantId),
+          inArray(shiftInstances.employeeId, ids),
+          eq(shiftInstances.workDate, today),
+          eq(shiftInstances.status, "scheduled"),
+        ),
+      });
+      const shiftByEmployee = new Map(
+        todayShifts.map((s) => [s.employeeId, s]),
+      );
+
       const onLeave = new Set<string>();
       try {
         const leaveRow = await app.db.query.leaveStates.findFirst({
@@ -185,17 +198,28 @@ export const teamTodayRoutes: FastifyPluginAsync = async (app) => {
       const team: TeamTodayMember[] = rosterRows.map((row) => {
         const open = openByEmployee.get(row.id);
         const todayRec = todayByEmployee.get(row.id);
+        const shift = shiftByEmployee.get(row.id);
         const clockSource = open ?? todayRec;
         const clockInAt = clockSource?.clockInAt?.toISOString() ?? null;
-        const late = Boolean(
-          clockSource?.clockInAt &&
-            clockSource.clockInAt >= dayStart &&
-            clockSource.clockInAt < dayEnd &&
-            clockSource.clockInAt > expectedStart,
-        );
+        const shiftExpected = shift
+          ? new Date(shift.startAt.getTime() + grace * 60_000)
+          : expectedStart;
+        const late = shift
+          ? Boolean(shift.lateClockIn) ||
+            Boolean(
+              clockSource?.clockInAt &&
+                clockSource.clockInAt > shiftExpected,
+            )
+          : Boolean(
+              clockSource?.clockInAt &&
+                clockSource.clockInAt >= dayStart &&
+                clockSource.clockInAt < dayEnd &&
+                clockSource.clockInAt > expectedStart,
+            );
         const missedClockOut = Boolean(
           open?.anomalyFlags?.includes("missed_clock_out") ||
-            todayRec?.anomalyFlags?.includes("missed_clock_out"),
+            todayRec?.anomalyFlags?.includes("missed_clock_out") ||
+            shift?.lateClockOut,
         );
 
         let status: TeamStatus = "unknown";
@@ -215,6 +239,10 @@ export const teamTodayRoutes: FastifyPluginAsync = async (app) => {
         if (clockInAt) member.clockInAt = clockInAt;
         if (late) member.late = true;
         if (missedClockOut) member.missedClockOut = true;
+        if (shift?.dayDeduction) {
+          (member as TeamTodayMember & { dayDeduction?: boolean }).dayDeduction =
+            true;
+        }
         return member;
       });
 

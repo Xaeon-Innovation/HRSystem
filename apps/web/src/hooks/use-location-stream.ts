@@ -145,11 +145,15 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
     }, minIntervalMs);
 
     const statusTimer = setInterval(() => {
-      void api<{ clockedIn: boolean; liveTracking?: boolean }>(
-        "/v1/attendance/status",
-      )
+      void api<{
+        clockedIn: boolean;
+        liveTracking?: boolean;
+        complianceTracking?: boolean;
+      }>("/v1/attendance/status")
         .then((s) => {
-          if (!s.clockedIn || s.liveTracking === false) {
+          const tracking =
+            s.liveTracking === true || s.complianceTracking === true;
+          if (!s.clockedIn || !tracking) {
             onStatusChangeRef.current?.(false);
             ws.close();
           }

@@ -1,11 +1,15 @@
 import type { FastifyPluginAsync } from "fastify";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, ilike, or } from "drizzle-orm";
 import {
   integrationConnections,
+  leads,
+  paymentEvents,
   tenants,
 } from "@hr/db";
 import {
+  cleanFeatureOverrides,
   createTenantSchema,
+  tenantListQuerySchema,
   updateTenantSchema,
   type JwtPayload,
 } from "@hr/shared";
@@ -16,6 +20,7 @@ import {
   getTenantSubscription,
 } from "../lib/billing.js";
 import {
+  getTenantBasePlanFeatures,
   getTenantPlanFeatures,
   resolveLocationRetentionDays,
   resolvePingIntervalSec,
@@ -26,10 +31,33 @@ import { requireRoles } from "../types.js";
 export const tenantRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireRoles("super_admin"));
 
-  app.get("/", async () => {
+  app.get("/", async (request, reply) => {
+    const parsed = tenantListQuerySchema.safeParse(request.query ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    const { q, status, limit, offset } = parsed.data;
+    const conditions = [];
+    if (status) conditions.push(eq(tenants.status, status));
+    if (q?.trim()) {
+      const pattern = `%${q.trim()}%`;
+      conditions.push(
+        or(ilike(tenants.name, pattern), ilike(tenants.slug, pattern))!,
+      );
+    }
+    const where = conditions.length ? and(...conditions) : undefined;
+
     const rows = await app.db.query.tenants.findMany({
+      where,
       orderBy: (t, { asc }) => [asc(t.name)],
+      limit,
+      offset,
     });
+    const [totalRow] = await app.db
+      .select({ n: count() })
+      .from(tenants)
+      .where(where);
+
     const tenantsWithSubs = await Promise.all(
       rows.map(async (tenant) => {
         const current = await getTenantSubscription(app.db, tenant.id);
@@ -60,7 +88,12 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
         };
       }),
     );
-    return { tenants: tenantsWithSubs };
+    return {
+      tenants: tenantsWithSubs,
+      total: Number(totalRow?.n ?? 0),
+      limit,
+      offset,
+    };
   });
 
   app.get("/:id", async (request, reply) => {
@@ -97,6 +130,17 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
       where: eq(integrationConnections.tenantId, id),
       orderBy: (t, { desc }) => [desc(t.lastSyncAt)],
     });
+    const recentPayments = await app.db.query.paymentEvents.findMany({
+      where: eq(paymentEvents.tenantId, id),
+      orderBy: (t, { desc: d }) => [d(t.processedAt)],
+      limit: 10,
+    });
+    const linkedLeads = await app.db.query.leads.findMany({
+      where: eq(leads.tenantId, id),
+      orderBy: (t, { desc: d }) => [d(t.createdAt)],
+      limit: 10,
+    });
+    const featureFlags = await getTenantBasePlanFeatures(app.db, id);
     return {
       tenant,
       subscription: current?.subscription ?? null,
@@ -109,6 +153,9 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
         error: Number(errorCount?.n ?? 0),
         lastSyncAt: latest?.lastSyncAt ?? null,
       },
+      recentPaymentEvents: recentPayments,
+      leads: linkedLeads,
+      featureFlags,
     };
   });
 
@@ -158,13 +205,23 @@ export const tenantRoutes: FastifyPluginAsync = async (app) => {
 
     const incomingSettings = parsed.data.settings ?? {};
     const features = await getTenantPlanFeatures(app.db, id);
+    const { featureOverrides: incomingOverrides, ...restIncoming } =
+      incomingSettings;
     const mergedSettings = {
       ...current.settings,
-      ...incomingSettings,
+      ...restIncoming,
       map: incomingSettings.map
         ? { ...(current.settings.map ?? {}), ...incomingSettings.map }
         : current.settings.map,
     };
+    if (incomingOverrides !== undefined) {
+      const cleaned = cleanFeatureOverrides(incomingOverrides);
+      if (Object.keys(cleaned).length > 0) {
+        mergedSettings.featureOverrides = cleaned;
+      } else {
+        delete mergedSettings.featureOverrides;
+      }
+    }
     if (incomingSettings.pingIntervalSec !== undefined) {
       mergedSettings.pingIntervalSec = resolvePingIntervalSec(
         incomingSettings.pingIntervalSec,

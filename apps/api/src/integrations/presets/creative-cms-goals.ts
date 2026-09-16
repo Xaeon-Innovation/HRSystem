@@ -1,19 +1,12 @@
 import type { IntegrationConnectorConfig } from "@hr/db";
-import type { CanonicalTargetEntity } from "@hr/shared";
+import type { PresetFieldMapping } from "./types.js";
 
 export const CREATIVE_CMS_GOALS_PRESET = "creative_cms_goals" as const;
 
 export const CREATIVE_CMS_GOALS_DEFAULT_BASE_URL =
   "https://api.creativeintelligent.ae/api/v1";
 
-export type PresetFieldMapping = {
-  sourceEntity: string;
-  sourceField: string;
-  targetEntity: CanonicalTargetEntity;
-  targetField: string;
-  transformType?: "direct" | "number_parse" | "date_parse";
-  isRequired?: boolean;
-};
+export type { PresetFieldMapping };
 
 export const creativeCmsGoalsConnectorConfig: IntegrationConnectorConfig = {
   preset: CREATIVE_CMS_GOALS_PRESET,

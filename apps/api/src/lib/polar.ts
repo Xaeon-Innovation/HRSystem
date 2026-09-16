@@ -68,6 +68,20 @@ export async function createPolarProductForPlan(
   polar: Polar,
   plan: PolarProductSyncInput,
 ): Promise<{ id: string }> {
+  const created = await polar.products.create({
+    name: plan.name,
+    description: plan.description,
+    recurringInterval: "month",
+    metadata: {
+      elevora_plan_code: plan.code,
+    },
+    prices: buildPolarPrices(plan),
+  });
+
+  return { id: created.id };
+}
+
+function buildPolarPrices(plan: PolarProductSyncInput) {
   const currency = toCurrency(plan.currency || "USD");
   const prices: Array<
     | {
@@ -105,18 +119,31 @@ export async function createPolarProductForPlan(
       },
     });
   }
+  return prices;
+}
 
-  const created = await polar.products.create({
-    name: plan.name,
-    description: plan.description,
-    recurringInterval: "month",
-    metadata: {
-      elevora_plan_code: plan.code,
+/**
+ * Push catalog name/description/prices to an existing Polar product.
+ * Omitting prior price ids archives them; new checkouts use the new prices.
+ * Existing subscribers stay on grandfathered Polar prices.
+ */
+export async function updatePolarProductForPlan(
+  polar: Polar,
+  polarProductId: string,
+  plan: PolarProductSyncInput,
+): Promise<{ id: string }> {
+  const updated = await polar.products.update({
+    id: polarProductId,
+    productUpdate: {
+      name: plan.name,
+      description: plan.description,
+      metadata: {
+        elevora_plan_code: plan.code,
+      },
+      prices: buildPolarPrices(plan),
     },
-    prices,
   });
-
-  return { id: created.id };
+  return { id: updated.id };
 }
 
 export async function createPolarCheckout(

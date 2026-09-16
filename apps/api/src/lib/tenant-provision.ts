@@ -2,12 +2,18 @@ import bcrypt from "bcryptjs";
 import { eq } from "drizzle-orm";
 import {
   employees,
+  leads,
+  plans,
   sealSecret,
+  tenantSubscriptions,
   tenants,
   users,
   type Db,
 } from "@hr/db";
-import type { CreateTenantInput } from "@hr/shared";
+import {
+  cleanFeatureOverrides,
+  type CreateTenantInput,
+} from "@hr/shared";
 import { startTrialForTenant } from "./billing.js";
 
 export type ProvisionTenantOptions = {
@@ -19,7 +25,7 @@ export type ProvisionedTenant = {
   tenant: typeof tenants.$inferSelect;
   admin: typeof users.$inferSelect;
   employeeId: string;
-  subscription: Awaited<ReturnType<typeof startTrialForTenant>>;
+  subscription: Awaited<ReturnType<typeof startTrialForTenant>> | typeof tenantSubscriptions.$inferSelect | null;
 };
 
 export async function provisionTenant(
@@ -31,6 +37,7 @@ export async function provisionTenant(
   | { ok: false; status: 409; error: string }
 > {
   const startTrial = options.startTrial !== false;
+  const customPlanCode = data.planCode?.trim() || null;
 
   const existingSlug = await db.query.tenants.findFirst({
     where: eq(tenants.slug, data.slug),
@@ -46,6 +53,8 @@ export async function provisionTenant(
     return { ok: false, status: 409, error: "Email already registered" };
   }
 
+  const overrides = cleanFeatureOverrides(data.featureOverrides ?? null);
+
   const [tenant] = await db
     .insert(tenants)
     .values({
@@ -57,6 +66,9 @@ export async function provisionTenant(
         pingIntervalSec: 60,
         locationRetentionDays: 30,
         missedClockOutHours: 12,
+        ...(Object.keys(overrides).length > 0
+          ? { featureOverrides: overrides }
+          : {}),
       },
     })
     .returning();
@@ -83,9 +95,43 @@ export async function provisionTenant(
     })
     .returning();
 
-  const subscription = startTrial
-    ? await startTrialForTenant(db, tenant.id)
-    : null;
+  let subscription: ProvisionedTenant["subscription"] = null;
+
+  if (customPlanCode) {
+    const plan = await db.query.plans.findFirst({
+      where: eq(plans.code, customPlanCode),
+    });
+    if (plan) {
+      const now = new Date();
+      const [created] = await db
+        .insert(tenantSubscriptions)
+        .values({
+          tenantId: tenant.id,
+          planId: plan.id,
+          status: "active",
+          purchasedSeats: data.purchasedSeats ?? null,
+          currentPeriodStart: now,
+          currentPeriodEnd: new Date(
+            now.getTime() + 365 * 24 * 60 * 60 * 1000,
+          ),
+        })
+        .returning();
+      subscription = created;
+    }
+  } else if (startTrial) {
+    subscription = await startTrialForTenant(db, tenant.id);
+  }
+
+  if (data.leadId) {
+    await db
+      .update(leads)
+      .set({
+        status: "converted",
+        tenantId: tenant.id,
+        updatedAt: new Date(),
+      })
+      .where(eq(leads.id, data.leadId));
+  }
 
   return {
     ok: true,

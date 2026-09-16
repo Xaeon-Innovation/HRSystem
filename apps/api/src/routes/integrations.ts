@@ -16,6 +16,7 @@ import {
   createEmployeeLinkSchema,
   createIntegrationConnectionSchema,
   csvImportSchema,
+  startIntegrationOAuthSchema,
   updateIntegrationConnectionSchema,
   upsertFieldMappingSchema,
   type JwtPayload,
@@ -32,6 +33,12 @@ import {
   loginCms,
   parseExpiresIn,
 } from "../integrations/connectors/cms-jwt.js";
+import {
+  buildAuthorizeUrl,
+  ensureOAuthAccessToken,
+  isOAuth2Connection,
+  signOAuthState,
+} from "../integrations/connectors/oauth2.js";
 import { hashExternalId } from "../integrations/mapper.js";
 import {
   processRawEvent,
@@ -39,11 +46,12 @@ import {
   storeRawEvents,
 } from "../integrations/process-raw.js";
 import {
-  CREATIVE_CMS_GOALS_DEFAULT_BASE_URL,
-  CREATIVE_CMS_GOALS_PRESET,
-  creativeCmsGoalsConnectorConfig,
-  creativeCmsGoalsMappings,
-} from "../integrations/presets/creative-cms-goals.js";
+  catalogPackPayload,
+  CONNECTOR_PACKS,
+  getConnectorPack,
+  isOAuthEnvConfigured,
+} from "../integrations/presets/registry.js";
+import type { PresetFieldMapping } from "../integrations/presets/types.js";
 import type { FastifyPluginAsync } from "fastify";
 
 function publicConnection(row: typeof integrationConnections.$inferSelect) {
@@ -94,6 +102,7 @@ async function applyPresetMappings(
   db: Db,
   tenantId: string,
   connectionId: string,
+  mappings: PresetFieldMapping[],
 ) {
   await db
     .delete(integrationFieldMappings)
@@ -103,8 +112,9 @@ async function applyPresetMappings(
         eq(integrationFieldMappings.connectionId, connectionId),
       ),
     );
+  if (mappings.length === 0) return;
   await db.insert(integrationFieldMappings).values(
-    creativeCmsGoalsMappings.map((m) => ({
+    mappings.map((m) => ({
       tenantId,
       connectionId,
       sourceEntity: m.sourceEntity,
@@ -118,6 +128,25 @@ async function applyPresetMappings(
   );
 }
 
+async function ensureConnectionAuth(
+  db: Db,
+  connection: typeof integrationConnections.$inferSelect,
+): Promise<typeof integrationConnections.$inferSelect> {
+  if (isCmsJwtConnection(connection)) {
+    return ensureCmsAccessToken(db, connection);
+  }
+  if (isOAuth2Connection(connection)) {
+    const pack = getConnectorPack(
+      (connection.connectorConfig as IntegrationConnectorConfig | null)?.preset,
+    );
+    if (!pack?.oauth) {
+      throw new Error("OAuth connector pack is missing");
+    }
+    return ensureOAuthAccessToken(db, connection, pack);
+  }
+  return connection;
+}
+
 export const integrationRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requirePlanFeature("integrations"));
   app.addHook("preHandler", requireRoles("tenant_admin"));
@@ -127,15 +156,11 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       { type: "custom_api", label: "Custom REST API", implemented: true },
       { type: "webhook", label: "Webhook endpoint", implemented: true },
       { type: "csv", label: "CSV import", implemented: true },
-      {
-        type: "cms",
-        label: "Creative Intelligent CMS (Goals)",
-        implemented: true,
-        preset: CREATIVE_CMS_GOALS_PRESET,
-      },
-      { type: "crm", label: "CRM (via custom REST/mapping)", implemented: false },
-      { type: "erp", label: "ERP (via custom REST/mapping)", implemented: false },
+      { type: "cms", label: "CMS", implemented: true },
+      { type: "crm", label: "CRM", implemented: true },
+      { type: "erp", label: "ERP", implemented: false },
     ],
+    packs: CONNECTOR_PACKS.map(catalogPackPayload),
     canonicalFields: CANONICAL_FIELD_MAP,
   }));
 
@@ -159,69 +184,87 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       }
       const data = parsed.data;
       const actor = request.user as JwtPayload;
-      const useCmsPreset = data.preset === CREATIVE_CMS_GOALS_PRESET;
+      const pack = getConnectorPack(data.preset);
 
-      if (useCmsPreset) {
-        const phone = data.authConfig?.username?.trim();
-        const password = data.authConfig?.password;
-        if (!phone || !password) {
+      if (pack) {
+        if (!pack.implemented || pack.comingSoon) {
+          return reply.code(400).send({ error: `${pack.label} is not available yet` });
+        }
+        if (pack.authStrategy === "oauth2") {
           return reply.code(400).send({
-            error: "CMS Goals requires service account phone and password",
+            error: `Use OAuth to connect ${pack.label}`,
           });
         }
-        const baseUrl = data.baseUrl ?? CREATIVE_CMS_GOALS_DEFAULT_BASE_URL;
-        let tokens;
-        try {
-          tokens = await loginCms(baseUrl, phone, password);
-        } catch (err) {
-          return reply.code(400).send({
-            error: err instanceof Error ? err.message : "CMS login failed",
-          });
-        }
+        if (pack.authStrategy === "cms_jwt") {
+          const phone = data.authConfig?.username?.trim();
+          const password = data.authConfig?.password;
+          if (!phone || !password) {
+            return reply.code(400).send({
+              error: `${pack.label} requires service account phone and password`,
+            });
+          }
+          const baseUrl = data.baseUrl ?? pack.defaultBaseUrl;
+          if (!baseUrl) {
+            return reply.code(400).send({ error: "Base URL is required" });
+          }
+          let tokens;
+          try {
+            tokens = await loginCms(baseUrl, phone, password);
+          } catch (err) {
+            return reply.code(400).send({
+              error: err instanceof Error ? err.message : "CMS login failed",
+            });
+          }
 
-        const authConfig: IntegrationAuthConfig = {
-          username: phone,
-          password,
-          bearerToken: tokens.accessToken,
-          refreshToken: tokens.refreshToken,
-          tokenExpiresAt: parseExpiresIn(tokens.expiresIn).toISOString(),
-        };
+          const authConfig: IntegrationAuthConfig = {
+            username: phone,
+            password,
+            bearerToken: tokens.accessToken,
+            refreshToken: tokens.refreshToken,
+            tokenExpiresAt: parseExpiresIn(tokens.expiresIn).toISOString(),
+          };
 
-        const [row] = await app.db
-          .insert(integrationConnections)
-          .values({
+          const [row] = await app.db
+            .insert(integrationConnections)
+            .values({
+              tenantId,
+              name: data.name || pack.defaultName,
+              providerType: pack.providerType,
+              status: "active",
+              authType: "bearer",
+              authConfigEncrypted: encryptJson(authConfig),
+              baseUrl,
+              syncMode: "polling",
+              pollIntervalMinutes:
+                data.pollIntervalMinutes ?? pack.pollIntervalMinutes ?? 15,
+              connectorConfig: pack.connectorConfig,
+              createdBy: actor.sub,
+            })
+            .returning();
+
+          await applyPresetMappings(app.db, tenantId, row.id, pack.mappings);
+
+          await writeAudit(app, {
+            actor,
+            action: "integration.connection.create",
             tenantId,
-            name: data.name || "Creative Intelligent CMS Goals",
-            providerType: "cms",
-            status: "active",
-            authType: "bearer",
-            authConfigEncrypted: encryptJson(authConfig),
-            baseUrl,
-            syncMode: "polling",
-            pollIntervalMinutes: data.pollIntervalMinutes ?? 15,
-            connectorConfig: creativeCmsGoalsConnectorConfig,
-            createdBy: actor.sub,
-          })
-          .returning();
+            resourceType: "integration_connection",
+            resourceId: row.id,
+            metadata: {
+              name: row.name,
+              providerType: row.providerType,
+              preset: pack.id,
+            },
+            request,
+          });
+          return reply.code(201).send({
+            connection: publicConnection(row),
+            setupComplete: true,
+          });
+        }
 
-        await applyPresetMappings(app.db, tenantId, row.id);
-
-        await writeAudit(app, {
-          actor,
-          action: "integration.connection.create",
-          tenantId,
-          resourceType: "integration_connection",
-          resourceId: row.id,
-          metadata: {
-            name: row.name,
-            providerType: row.providerType,
-            preset: CREATIVE_CMS_GOALS_PRESET,
-          },
-          request,
-        });
-        return reply.code(201).send({
-          connection: publicConnection(row),
-          setupComplete: true,
+        return reply.code(400).send({
+          error: `Unsupported auth strategy for ${pack.label}`,
         });
       }
 
@@ -256,6 +299,75 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
         request,
       });
       return reply.code(201).send({ connection: publicConnection(row) });
+    },
+  );
+
+  app.post(
+    "/oauth/start",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const parsed = startIntegrationOAuthSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.code(400).send({ error: parsed.error.flatten() });
+      }
+      const pack = getConnectorPack(parsed.data.preset);
+      if (!pack?.implemented || pack.authStrategy !== "oauth2" || !pack.oauth) {
+        return reply.code(400).send({ error: "OAuth pack not available" });
+      }
+      if (!isOAuthEnvConfigured(pack)) {
+        return reply.code(503).send({
+          error: `${pack.label} OAuth is not configured on this server`,
+        });
+      }
+      const actor = request.user as JwtPayload;
+      const [row] = await app.db
+        .insert(integrationConnections)
+        .values({
+          tenantId,
+          name: parsed.data.name || pack.defaultName,
+          providerType: pack.providerType,
+          status: "draft",
+          authType: "oauth2",
+          baseUrl: pack.defaultBaseUrl ?? null,
+          syncMode: "polling",
+          pollIntervalMinutes: pack.pollIntervalMinutes ?? 15,
+          connectorConfig: pack.connectorConfig,
+          createdBy: actor.sub,
+        })
+        .returning();
+
+      await applyPresetMappings(app.db, tenantId, row.id, pack.mappings);
+
+      const state = signOAuthState({
+        connectionId: row.id,
+        tenantId,
+        preset: pack.id,
+        exp: Date.now() + 15 * 60_000,
+      });
+      let authorizeUrl: string;
+      try {
+        authorizeUrl = buildAuthorizeUrl(pack, state);
+      } catch (err) {
+        return reply.code(503).send({
+          error: err instanceof Error ? err.message : "OAuth is not configured",
+        });
+      }
+
+      await writeAudit(app, {
+        actor,
+        action: "integration.oauth.start",
+        tenantId,
+        resourceType: "integration_connection",
+        resourceId: row.id,
+        metadata: { preset: pack.id },
+        request,
+      });
+
+      return {
+        connection: publicConnection(row),
+        authorizeUrl,
+      };
     },
   );
 
@@ -387,15 +499,13 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       });
       if (!row) return reply.code(404).send({ error: "Not found" });
       try {
-        const fresh = isCmsJwtConnection(row)
-          ? await ensureCmsAccessToken(app.db, row)
-          : row;
+        const fresh = await ensureConnectionAuth(app.db, row);
         const result = await testRestFetch(fresh);
         if (!result.ok && result.error?.startsWith("HTTP 401")) {
           return {
             ok: false,
             error:
-              "CMS rejected the request (401). Update the service account phone/password on Authentication.",
+              "Provider rejected the request (401). Update credentials or reconnect OAuth on Authentication.",
           };
         }
         return result;
@@ -423,12 +533,11 @@ export const integrationRoutes: FastifyPluginAsync = async (app) => {
       if (!row) return reply.code(404).send({ error: "Not found" });
       let connection = row;
       try {
-        if (isCmsJwtConnection(row)) {
-          connection = await ensureCmsAccessToken(app.db, row);
-        }
+        connection = await ensureConnectionAuth(app.db, row);
       } catch (err) {
         return reply.code(400).send({
-          error: err instanceof Error ? err.message : "CMS authentication failed",
+          error:
+            err instanceof Error ? err.message : "Authentication failed",
         });
       }
       const run = await runConnectionSync(app.db, connection, "manual");
@@ -793,10 +902,7 @@ export async function runConnectionSync(
     .returning();
 
   try {
-    let conn = connection;
-    if (isCmsJwtConnection(connection)) {
-      conn = await ensureCmsAccessToken(db, connection);
-    }
+    let conn = await ensureConnectionAuth(db, connection);
     const { records, nextCursor } = await pollRestConnection(
       conn,
       last?.cursorJson ?? {},

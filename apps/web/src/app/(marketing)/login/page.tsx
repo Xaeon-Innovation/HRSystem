@@ -47,7 +47,7 @@ function LoginForm() {
       if (next?.startsWith("/app")) {
         router.push(next);
       } else if (data.user.role === "super_admin") {
-        router.push("/app/tenants");
+        router.push("/app");
       } else if (data.user.role === "tenant_admin") {
         router.push("/app");
       } else {

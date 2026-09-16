@@ -46,6 +46,62 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "kpi_due",
   "announcement",
   "alert",
+  "overtime_prompt",
+  "late_clock_in",
+  "late_clock_out",
+  "left_zone_exit",
+  "break_overstay",
+]);
+
+export const shiftCadenceEnum = pgEnum("shift_cadence", [
+  "daily",
+  "weekly",
+  "monthly",
+]);
+
+export const shiftInstanceStatusEnum = pgEnum("shift_instance_status", [
+  "scheduled",
+  "cancelled",
+]);
+
+export const shiftOvertimeStatusEnum = pgEnum("shift_overtime_status", [
+  "none",
+  "prompted",
+  "approved",
+  "declined",
+  "late_unanswered",
+]);
+
+export const breakPeriodModeEnum = pgEnum("break_period_mode", [
+  "fixed",
+  "flexible",
+]);
+
+export const breakSessionStatusEnum = pgEnum("break_session_status", [
+  "scheduled",
+  "active",
+  "ended",
+  "overstayed",
+  "cancelled",
+]);
+
+export const breakSessionSourceEnum = pgEnum("break_session_source", [
+  "fixed_window",
+  "employee_request",
+  "admin_assigned",
+]);
+
+export const leftZonePhaseEnum = pgEnum("left_zone_phase", [
+  "mid_shift",
+  "end_grace",
+  "overtime",
+  "break_overstay",
+]);
+
+export const leftZoneIncidentStatusEnum = pgEnum("left_zone_incident_status", [
+  "pending",
+  "approved_emergency",
+  "day_deduction",
 ]);
 
 export const alertCategoryEnum = pgEnum("alert_category", [
@@ -125,6 +181,21 @@ export const subscriptionStatusEnum = pgEnum("subscription_status", [
   "past_due",
   "canceled",
   "expired",
+]);
+
+export const leadSourceEnum = pgEnum("lead_source", [
+  "demo",
+  "signup_trial",
+  "signup_paid",
+  "enterprise",
+]);
+
+export const leadStatusEnum = pgEnum("lead_status", [
+  "new",
+  "contacted",
+  "qualified",
+  "converted",
+  "closed",
 ]);
 
 export const branchStatusEnum = pgEnum("branch_status", ["active", "inactive"]);
@@ -270,7 +341,32 @@ export type TenantSettings = {
   integrationRawRetentionDays?: number;
   latenessGraceMinutes?: number;
   shiftStartHour?: number;
+  /** When true, leaving geofence while clocked in (and not on break) auto clock-outs. */
+  leftZoneAutoClockOut?: boolean;
+  /** How left-zone incidents are resolved by default. */
+  leftZoneResolution?:
+    | "require_admin"
+    | "auto_approve_emergency"
+    | "auto_day_deduction";
   map?: MapAppearanceSettings;
+  /** Platform-owned Lab tenant used for plan previews. */
+  platformLab?: boolean;
+  /** Per-tenant boolean overrides for MODULE_KEYS (true/false). Absent = inherit plan. */
+  featureOverrides?: Partial<
+    Record<
+      | "liveMap"
+      | "teamToday"
+      | "leave"
+      | "hiring"
+      | "kpis"
+      | "compensation"
+      | "integrations"
+      | "analytics"
+      | "fieldOps"
+      | "peopleOps",
+      boolean
+    >
+  >;
 };
 
 export type IntegrationConnectorConfig = {
@@ -293,7 +389,7 @@ export type IntegrationConnectorConfig = {
   hmacPayloadPath?: string;
   /** Built-in connector pack, e.g. creative_cms_goals */
   preset?: string;
-  /** When "cms_jwt", platform logs in / refreshes CMS tokens automatically */
+  /** When "cms_jwt" or "oauth2", platform refreshes tokens automatically */
   authStrategy?: string;
 };
 
@@ -801,6 +897,19 @@ export const plans = pgTable(
   ],
 );
 
+/** Launch lifecycle for product modules (draft / lab / ga). */
+export const platformModules = pgTable(
+  "platform_modules",
+  {
+    key: text("key").primaryKey(),
+    launchStatus: text("launch_status").notNull().default("ga"),
+    labelOverride: text("label_override"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
 export const tenantSubscriptions = pgTable(
   "tenant_subscriptions",
   {
@@ -865,6 +974,37 @@ export const paymentEvents = pgTable(
       t.triggerType,
     ),
     index("payment_events_tenant_idx").on(t.tenantId),
+  ],
+);
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    source: leadSourceEnum("source").notNull(),
+    status: leadStatusEnum("status").notNull().default("new"),
+    name: text("name").notNull(),
+    company: text("company").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    message: text("message"),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+    planCode: text("plan_code"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("leads_status_idx").on(t.status),
+    index("leads_created_at_idx").on(t.createdAt),
+    index("leads_email_idx").on(t.email),
+    index("leads_tenant_idx").on(t.tenantId),
   ],
 );
 
@@ -1679,3 +1819,433 @@ export const compensationStates = pgTable("compensation_states", {
     .notNull()
     .defaultNow(),
 });
+
+export const taskPriorityEnum = pgEnum("task_priority", [
+  "low",
+  "medium",
+  "high",
+  "urgent",
+]);
+
+export const taskStatusEnum = pgEnum("task_status", [
+  "open",
+  "in_progress",
+  "submitted",
+  "changes_requested",
+  "completed",
+  "cancelled",
+]);
+
+export const taskAssignmentModeEnum = pgEnum("task_assignment_mode", [
+  "shared",
+  "individual",
+]);
+
+export const taskAttachmentKindEnum = pgEnum("task_attachment_kind", [
+  "link",
+  "file",
+]);
+
+export const taskDeliverableTypeEnum = pgEnum("task_deliverable_type", [
+  "report",
+  "docs",
+  "screenshots",
+  "other",
+]);
+
+export const taskActivityKindEnum = pgEnum("task_activity_kind", [
+  "created",
+  "started",
+  "attached",
+  "deliverable_submitted",
+  "completed",
+  "submitted",
+  "reviewed",
+  "send_back",
+  "cancelled",
+]);
+
+export type TaskAssigneeTargets = {
+  employeeIds: string[];
+  jobRoleIds: string[];
+  branchIds: string[];
+};
+
+/** First-class HR tasks (not integration canonical_task_events). */
+export const tasks = pgTable(
+  "tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    priority: taskPriorityEnum("priority").notNull().default("medium"),
+    status: taskStatusEnum("status").notNull().default("open"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    requiresReview: boolean("requires_review").notNull().default(false),
+    assignmentMode: taskAssignmentModeEnum("assignment_mode")
+      .notNull()
+      .default("shared"),
+    batchId: uuid("batch_id"),
+    tags: jsonb("tags").$type<string[]>().notNull().default([]),
+    assigneeTargets: jsonb("assignee_targets")
+      .$type<TaskAssigneeTargets>()
+      .notNull()
+      .default({ employeeIds: [], jobRoleIds: [], branchIds: [] }),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reviewNote: text("review_note"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    completedByUserId: uuid("completed_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("tasks_tenant_idx").on(t.tenantId),
+    index("tasks_tenant_status_idx").on(t.tenantId, t.status),
+    index("tasks_tenant_due_idx").on(t.tenantId, t.dueAt),
+    index("tasks_tenant_batch_idx").on(t.tenantId, t.batchId),
+  ],
+);
+
+export const taskAssignees = pgTable(
+  "task_assignees",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("task_assignees_task_employee_uidx").on(t.taskId, t.employeeId),
+    index("task_assignees_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("task_assignees_tenant_task_idx").on(t.tenantId, t.taskId),
+  ],
+);
+
+export const taskAttachments = pgTable(
+  "task_attachments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    kind: taskAttachmentKindEnum("kind").notNull(),
+    name: text("name").notNull(),
+    mime: text("mime"),
+    size: integer("size"),
+    url: text("url"),
+    dataUrl: text("data_url"),
+    uploadedByUserId: uuid("uploaded_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("task_attachments_tenant_task_idx").on(t.tenantId, t.taskId)],
+);
+
+export const taskDeliverableRequirements = pgTable(
+  "task_deliverable_requirements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    type: taskDeliverableTypeEnum("type").notNull(),
+    label: text("label"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("task_deliverable_reqs_tenant_task_idx").on(t.tenantId, t.taskId),
+  ],
+);
+
+export const taskDeliverableSubmissions = pgTable(
+  "task_deliverable_submissions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    requirementId: uuid("requirement_id")
+      .notNull()
+      .references(() => taskDeliverableRequirements.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    uploadedByUserId: uuid("uploaded_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: taskAttachmentKindEnum("kind").notNull(),
+    name: text("name").notNull(),
+    mime: text("mime"),
+    size: integer("size"),
+    url: text("url"),
+    dataUrl: text("data_url"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("task_deliverable_subs_tenant_task_idx").on(t.tenantId, t.taskId),
+    index("task_deliverable_subs_req_idx").on(t.requirementId),
+  ],
+);
+
+export const taskActivity = pgTable(
+  "task_activity",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    taskId: uuid("task_id")
+      .notNull()
+      .references(() => tasks.id, { onDelete: "cascade" }),
+    kind: taskActivityKindEnum("kind").notNull(),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    actorEmployeeId: uuid("actor_employee_id").references(() => employees.id, {
+      onDelete: "set null",
+    }),
+    message: text("message").notNull(),
+    metadata: jsonb("metadata")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("task_activity_tenant_task_idx").on(t.tenantId, t.taskId),
+    index("task_activity_tenant_created_idx").on(t.tenantId, t.createdAt),
+  ],
+);
+
+export const shiftPatterns = pgTable(
+  "shift_patterns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    cadence: shiftCadenceEnum("cadence").notNull(),
+    /** YYYY-MM-DD — required for daily cadence. */
+    workDate: date("work_date"),
+    /** Weekday numbers 0–6 (Sun–Sat) for weekly cadence. */
+    weekdays: jsonb("weekdays").$type<number[]>().notNull().default([]),
+    /** Days of month 1–31 for monthly cadence. */
+    monthDays: jsonb("month_days").$type<number[]>().notNull().default([]),
+    /** Local HH:MM in tenant timezone. */
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    effectiveFrom: date("effective_from"),
+    effectiveUntil: date("effective_until"),
+    active: boolean("active").notNull().default(true),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("shift_patterns_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("shift_patterns_tenant_active_idx").on(t.tenantId, t.active),
+  ],
+);
+
+export const shiftInstances = pgTable(
+  "shift_instances",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    patternId: uuid("pattern_id").references(() => shiftPatterns.id, {
+      onDelete: "set null",
+    }),
+    workDate: date("work_date").notNull(),
+    startAt: timestamp("start_at", { withTimezone: true }).notNull(),
+    endAt: timestamp("end_at", { withTimezone: true }).notNull(),
+    status: shiftInstanceStatusEnum("status").notNull().default("scheduled"),
+    attendanceRecordId: uuid("attendance_record_id").references(
+      () => attendanceRecords.id,
+      { onDelete: "set null" },
+    ),
+    lateClockIn: boolean("late_clock_in").notNull().default(false),
+    lateClockOut: boolean("late_clock_out").notNull().default(false),
+    overtimeStatus: shiftOvertimeStatusEnum("overtime_status")
+      .notNull()
+      .default("none"),
+    overtimePromptedAt: timestamp("overtime_prompted_at", {
+      withTimezone: true,
+    }),
+    overtimeRespondedAt: timestamp("overtime_responded_at", {
+      withTimezone: true,
+    }),
+    autoClockOutReason: text("auto_clock_out_reason"),
+    dayDeduction: boolean("day_deduction").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("shift_instances_employee_date_uidx").on(
+      t.tenantId,
+      t.employeeId,
+      t.workDate,
+    ),
+    index("shift_instances_tenant_date_idx").on(t.tenantId, t.workDate),
+    index("shift_instances_tenant_employee_idx").on(t.tenantId, t.employeeId),
+  ],
+);
+
+export const breakPolicies = pgTable(
+  "break_policies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    /** Null = global tenant default. */
+    employeeId: uuid("employee_id").references(() => employees.id, {
+      onDelete: "cascade",
+    }),
+    enabled: boolean("enabled").notNull().default(true),
+    durationMinutes: integer("duration_minutes").notNull().default(60),
+    periodMode: breakPeriodModeEnum("period_mode").notNull().default("flexible"),
+    fixedStartTime: text("fixed_start_time"),
+    fixedEndTime: text("fixed_end_time"),
+    maxBreaksPerShift: integer("max_breaks_per_shift").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("break_policies_tenant_idx").on(t.tenantId)],
+);
+
+export const breakSessions = pgTable(
+  "break_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    shiftInstanceId: uuid("shift_instance_id")
+      .notNull()
+      .references(() => shiftInstances.id, { onDelete: "cascade" }),
+    attendanceRecordId: uuid("attendance_record_id")
+      .notNull()
+      .references(() => attendanceRecords.id, { onDelete: "cascade" }),
+    status: breakSessionStatusEnum("status").notNull().default("scheduled"),
+    plannedStartAt: timestamp("planned_start_at", { withTimezone: true }),
+    plannedEndAt: timestamp("planned_end_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    source: breakSessionSourceEnum("source").notNull(),
+    durationMinutes: integer("duration_minutes").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("break_sessions_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("break_sessions_shift_idx").on(t.shiftInstanceId),
+    index("break_sessions_status_idx").on(t.tenantId, t.status),
+  ],
+);
+
+export const leftZoneIncidents = pgTable(
+  "left_zone_incidents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    shiftInstanceId: uuid("shift_instance_id").references(
+      () => shiftInstances.id,
+      { onDelete: "set null" },
+    ),
+    attendanceRecordId: uuid("attendance_record_id")
+      .notNull()
+      .references(() => attendanceRecords.id, { onDelete: "cascade" }),
+    detectedAt: timestamp("detected_at", { withTimezone: true }).notNull(),
+    lat: doublePrecision("lat").notNull(),
+    lng: doublePrecision("lng").notNull(),
+    phase: leftZonePhaseEnum("phase").notNull(),
+    status: leftZoneIncidentStatusEnum("status").notNull().default("pending"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedByUserId: uuid("resolved_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    resolutionNote: text("resolution_note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("left_zone_incidents_tenant_status_idx").on(t.tenantId, t.status),
+    index("left_zone_incidents_tenant_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+    ),
+  ],
+);

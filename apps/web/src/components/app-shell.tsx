@@ -5,24 +5,22 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   Bell,
+  CalendarDays,
   ClipboardList,
   CreditCard,
   FileText,
   LayoutDashboard,
   LogOut,
-  MapPinned,
   Package,
+  Palette,
   Settings,
   Timer,
   Users,
   Building2,
-  Plug,
-  BarChart3,
-  Palmtree,
   UserCircle,
-  Wallet,
-  Briefcase,
-  Palette,
+  Inbox,
+  Receipt,
+  ToggleLeft,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -48,8 +46,20 @@ import { useTenantBrand } from "@/components/brand-provider";
 import { NavigationProgress, PageTransition } from "@/components/page-motion";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { isUiRedesignEnabled } from "@/lib/ui-redesign";
-import { planHasFeature, userHasModule } from "@/lib/permissions";
+import { userHasModule, workspaceUnlocksAll } from "@/lib/permissions";
+import { PlatformRoleGate } from "@/lib/platform-gate";
+import { FeatureGate } from "@/lib/feature-gate";
+import { WorkspaceChrome } from "@/components/workspace-chrome";
 import { t } from "@/i18n";
+import {
+  adminHrefFor,
+  employeeHrefFor,
+  moduleIcon,
+  moduleLabel,
+  moduleNavFlagsFromFeatures,
+  type ModuleNavFlags,
+} from "@/lib/module-nav";
+import type { ModuleKey } from "@hr/shared";
 
 type NavLink = {
   href: string;
@@ -62,12 +72,7 @@ type NavSection = { title: string; links: NavLink[] };
 
 type NavOptions = {
   managesTeam?: boolean;
-  features?: {
-    fieldOps?: boolean;
-    peopleOps?: boolean;
-    analytics?: boolean;
-    integrations?: boolean;
-  };
+  features?: ModuleNavFlags;
 };
 
 const ROLE_LABEL: Record<AuthUser["role"], string> = {
@@ -77,7 +82,7 @@ const ROLE_LABEL: Record<AuthUser["role"], string> = {
 };
 
 function homeHrefFor(user: AuthUser) {
-  if (user.role === "super_admin") return "/app/tenants";
+  if (user.role === "super_admin") return "/app";
   if (user.role === "tenant_admin") return "/app";
   return "/app/clock";
 }
@@ -111,51 +116,57 @@ function WorkspaceMark({
   );
 }
 
-function featuresOf(user: AuthUser): NavOptions["features"] {
-  return {
-    fieldOps: planHasFeature(user, "fieldOps"),
-    peopleOps: planHasFeature(user, "peopleOps"),
-    analytics: planHasFeature(user, "analytics"),
-    integrations: planHasFeature(user, "integrations"),
-  };
+function featuresOf(user: AuthUser): ModuleNavFlags {
+  return moduleNavFlagsFromFeatures(
+    user.planFeatures,
+    workspaceUnlocksAll(user),
+  );
+}
+
+function pushModule(
+  links: NavLink[],
+  features: ModuleNavFlags | undefined,
+  key: ModuleKey,
+  opts?: { href?: string; label?: string },
+) {
+  if (!features?.[key]) return;
+  links.push({
+    href: opts?.href ?? adminHrefFor(key),
+    label: opts?.label ?? moduleLabel(key),
+    icon: moduleIcon(key),
+  });
 }
 
 const flatLinksFor = (user: AuthUser, opts: NavOptions = {}): NavLink[] => {
-  if (user.role === "super_admin") {
+  if (user.role === "super_admin" && !user.tenantId) {
     return [
+      { href: "/app", label: t("Overview"), icon: LayoutDashboard },
       { href: "/app/tenants", label: t("Tenants"), icon: Building2 },
-      { href: "/app/plans", label: t("Plans"), icon: Package },
       { href: "/app/subscriptions", label: t("Subscriptions"), icon: CreditCard },
+      { href: "/app/leads", label: t("Leads"), icon: Inbox },
+      { href: "/app/plans", label: t("Plans"), icon: Package },
+      { href: "/app/features", label: t("Features"), icon: ToggleLeft },
+      { href: "/app/payments", label: t("Payments"), icon: Receipt },
       { href: "/app/audits", label: t("Audits"), icon: FileText },
       { href: "/app/health", label: t("Health"), icon: Activity },
       { href: "/app/profile", label: t("Profile"), icon: UserCircle },
     ];
   }
-  if (user.role === "tenant_admin") {
+  if (user.role === "tenant_admin" || (user.role === "super_admin" && user.tenantId)) {
     const links: NavLink[] = [
       { href: "/app", label: t("Dashboard"), icon: LayoutDashboard },
     ];
-    if (opts.features?.fieldOps) {
-      links.push(
-        { href: "/app/team", label: t("Team today"), icon: Users },
-        { href: "/app/map", label: t("Live Map"), icon: MapPinned },
-      );
-    }
-    if (opts.features?.integrations) {
-      links.push({ href: "/app/integrations", label: t("Integrations"), icon: Plug });
-    }
-    if (opts.features?.analytics) {
-      links.push({ href: "/app/analytics", label: t("Analytics"), icon: BarChart3 });
-    }
+    pushModule(links, opts.features, "teamToday");
+    pushModule(links, opts.features, "liveMap", { label: t("Live Map") });
+    pushModule(links, opts.features, "integrations");
+    pushModule(links, opts.features, "analytics");
     links.push({ href: "/app/employees", label: t("Employees"), icon: Users });
-    if (opts.features?.peopleOps) {
-      links.push(
-        { href: "/app/hiring", label: t("Hiring"), icon: Briefcase },
-        { href: "/app/kpis", label: t("KPIs"), icon: ClipboardList },
-        { href: "/app/leave", label: t("Leave"), icon: Palmtree },
-        { href: "/app/compensation", label: t("Compensation"), icon: Wallet },
-      );
-    }
+    links.push({ href: "/app/shifts", label: t("Shifts"), icon: CalendarDays });
+    pushModule(links, opts.features, "hiring");
+    pushModule(links, opts.features, "kpis");
+    pushModule(links, opts.features, "leave");
+    pushModule(links, opts.features, "compensation");
+    pushModule(links, opts.features, "tasks");
     links.push(
       { href: "/app/notifications", label: t("Alerts"), icon: Bell },
       { href: "/app/billing", label: t("Billing"), icon: CreditCard },
@@ -170,36 +181,24 @@ const flatLinksFor = (user: AuthUser, opts: NavOptions = {}): NavLink[] => {
     { href: "/app/clock", label: t("Clock"), icon: Timer },
     { href: "/app/attendance", label: t("History"), icon: ClipboardList },
   ];
-  if (opts.managesTeam && opts.features?.fieldOps) {
-    links.push({ href: "/app/team", label: t("Team today"), icon: Users });
+  if (opts.managesTeam) {
+    pushModule(links, opts.features, "teamToday");
   }
-  if (opts.features?.peopleOps) {
-    links.push(
-      {
-        href: "/app/kpis",
-        label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
-        icon: ClipboardList,
-      },
-      { href: "/app/leave", label: t("Leave"), icon: Palmtree },
-    );
-    if (userHasModule(user, "hiring")) {
-      links.push({ href: "/app/hiring", label: t("Hiring"), icon: Briefcase });
-    }
-    if (userHasModule(user, "compensation")) {
-      links.push({
-        href: "/app/compensation",
-        label: t("Compensation"),
-        icon: Wallet,
-      });
-    }
+  pushModule(links, opts.features, "kpis", {
+    label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
+  });
+  pushModule(links, opts.features, "leave");
+  if (userHasModule(user, "hiring")) {
+    pushModule(links, opts.features, "hiring");
   }
-  if (opts.features?.analytics) {
-    links.push({
-      href: "/app/analytics/me",
-      label: t("My analytics"),
-      icon: BarChart3,
-    });
+  if (userHasModule(user, "compensation")) {
+    pushModule(links, opts.features, "compensation");
   }
+  pushModule(links, opts.features, "tasks");
+  pushModule(links, opts.features, "analytics", {
+    href: employeeHrefFor("analytics"),
+    label: t("My analytics"),
+  });
   links.push(
     { href: "/app/notifications", label: t("Alerts"), icon: Bell },
     { href: "/app/profile", label: t("Profile"), icon: UserCircle },
@@ -207,22 +206,18 @@ const flatLinksFor = (user: AuthUser, opts: NavOptions = {}): NavLink[] => {
   return links;
 };
 
-/** Grouped nav for redesign; still gates hiring/compensation for employees. */
+/** Grouped nav for redesign; treats entered superadmin like tenant admin. */
 const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
-  if (user.role === "super_admin") {
+  if (user.role === "super_admin" && !user.tenantId) {
     return [{ title: t("Platform"), links: flatLinksFor(user, opts) }];
   }
 
-  if (user.role === "tenant_admin") {
+  if (user.role === "tenant_admin" || (user.role === "super_admin" && user.tenantId)) {
     const operate: NavLink[] = [
       { href: "/app", label: t("Dashboard"), icon: LayoutDashboard },
     ];
-    if (opts.features?.fieldOps) {
-      operate.push(
-        { href: "/app/team", label: t("Team today"), icon: Users },
-        { href: "/app/map", label: t("Live Map"), icon: MapPinned },
-      );
-    }
+    pushModule(operate, opts.features, "teamToday");
+    pushModule(operate, opts.features, "liveMap", { label: t("Live Map") });
     operate.push(
       { href: "/app/clock", label: t("Clock"), icon: Timer },
       { href: "/app/attendance", label: t("Attendance"), icon: ClipboardList },
@@ -231,41 +226,19 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
 
     const people: NavLink[] = [
       { href: "/app/employees", label: t("Employees"), icon: Users },
+      { href: "/app/shifts", label: t("Shifts"), icon: CalendarDays },
     ];
-    if (opts.features?.peopleOps) {
-      people.push(
-        { href: "/app/leave", label: t("Leave"), icon: Palmtree },
-        { href: "/app/hiring", label: t("Hiring"), icon: Briefcase },
-      );
-    }
+    pushModule(people, opts.features, "leave");
+    pushModule(people, opts.features, "hiring");
+    pushModule(people, opts.features, "tasks");
 
     const perform: NavLink[] = [];
-    if (opts.features?.peopleOps) {
-      perform.push({ href: "/app/kpis", label: t("KPIs"), icon: ClipboardList });
-    }
-    if (opts.features?.analytics) {
-      perform.push({
-        href: "/app/analytics",
-        label: t("Analytics"),
-        icon: BarChart3,
-      });
-    }
-    if (opts.features?.peopleOps) {
-      perform.push({
-        href: "/app/compensation",
-        label: t("Compensation"),
-        icon: Wallet,
-      });
-    }
+    pushModule(perform, opts.features, "kpis");
+    pushModule(perform, opts.features, "analytics");
+    pushModule(perform, opts.features, "compensation");
 
     const system: NavLink[] = [];
-    if (opts.features?.integrations) {
-      system.push({
-        href: "/app/integrations",
-        label: t("Integrations"),
-        icon: Plug,
-      });
-    }
+    pushModule(system, opts.features, "integrations");
     system.push(
       { href: "/app/settings", label: t("Settings"), icon: Settings },
       { href: "/app/billing", label: t("Billing"), icon: CreditCard },
@@ -284,44 +257,28 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
     { href: "/app/clock", label: t("Clock"), icon: Timer },
     { href: "/app/attendance", label: t("History"), icon: ClipboardList },
   ];
-  if (opts.managesTeam && opts.features?.fieldOps) {
-    operate.push({ href: "/app/team", label: t("Team today"), icon: Users });
+  if (opts.managesTeam) {
+    pushModule(operate, opts.features, "teamToday");
   }
   operate.push({ href: "/app/notifications", label: t("Alerts"), icon: Bell });
 
   const people: NavLink[] = [];
-  if (opts.features?.peopleOps) {
-    people.push({ href: "/app/leave", label: t("Leave"), icon: Palmtree });
-    if (userHasModule(user, "hiring")) {
-      people.push({
-        href: "/app/hiring",
-        label: t("Hiring"),
-        icon: Briefcase,
-      });
-    }
+  pushModule(people, opts.features, "leave");
+  if (userHasModule(user, "hiring")) {
+    pushModule(people, opts.features, "hiring");
   }
+  pushModule(people, opts.features, "tasks");
 
   const perform: NavLink[] = [];
-  if (opts.features?.peopleOps) {
-    perform.push({
-      href: "/app/kpis",
-      label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
-      icon: ClipboardList,
-    });
-  }
-  if (opts.features?.analytics) {
-    perform.push({
-      href: "/app/analytics/me",
-      label: t("My analytics"),
-      icon: BarChart3,
-    });
-  }
-  if (opts.features?.peopleOps && userHasModule(user, "compensation")) {
-    perform.push({
-      href: "/app/compensation",
-      label: t("Compensation"),
-      icon: Wallet,
-    });
+  pushModule(perform, opts.features, "kpis", {
+    label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
+  });
+  pushModule(perform, opts.features, "analytics", {
+    href: employeeHrefFor("analytics"),
+    label: t("My analytics"),
+  });
+  if (userHasModule(user, "compensation")) {
+    pushModule(perform, opts.features, "compensation");
   }
 
   const sections: NavSection[] = [{ title: t("Operate"), links: operate }];
@@ -446,8 +403,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user || user.role === "super_admin" || user.role === "tenant_admin") {
-      setManagesTeam(user?.role === "tenant_admin");
+    if (!user) return;
+    if (user.role === "super_admin" && user.tenantId) {
+      setManagesTeam(true);
+      return;
+    }
+    if (user.role === "super_admin" || user.role === "tenant_admin") {
+      setManagesTeam(user.role === "tenant_admin");
       return;
     }
     let cancelled = false;
@@ -512,7 +474,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const productName = redesign ? brand.brandingName : "Elevora";
 
   const shell = (
-    <div className="flex min-h-dvh w-full flex-col md:flex-row">
+    <div className="flex min-h-dvh w-full flex-col">
+      <WorkspaceChrome user={user} onUserChange={setUser} />
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
       <aside
         className={cn(
           "flex flex-col border-b border-white/40 bg-card md:sticky md:top-0 md:h-dvh md:shrink-0 md:border-b-0 md:border-r md:border-white/40 dark:border-white/10",
@@ -655,15 +619,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         ) : null}
         <NavigationProgress />
-        <PageTransition>{children}</PageTransition>
+        <PageTransition>
+          <PlatformRoleGate>
+            <FeatureGate>{children}</FeatureGate>
+          </PlatformRoleGate>
+        </PageTransition>
       </main>
       {redesign ? (
         <BrandingSheet open={brandOpen} onOpenChange={setBrandOpen} />
       ) : null}
+      </div>
     </div>
   );
 
-  if (user.role === "super_admin") {
+  if (user.role === "super_admin" && !user.tenantId) {
     return shell;
   }
 

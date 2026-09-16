@@ -15,7 +15,7 @@ import { requirePlanFeature } from "../lib/features.js";
 
 export const compensationRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
-  app.addHook("preHandler", requirePlanFeature("peopleOps"));
+  app.addHook("preHandler", requirePlanFeature("compensation"));
 
   app.get(
     "/",

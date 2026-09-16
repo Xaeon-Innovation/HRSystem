@@ -568,6 +568,10 @@ export default function IntegrationDetailPage() {
   const isCmsGoalsPreset =
     conn.connectorConfig?.preset === "creative_cms_goals" ||
     conn.connectorConfig?.authStrategy === "cms_jwt";
+  const isHubSpotPreset =
+    conn.connectorConfig?.preset === "hubspot_crm" ||
+    (conn.connectorConfig?.authStrategy === "oauth2" &&
+      conn.providerType === "crm");
   const sourceEntityOptions = configuredEntities.map((e) => e.sourceEntity);
 
   return (
@@ -578,8 +582,10 @@ export default function IntegrationDetailPage() {
         <h1 className="text-2xl font-semibold">{conn.name}</h1>
         <p className="text-sm text-muted-foreground">
           {isCmsGoalsPreset
-            ? t("Creative Intelligent CMS Goals")
-            : conn.providerType}{" "}
+            ? t("CMS Goals")
+            : isHubSpotPreset
+              ? t("HubSpot CRM")
+              : conn.providerType}{" "}
           · {conn.syncMode} · {conn.status}
         </p>
       </div>
@@ -588,6 +594,13 @@ export default function IntegrationDetailPage() {
         <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
           {t("Connected to CMS Goals, tokens refresh automatically. Use")}{" "}
           <strong>{t("Sync now")}</strong> {t("to pull the latest goals. Open Authentication only if the CMS password changes.")}</p>
+      ) : null}
+      {isHubSpotPreset ? (
+        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+          {t("Connected to HubSpot CRM, tokens refresh automatically. Use")}{" "}
+          <strong>{t("Sync now")}</strong>{" "}
+          {t("to pull the latest deals. Reconnect OAuth if access expires.")}
+        </p>
       ) : null}
       <div className="flex flex-wrap gap-2">
         {TABS.map((t) => (
@@ -779,10 +792,12 @@ export default function IntegrationDetailPage() {
             <CardTitle className="text-base">{t("API endpoints")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {isCmsGoalsPreset && !advancedCustomize ? (
+            { (isCmsGoalsPreset || isHubSpotPreset) && !advancedCustomize ? (
               <div className="space-y-3 text-sm">
                 <p className="text-muted-foreground">
-                  {t("Endpoints are preconfigured for CMS Goals. You normally do not need to change them.")}</p>
+                  {isHubSpotPreset
+                    ? t("Endpoints are preconfigured for HubSpot CRM. You normally do not need to change them.")
+                    : t("Endpoints are preconfigured for CMS Goals. You normally do not need to change them.")}</p>
                 <ul className="space-y-1 text-xs text-muted-foreground">
                   {configuredEntities.map((ent) => (
                     <li key={`${ent.sourceEntity}-${ent.path}`}>
@@ -977,7 +992,11 @@ export default function IntegrationDetailPage() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              {isCmsGoalsPreset ? t("CMS service account") : t("Secrets")}
+              {isCmsGoalsPreset
+                ? t("CMS service account")
+                : isHubSpotPreset
+                  ? t("HubSpot OAuth")
+                  : t("Secrets")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -1008,6 +1027,21 @@ export default function IntegrationDetailPage() {
                   {saving ? t("Saving…") : t("Update CMS login")}
                 </Button>
               </form>
+            ) : isHubSpotPreset ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t(
+                    "Tokens refresh automatically. To reconnect, start Connect HubSpot CRM again from Integrations.",
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t("Auth stored:")}
+                  {conn.hasAuth ? "yes" : "no"}
+                </p>
+                <Button asChild variant="outline" className="w-full sm:w-auto">
+                  <Link href="/app/integrations">{t("Back to Integrations")}</Link>
+                </Button>
+              </div>
             ) : (
             <form className="grid gap-3" onSubmit={saveAuth}>
               <p className="text-xs text-muted-foreground">

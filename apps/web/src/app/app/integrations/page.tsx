@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,14 +18,72 @@ type Connection = {
   syncMode: string;
   lastSyncAt: string | null;
   lastError: string | null;
-  connectorConfig?: { preset?: string };
+  connectorConfig?: { preset?: string; authStrategy?: string };
 };
 
-const CMS_DEFAULT_BASE = "https://api.creativeintelligent.ae/api/v1";
+type CatalogPack = {
+  id: string;
+  type: string;
+  label: string;
+  description: string;
+  implemented: boolean;
+  comingSoon?: boolean;
+  authStrategy: string;
+  authFields: Array<{
+    name: "username" | "password" | "apiKey";
+    label: string;
+    inputType: string;
+    placeholder?: string;
+    required?: boolean;
+  }>;
+  defaultBaseUrl: string | null;
+  preset?: string;
+  oauthConfigured?: boolean;
+};
 
-export default function IntegrationsPage() {
+const FALLBACK_PACKS: CatalogPack[] = [
+  {
+    id: "creative_cms_goals",
+    type: "cms",
+    label: "CMS Goals",
+    description:
+      "Connect your CMS so employee goals flow into Analytics. Enter a service account; we handle login, tokens, endpoints, and field mappings.",
+    implemented: true,
+    authStrategy: "cms_jwt",
+    authFields: [
+      {
+        name: "username",
+        label: "Service account phone",
+        inputType: "tel",
+        placeholder: "+9715XXXXXXXX",
+        required: true,
+      },
+      {
+        name: "password",
+        label: "Password",
+        inputType: "password",
+        required: true,
+      },
+    ],
+    defaultBaseUrl: "https://api.creativeintelligent.ae/api/v1",
+    preset: "creative_cms_goals",
+  },
+];
+
+function packLabelForConnection(row: Connection, packs: CatalogPack[]): string {
+  const preset = row.connectorConfig?.preset;
+  const pack = packs.find((p) => p.id === preset || p.preset === preset);
+  if (pack) return t(pack.label);
+  if (preset === "creative_cms_goals") return t("CMS Goals");
+  if (preset === "hubspot_crm") return t("HubSpot CRM");
+  return row.providerType;
+}
+
+function IntegrationsPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [rows, setRows] = useState<Connection[]>([]);
+  const [packs, setPacks] = useState<CatalogPack[]>(FALLBACK_PACKS);
   const [name, setName] = useState("");
   const [providerType, setProviderType] = useState("custom_api");
   const [syncMode, setSyncMode] = useState("polling");
@@ -34,26 +92,46 @@ export default function IntegrationsPage() {
   const [creating, setCreating] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const [cmsPhone, setCmsPhone] = useState("");
-  const [cmsPassword, setCmsPassword] = useState("");
-  const [cmsBaseUrl, setCmsBaseUrl] = useState(CMS_DEFAULT_BASE);
-  const [cmsAdvanced, setCmsAdvanced] = useState(false);
-  const [cmsConnecting, setCmsConnecting] = useState(false);
+  const [activePackId, setActivePackId] = useState<string | null>(null);
+  const [credFields, setCredFields] = useState<Record<string, string>>({});
+  const [packBaseUrl, setPackBaseUrl] = useState("");
+  const [packAdvanced, setPackAdvanced] = useState(false);
+  const [connecting, setConnecting] = useState(false);
+
+  const oauthError = searchParams.get("oauthError");
 
   async function load() {
-    const data = await api<{ connections: Connection[] }>(
-      "/v1/integrations/connections",
-    );
-    setRows(data.connections);
+    const [connData, catalog] = await Promise.all([
+      api<{ connections: Connection[] }>("/v1/integrations/connections"),
+      api<{ packs?: CatalogPack[] }>("/v1/integrations/catalog").catch(
+        () => ({ packs: undefined }),
+      ),
+    ]);
+    setRows(connData.connections);
+    if (catalog.packs?.length) setPacks(catalog.packs);
   }
 
   useEffect(() => {
     load().catch((e) => setError(e.message));
   }, []);
 
-  async function connectCmsGoals(e: FormEvent) {
+  useEffect(() => {
+    if (oauthError) setError(decodeURIComponent(oauthError));
+  }, [oauthError]);
+
+  const readyPacks = useMemo(
+    () => packs.filter((p) => p.implemented && !p.comingSoon),
+    [packs],
+  );
+  const comingSoonPacks = useMemo(
+    () => packs.filter((p) => p.comingSoon || !p.implemented),
+    [packs],
+  );
+
+  async function connectCredentialPack(e: FormEvent, pack: CatalogPack) {
     e.preventDefault();
-    setCmsConnecting(true);
+    setConnecting(true);
+    setActivePackId(pack.id);
     setError(null);
     try {
       const res = await api<{ connection: Connection }>(
@@ -61,21 +139,47 @@ export default function IntegrationsPage() {
         {
           method: "POST",
           body: JSON.stringify({
-            name: t("Creative Intelligent CMS Goals"),
-            providerType: "cms",
-            preset: "creative_cms_goals",
-            baseUrl: cmsBaseUrl.trim() || CMS_DEFAULT_BASE,
+            name: pack.label,
+            providerType: pack.type,
+            preset: pack.preset ?? pack.id,
+            baseUrl:
+              packBaseUrl.trim() || pack.defaultBaseUrl || undefined,
             authConfig: {
-              username: cmsPhone.trim(),
-              password: cmsPassword,
+              username: credFields.username?.trim(),
+              password: credFields.password,
+              apiKey: credFields.apiKey,
             },
           }),
         },
       );
       router.push(`/app/integrations/${res.connection.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to connect CMS");
-      setCmsConnecting(false);
+      setError(err instanceof Error ? err.message : "Failed to connect");
+      setConnecting(false);
+      setActivePackId(null);
+    }
+  }
+
+  async function connectOAuthPack(pack: CatalogPack) {
+    setConnecting(true);
+    setActivePackId(pack.id);
+    setError(null);
+    try {
+      const res = await api<{ authorizeUrl: string; connection: Connection }>(
+        "/v1/integrations/oauth/start",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            preset: pack.preset ?? pack.id,
+            name: pack.label,
+          }),
+        },
+      );
+      window.location.href = res.authorizeUrl;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start OAuth");
+      setConnecting(false);
+      setActivePackId(null);
     }
   }
 
@@ -105,87 +209,190 @@ export default function IntegrationsPage() {
     }
   }
 
+  function openPackForm(pack: CatalogPack) {
+    setActivePackId(pack.id);
+    setCredFields({});
+    setPackBaseUrl(pack.defaultBaseUrl ?? "");
+    setPackAdvanced(false);
+    setError(null);
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{t("Integrations")}</h1>
         <p className="text-sm text-muted-foreground">
-          {t("Connect your CMS so employee goals flow into Analytics, no API wiring required for Creative Intelligent CMS.")}</p>
+          {t(
+            "Connect CMS, CRM, or ERP without API wiring. Pick a connector; we handle auth, endpoints, and mappings.",
+          )}
+        </p>
       </div>
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <Card className="border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/30">
-        <CardHeader>
-          <CardTitle className="text-base">
-            {t("Connect Creative Intelligent CMS (Goals)")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="grid gap-3 md:grid-cols-2" onSubmit={connectCmsGoals}>
-            <p className="md:col-span-2 text-sm text-muted-foreground">
-              {t("Enter a CMS")}<strong>{t("admin")}</strong> or <strong>team_leader</strong>{" "}
-              {t("service account. We log in, refresh tokens automatically, and set endpoints plus field mappings for you.")}</p>
-            <div className="space-y-1">
-              <Label>{t("Service account phone")}</Label>
-              <Input
-                value={cmsPhone}
-                onChange={(e) => setCmsPhone(e.target.value)}
-                placeholder={t("+9715XXXXXXXX")}
-                required
-                autoComplete="username"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label>{t("Password")}</Label>
-              <Input
-                type="password"
-                value={cmsPassword}
-                onChange={(e) => setCmsPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <button
-                type="button"
-                className="text-xs text-muted-foreground underline hover:text-foreground"
-                onClick={() => setCmsAdvanced((v) => !v)}
-              >
-                {cmsAdvanced ? t("Hide advanced") : t("Advanced (base URL)")}
-              </button>
-            </div>
-            {cmsAdvanced ? (
-              <div className="space-y-1 md:col-span-2">
-                <Label>{t("Base URL")}</Label>
-                <Input
-                  type="url"
-                  value={cmsBaseUrl}
-                  onChange={(e) => setCmsBaseUrl(e.target.value)}
-                />
-              </div>
-            ) : null}
-            <p className="md:col-span-2 text-xs text-muted-foreground">
-              {t("For Analytics attribution, HR employees should use the same CMS employee UUID as their external ID.")}</p>
-            <div className="md:col-span-2">
-              <Button type="submit" disabled={cmsConnecting}>
-                {cmsConnecting ? t("Connecting…") : t("Connect CMS Goals")}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {readyPacks.map((pack) => {
+          const isOpen = activePackId === pack.id;
+          const busy = connecting && activePackId === pack.id;
+          return (
+            <Card
+              key={pack.id}
+              className="border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/30"
+            >
+              <CardHeader>
+                <CardTitle className="text-base">{t(pack.label)}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {t(pack.description)}
+                </p>
+                {pack.authStrategy === "oauth2" ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Button
+                      className="w-full sm:w-auto"
+                      disabled={busy || pack.oauthConfigured === false}
+                      onClick={() => connectOAuthPack(pack)}
+                    >
+                      {busy
+                        ? t("Connecting…")
+                        : t("Connect {name}", { name: pack.label })}
+                    </Button>
+                    {pack.oauthConfigured === false ? (
+                      <p className="text-xs text-muted-foreground">
+                        {t(
+                          "OAuth is not configured on this server yet. Ask your platform admin.",
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : isOpen ? (
+                  <form
+                    className="grid gap-3 sm:grid-cols-2"
+                    onSubmit={(e) => connectCredentialPack(e, pack)}
+                  >
+                    {pack.authFields.map((field) => (
+                      <div key={field.name} className="space-y-1">
+                        <Label>{t(field.label)}</Label>
+                        <Input
+                          type={
+                            field.inputType === "password"
+                              ? "password"
+                              : field.inputType === "tel"
+                                ? "tel"
+                                : "text"
+                          }
+                          value={credFields[field.name] ?? ""}
+                          onChange={(e) =>
+                            setCredFields((prev) => ({
+                              ...prev,
+                              [field.name]: e.target.value,
+                            }))
+                          }
+                          placeholder={
+                            field.placeholder
+                              ? t(field.placeholder)
+                              : undefined
+                          }
+                          required={field.required !== false}
+                          autoComplete={
+                            field.name === "password"
+                              ? "current-password"
+                              : "username"
+                          }
+                        />
+                      </div>
+                    ))}
+                    <div className="sm:col-span-2">
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground underline hover:text-foreground"
+                        onClick={() => setPackAdvanced((v) => !v)}
+                      >
+                        {packAdvanced
+                          ? t("Hide advanced")
+                          : t("Advanced (base URL)")}
+                      </button>
+                    </div>
+                    {packAdvanced ? (
+                      <div className="space-y-1 sm:col-span-2">
+                        <Label>{t("Base URL")}</Label>
+                        <Input
+                          type="url"
+                          value={packBaseUrl}
+                          onChange={(e) => setPackBaseUrl(e.target.value)}
+                        />
+                      </div>
+                    ) : null}
+                    {pack.id === "creative_cms_goals" ? (
+                      <p className="sm:col-span-2 text-xs text-muted-foreground">
+                        {t(
+                          "For Analytics attribution, HR employees should use the same CMS employee UUID as their external ID.",
+                        )}
+                      </p>
+                    ) : null}
+                    <div className="flex flex-col gap-2 sm:col-span-2 sm:flex-row">
+                      <Button
+                        type="submit"
+                        className="w-full sm:w-auto"
+                        disabled={busy}
+                      >
+                        {busy
+                          ? t("Connecting…")
+                          : t("Connect {name}", { name: pack.label })}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        disabled={busy}
+                        onClick={() => setActivePackId(null)}
+                      >
+                        {t("Cancel")}
+                      </Button>
+                    </div>
+                  </form>
+                ) : (
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={() => openPackForm(pack)}
+                  >
+                    {t("Connect {name}", { name: pack.label })}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
+
+        {comingSoonPacks.map((pack) => (
+          <Card key={pack.id} className="opacity-80">
+            <CardHeader>
+              <CardTitle className="text-base">{t(pack.label)}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {t(pack.description)}
+              </p>
+              <Button className="w-full sm:w-auto" disabled>
+                {t("Coming soon")}
               </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <div className="space-y-2">
+        <h2 className="text-sm font-medium text-muted-foreground">
+          {t("Your connections")}
+        </h2>
         {rows.map((row) => (
           <Link key={row.id} href={`/app/integrations/${row.id}`}>
             <Card>
-              <CardContent className="flex items-center justify-between gap-3 py-3">
-                <div>
+              <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
                   <p className="font-medium">{row.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {row.connectorConfig?.preset === "creative_cms_goals"
-                      ? t("CMS Goals")
-                      : row.providerType}{" "}
-                    · {row.syncMode} {t("· last sync")}{" "}
+                    {packLabelForConnection(row, packs)} · {row.syncMode}{" "}
+                    {t("· last sync")}{" "}
                     {row.lastSyncAt
                       ? new Date(row.lastSyncAt).toLocaleString()
                       : "never"}
@@ -203,7 +410,8 @@ export default function IntegrationsPage() {
         ))}
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            {t("No connections yet, use Connect CMS Goals above.")}</p>
+            {t("No connections yet. Connect a pack above.")}
+          </p>
         ) : null}
       </div>
 
@@ -222,10 +430,15 @@ export default function IntegrationsPage() {
       {showAdvanced ? (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">{t("Custom REST connection")}</CardTitle>
+            <CardTitle className="text-base">
+              {t("Custom REST connection")}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <form className="grid gap-3 md:grid-cols-2" onSubmit={create}>
+            <form
+              className="grid gap-3 sm:grid-cols-2"
+              onSubmit={create}
+            >
               <div className="space-y-1">
                 <Label>{t("Name")}</Label>
                 <Input
@@ -269,8 +482,12 @@ export default function IntegrationsPage() {
                   placeholder="https://api.example.com"
                 />
               </div>
-              <div className="md:col-span-2">
-                <Button type="submit" disabled={creating}>
+              <div className="sm:col-span-2">
+                <Button
+                  type="submit"
+                  className="w-full sm:w-auto"
+                  disabled={creating}
+                >
                   {creating ? t("Creating…") : t("Create and continue")}
                 </Button>
               </div>
@@ -279,5 +496,17 @@ export default function IntegrationsPage() {
         </Card>
       ) : null}
     </div>
+  );
+}
+
+export default function IntegrationsPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="h-48 w-full animate-pulse rounded-xl bg-muted/40" />
+      }
+    >
+      <IntegrationsPageInner />
+    </Suspense>
   );
 }

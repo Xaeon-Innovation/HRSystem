@@ -27,6 +27,8 @@ import { refreshAllTenantMetrics } from "./analytics/metrics.js";
 import { detectAnomalies, detectStaleSyncs } from "./analytics/alerts.js";
 import { reconcileAll } from "./analytics/reconcile.js";
 import { runLeaveJobsForAllTenants } from "./services/leave.js";
+import { runTaskJobsForAllTenants } from "./services/tasks.js";
+import { runShiftComplianceJobs } from "./services/shifts.js";
 
 export function startJobs(app: FastifyInstance) {
   const hourMs = 60 * 60 * 1000;
@@ -246,6 +248,20 @@ export function startJobs(app: FastifyInstance) {
     }
   };
 
+  const taskDueReminders = async () => {
+    try {
+      const hour = new Date().getHours();
+      // Prefer morning + catch-up every 6 hours (once-per-day dedupe in service).
+      if (!(hour === 9 || hour % 6 === 0)) return;
+      const sent = await runTaskJobsForAllTenants(app);
+      if (sent) {
+        app.log.info({ sent }, "task due-soon reminders sent");
+      }
+    } catch (err) {
+      app.log.error(err, "task due reminder job failed");
+    }
+  };
+
   const expireTrials = async () => {
     try {
       const expired = await expirePastTrials(app.db);
@@ -257,13 +273,23 @@ export function startJobs(app: FastifyInstance) {
     }
   };
 
+  const shiftCompliance = async () => {
+    try {
+      await runShiftComplianceJobs(app);
+    } catch (err) {
+      app.log.error(err, "shift compliance job failed");
+    }
+  };
+
   setTimeout(() => {
     void retention();
     void missedClockOuts();
     void drainRaw();
     void operational();
     void leaveMaintenance();
+    void taskDueReminders();
     void expireTrials();
+    void shiftCompliance();
   }, 5_000);
 
   setInterval(() => {
@@ -272,6 +298,10 @@ export function startJobs(app: FastifyInstance) {
 
   setInterval(() => {
     void pollConnections();
+  }, minuteMs);
+
+  setInterval(() => {
+    void shiftCompliance();
   }, minuteMs);
 
   setInterval(() => {
@@ -284,6 +314,10 @@ export function startJobs(app: FastifyInstance) {
 
   setInterval(() => {
     void leaveMaintenance();
+  }, hourMs);
+
+  setInterval(() => {
+    void taskDueReminders();
   }, hourMs);
 
   setInterval(() => {

@@ -3,6 +3,8 @@ import { and, eq, inArray } from "drizzle-orm";
 import { plans } from "@hr/db";
 import {
   createPlanSchema,
+  sanitizePlanFeatures,
+  syncPolarSchema,
   updatePlanSchema,
   type JwtPayload,
 } from "@hr/shared";
@@ -11,6 +13,7 @@ import {
   createPolarClient,
   createPolarProductForPlan,
   getPolarConfig,
+  updatePolarProductForPlan,
 } from "../lib/polar.js";
 import { requireRoles } from "../types.js";
 
@@ -26,8 +29,17 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
     return { plans: rows };
   });
 
-  /** Idempotent: create Polar products for catalog plans missing polar_product_id. */
+  /**
+   * Create Polar products for catalog plans missing polar_product_id.
+   * With updateExisting: true, also push local catalog amounts to linked products.
+   */
   app.post("/sync-polar", async (request, reply) => {
+    const parsed = syncPolarSchema.safeParse(request.body ?? {});
+    if (!parsed.success) {
+      return reply.code(400).send({ error: parsed.error.flatten() });
+    }
+    const updateExisting = parsed.data.updateExisting === true;
+
     const config = getPolarConfig();
     if (!config) {
       return reply.code(503).send({
@@ -47,18 +59,51 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
       code: string;
       polarProductId: string;
       created: boolean;
+      updated: boolean;
     }> = [];
 
     for (const plan of catalog) {
+      if (plan.amountCents <= 0) continue;
+
       if (plan.polarProductId) {
-        results.push({
-          code: plan.code,
-          polarProductId: plan.polarProductId,
-          created: false,
-        });
+        if (!updateExisting) {
+          results.push({
+            code: plan.code,
+            polarProductId: plan.polarProductId,
+            created: false,
+            updated: false,
+          });
+          continue;
+        }
+        try {
+          const updated = await updatePolarProductForPlan(
+            polar,
+            plan.polarProductId,
+            {
+              code: plan.code,
+              name: plan.name,
+              description: plan.description,
+              amountCents: plan.amountCents,
+              currency: plan.currency,
+            },
+          );
+          results.push({
+            code: plan.code,
+            polarProductId: updated.id,
+            created: false,
+            updated: true,
+          });
+        } catch (err) {
+          return reply.code(502).send({
+            error:
+              err instanceof Error
+                ? err.message
+                : `Failed to update plan ${plan.code} on Polar`,
+            results,
+          });
+        }
         continue;
       }
-      if (plan.amountCents <= 0) continue;
 
       try {
         const created = await createPolarProductForPlan(polar, {
@@ -76,6 +121,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
           code: plan.code,
           polarProductId: created.id,
           created: true,
+          updated: false,
         });
       } catch (err) {
         return reply.code(502).send({
@@ -93,7 +139,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
       actor,
       action: "plans.sync_polar",
       resourceType: "plan",
-      metadata: { results },
+      metadata: { results, updateExisting },
       request,
     });
 
@@ -154,7 +200,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
         intervalDays: data.intervalDays,
         seatLimit: data.seatLimit ?? null,
         active: data.active ?? true,
-        features: data.features ?? {},
+        features: sanitizePlanFeatures(data.features ?? {}),
         polarProductId,
       })
       .returning();
@@ -185,28 +231,38 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
 
     let polarProductId = current.polarProductId;
     const nextAmount = parsed.data.amountCents ?? current.amountCents;
-    const syncPolar =
-      parsed.data.syncPolar === true &&
-      !current.polarProductId &&
-      nextAmount > 0;
-    if (syncPolar) {
+    const nextName = parsed.data.name ?? current.name;
+    const nextDescription =
+      parsed.data.description === undefined
+        ? current.description
+        : parsed.data.description;
+    const nextCurrency = parsed.data.currency ?? current.currency;
+
+    if (parsed.data.syncPolar === true && nextAmount > 0) {
       const config = getPolarConfig();
       if (!config) {
         return reply.code(503).send({ error: "Polar is not configured" });
       }
       try {
         const polar = createPolarClient(config);
-        const created = await createPolarProductForPlan(polar, {
+        const syncInput = {
           code: current.code,
-          name: parsed.data.name ?? current.name,
-          description:
-            parsed.data.description === undefined
-              ? current.description
-              : parsed.data.description,
+          name: nextName,
+          description: nextDescription,
           amountCents: nextAmount,
-          currency: parsed.data.currency ?? current.currency,
-        });
-        polarProductId = created.id;
+          currency: nextCurrency,
+        };
+        if (current.polarProductId) {
+          await updatePolarProductForPlan(
+            polar,
+            current.polarProductId,
+            syncInput,
+          );
+          polarProductId = current.polarProductId;
+        } else {
+          const created = await createPolarProductForPlan(polar, syncInput);
+          polarProductId = created.id;
+        }
       } catch (err) {
         return reply.code(502).send({
           error:
@@ -220,20 +276,23 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
     const [updated] = await app.db
       .update(plans)
       .set({
-        name: parsed.data.name ?? current.name,
-        description:
-          parsed.data.description === undefined
-            ? current.description
-            : parsed.data.description,
-        amountCents: parsed.data.amountCents ?? current.amountCents,
-        currency: parsed.data.currency ?? current.currency,
+        name: nextName,
+        description: nextDescription,
+        amountCents: nextAmount,
+        currency: nextCurrency,
         intervalDays: parsed.data.intervalDays ?? current.intervalDays,
         seatLimit:
           parsed.data.seatLimit === undefined
             ? current.seatLimit
             : parsed.data.seatLimit,
         active: parsed.data.active ?? current.active,
-        features: parsed.data.features ?? current.features,
+        features:
+          parsed.data.features === undefined
+            ? current.features
+            : sanitizePlanFeatures({
+                ...(current.features as Record<string, boolean | number | string>),
+                ...parsed.data.features,
+              }),
         polarProductId,
         updatedAt: new Date(),
       })

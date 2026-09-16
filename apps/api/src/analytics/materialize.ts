@@ -12,6 +12,7 @@ import {
   kpiAssignments,
   kpiScores,
   locationPings,
+  shiftInstances,
   tenants,
   type Db,
 } from "@hr/db";
@@ -67,6 +68,18 @@ export async function materializeTenantDays(
     const expectedStart = new Date(start.getTime() + (shiftStart * 60 + grace) * 60000);
 
     for (const emp of roster) {
+      const rosterShift = await db.query.shiftInstances.findFirst({
+        where: and(
+          eq(shiftInstances.tenantId, tenantId),
+          eq(shiftInstances.employeeId, emp.id),
+          eq(shiftInstances.workDate, day),
+          eq(shiftInstances.status, "scheduled"),
+        ),
+      });
+      const empExpectedStart = rosterShift
+        ? new Date(rosterShift.startAt.getTime() + grace * 60_000)
+        : expectedStart;
+
       const shifts = await db.query.attendanceRecords.findMany({
         where: and(
           eq(attendanceRecords.tenantId, tenantId),
@@ -85,9 +98,17 @@ export async function materializeTenantDays(
         const out = shift.clockOutAt ?? (new Date() < end ? new Date() : end);
         workMinutes += overlapMinutes(shift.clockInAt, out, start, end);
         if (shift.clockInAt >= start && shift.clockInAt <= end) {
-          if (shift.clockInAt > expectedStart) {
+          if (rosterShift?.lateClockIn) {
+            lateness += Math.max(
+              0,
+              Math.round(
+                (shift.clockInAt.getTime() - empExpectedStart.getTime()) /
+                  60000,
+              ),
+            );
+          } else if (shift.clockInAt > empExpectedStart) {
             lateness += Math.round(
-              (shift.clockInAt.getTime() - expectedStart.getTime()) / 60000,
+              (shift.clockInAt.getTime() - empExpectedStart.getTime()) / 60000,
             );
           }
         }

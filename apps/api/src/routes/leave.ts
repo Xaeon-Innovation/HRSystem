@@ -51,7 +51,7 @@ function asDraft(body: ReturnType<typeof leaveRequestDraftSchema.parse>): LeaveR
 
 export const leaveRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
-  app.addHook("preHandler", requirePlanFeature("peopleOps"));
+  app.addHook("preHandler", requirePlanFeature("leave"));
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);

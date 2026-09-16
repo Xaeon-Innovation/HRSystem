@@ -181,6 +181,42 @@ export const ALERT_CATALOG: CatalogAlert[] = [
     ["admin", "hr_manager"],
   ),
   event(
+    "task_assigned",
+    "employee",
+    "Task assigned",
+    "A new task was assigned to an employee.",
+    "info",
+    ["employee"],
+    { defaultEnabled: true, defaultFrequency: "instant", defaultChannels: ["in_app", "email"] },
+  ),
+  event(
+    "task_due_soon",
+    "employee",
+    "Task due soon",
+    "A task is due within one day and is not yet completed.",
+    "warning",
+    ["employee"],
+    { defaultEnabled: true, defaultFrequency: "instant", defaultChannels: ["in_app", "email"] },
+  ),
+  event(
+    "task_submitted",
+    "employee",
+    "Task submitted for review",
+    "An assignee submitted a task that requires admin review.",
+    "info",
+    ["admin", "hr_manager"],
+    { defaultEnabled: true, defaultFrequency: "instant", defaultChannels: ["in_app", "email"] },
+  ),
+  event(
+    "task_reviewed",
+    "employee",
+    "Task reviewed",
+    "An admin approved or sent back a submitted task.",
+    "info",
+    ["employee"],
+    { defaultEnabled: true, defaultFrequency: "instant", defaultChannels: ["in_app", "email"] },
+  ),
+  event(
     "duplicate_employee_import",
     "employee",
     "Duplicate employee import issues",
@@ -740,6 +776,11 @@ export function categoryFromNotificationType(
     case "clock_in":
     case "clock_out":
     case "missed_clock_out":
+    case "overtime_prompt":
+    case "late_clock_in":
+    case "late_clock_out":
+    case "left_zone_exit":
+    case "break_overstay":
       return "attendance";
     case "kpi_due":
       return "kpi";
@@ -751,7 +792,16 @@ export function categoryFromNotificationType(
 }
 
 export function urgencyFromNotificationType(type: string): AlertUrgency {
-  if (type === "missed_clock_out" || type === "kpi_due") return "warning";
+  if (
+    type === "missed_clock_out" ||
+    type === "kpi_due" ||
+    type === "left_zone_exit" ||
+    type === "break_overstay" ||
+    type === "late_clock_out"
+  ) {
+    return "warning";
+  }
+  if (type === "overtime_prompt") return "warning";
   return "info";
 }
 
@@ -760,6 +810,15 @@ export function eventKeyFromNotificationType(type: string): string | null {
   if (type === "announcement") return "announcement";
   if (type === "kpi_due") return "review_overdue";
   if (type === "clock_in" || type === "clock_out") return type;
+  if (
+    type === "overtime_prompt" ||
+    type === "late_clock_in" ||
+    type === "late_clock_out" ||
+    type === "left_zone_exit" ||
+    type === "break_overstay"
+  ) {
+    return type;
+  }
   return null;
 }
 

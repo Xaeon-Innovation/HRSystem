@@ -23,7 +23,9 @@ export type AuthUser = {
   role: "super_admin" | "tenant_admin" | "employee";
   tenantId: string | null;
   employeeId?: string | null;
-  systemModuleRoles?: Array<"kpis" | "leaves" | "hiring" | "compensation">;
+  systemModuleRoles?: Array<
+    "kpis" | "leaves" | "hiring" | "compensation" | "tasks"
+  >;
   avatarUrl?: string | null;
   plan?: {
     code: string;
@@ -35,6 +37,15 @@ export type AuthUser = {
   accessAllowed?: boolean;
   subscriptionStatus?: string | null;
   trialEndsAt?: string | null;
+  workspace?: {
+    mode: "unlock_all" | "as_entitled" | "preview_plan";
+    previewPlanId?: string | null;
+    previewPlanCode?: string | null;
+    previewPlanName?: string | null;
+    platformLab?: boolean;
+    tenantSlug?: string | null;
+    tenantName?: string | null;
+  };
 };
 
 const TOKEN_KEY = "hr_access_token";

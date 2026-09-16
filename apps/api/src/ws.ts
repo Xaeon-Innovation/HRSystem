@@ -49,20 +49,8 @@ export async function registerWs(app: FastifyInstance) {
         }
         if (msg.type === "location.ping") {
           if (!user.employeeId || !user.tenantId) return;
-          const hasFieldOps = await tenantHasFeature(
-            app.db,
-            user.tenantId,
-            "fieldOps",
-          );
-          if (!hasFieldOps) {
-            socket.send(
-              JSON.stringify({
-                type: "error",
-                error: "plan_missing_fieldOps",
-              }),
-            );
-            return;
-          }
+          // Allow pings for live map OR compliance (geofenced + clocked in).
+          // liveMap gate only applies to admin map subscribe below.
           const parsed = locationPingSchema.safeParse(msg.payload);
           if (!parsed.success) {
             socket.send(
@@ -119,6 +107,16 @@ export async function registerWs(app: FastifyInstance) {
               },
             });
 
+          const { handleComplianceLocationPing } = await import(
+            "./services/shifts.js"
+          );
+          const compliance = await handleComplianceLocationPing(app, {
+            tenantId: user.tenantId,
+            employeeId: user.employeeId,
+            lat: parsed.data.lat,
+            lng: parsed.data.lng,
+          });
+
           if (user.role === "employee") {
             broadcastToTenant(user.tenantId, {
               type: "location.update",
@@ -127,15 +125,18 @@ export async function registerWs(app: FastifyInstance) {
                 lat: parsed.data.lat,
                 lng: parsed.data.lng,
                 updatedAt: recordedAt.toISOString(),
-                isClockedIn: true,
+                isClockedIn: !compliance.autoClockedOut,
               },
             });
           }
 
-          socket.send(JSON.stringify({ type: "location.ack" }));
-        }
-
-        if (
+          socket.send(
+            JSON.stringify({
+              type: "location.ack",
+              autoClockedOut: compliance.autoClockedOut,
+            }),
+          );
+        } else if (
           msg.type === "subscribe.map" &&
           user.role === "tenant_admin" &&
           user.tenantId
@@ -143,13 +144,13 @@ export async function registerWs(app: FastifyInstance) {
           const hasFieldOps = await tenantHasFeature(
             app.db,
             user.tenantId,
-            "fieldOps",
+            "liveMap",
           );
           if (!hasFieldOps) {
             socket.send(
               JSON.stringify({
                 type: "error",
-                error: "plan_missing_fieldOps",
+                error: "plan_missing_liveMap",
               }),
             );
             return;

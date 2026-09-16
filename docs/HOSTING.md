@@ -173,6 +173,10 @@ POSTGRES_PASSWORD=...
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
 INTEGRATION_SECRETS_KEY=...   # AES-256-GCM key for connector secrets; 32+ chars
+# Optional HubSpot CRM OAuth pack:
+# HUBSPOT_CLIENT_ID=
+# HUBSPOT_CLIENT_SECRET=
+# Redirect: {API_PUBLIC_URL}/v1/integrations/oauth/callback
 
 WEB_DOMAIN=app.YOURDOMAIN
 API_DOMAIN=api.YOURDOMAIN
@@ -298,7 +302,9 @@ Add two virtual hosts for `app` / `api` with reverse-proxy external apps to `127
 
 ---
 
-## 10. Seed (once)
+## 10. Seed (once) / rotate platform admin
+
+Initial seed:
 
 ```bash
 cd /opt/hr-system
@@ -306,7 +312,9 @@ docker compose -f docker-compose.prod.yml --env-file .env.production exec api \
   node packages/db/dist/seed.js
 ```
 
-Log in at `https://app.YOURDOMAIN` and rotate admin passwords if you used defaults.
+Changing `SEED_SUPER_ADMIN_EMAIL` / `SEED_SUPER_ADMIN_PASSWORD` in `.env.production` does **not** update login by itself. Re-run seed (or update the `users` row) after changing those values. Seed now upserts the platform `super_admin` email/password from env.
+
+Log in at `https://app.YOURDOMAIN` with that email, **no organization slug**.
 
 ---
 

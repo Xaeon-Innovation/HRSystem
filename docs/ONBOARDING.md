@@ -17,9 +17,13 @@
 
 ## Platform console (super_admin)
 
-- **Tenants**, provision, suspend, soft-delete, settings
-- **Plans**, catalog + optional Polar sync
-- **Subscriptions**, cross-tenant status / overrides
+- **Overview** (`/app`) — MRR estimate, fleet counts, recent leads/payments; CTA to open a workspace for full product testing
+- **Tenants**, provision, suspend, soft-delete, settings, **feature overrides** (Inherit / On / Off), **Open workspace** (keeps `super_admin` + enters tenant context with all gates unlocked)
+- **Subscriptions**, cross-tenant status / overrides (cancel suspends; force-active unsuspends)
+- **Leads**, demo requests + signup funnel inbox
+- **Plans**, catalog edit (feature packs + limits) + Polar create/update sync
+- **Features** (`/app/features`), plan×pack matrix and tenants with overrides (`GET /v1/platform/features`)
+- **Payments**, webhook/payment event browser
 - **Audits**, platform + tenant-admin sensitive actions
 - **Health**, cross-tenant health metrics
 
@@ -27,6 +31,7 @@
 
 - Suspend: `PATCH /v1/tenants/:id` with `{ "status": "suspended" }`, logins blocked.
 - Soft delete: `DELETE /v1/tenants/:id`, status `deleted`.
+- Force-active on a subscription (`PATCH /v1/subscriptions/:id` `{ status: "active" }`) also sets tenant `active` when suspended. It does not recreate Polar billing.
 - Trial expiry sets subscription `expired` but does **not** suspend the tenant (Billing stays reachable).
 - Payment failures (Polar `past_due` / revoke) can suspend tenant access.
 - Data export/deletion for privacy requests: export via SQL/CSV reports; hard purge is a controlled ops procedure (see PRIVACY.md).

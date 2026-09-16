@@ -38,7 +38,7 @@ function isAttendanceLikeKpi(name: string, description: string | null): boolean 
 
 export const kpiRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireTenantScope());
-  app.addHook("preHandler", requirePlanFeature("peopleOps"));
+  app.addHook("preHandler", requirePlanFeature("kpis"));
 
   app.get("/", async (request) => {
     const tenantId = tenantIdOf(request);

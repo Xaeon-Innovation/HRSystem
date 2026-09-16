@@ -7,6 +7,7 @@ export const SYSTEM_MODULE_ROLES = [
   "leaves",
   "hiring",
   "compensation",
+  "tasks",
 ] as const;
 export type SystemModuleRole = (typeof SYSTEM_MODULE_ROLES)[number];
 
@@ -15,6 +16,7 @@ export const SYSTEM_MODULE_ROLE_LABELS: Record<SystemModuleRole, string> = {
   leaves: "Leaves",
   hiring: "Hiring",
   compensation: "Compensation",
+  tasks: "Tasks",
 };
 
 export function normalizeSystemModuleRoles(
@@ -60,8 +62,104 @@ export const NOTIFICATION_TYPES = [
   "kpi_due",
   "announcement",
   "alert",
+  "overtime_prompt",
+  "late_clock_in",
+  "late_clock_out",
+  "left_zone_exit",
+  "break_overstay",
 ] as const;
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const SHIFT_CADENCES = ["daily", "weekly", "monthly"] as const;
+export type ShiftCadence = (typeof SHIFT_CADENCES)[number];
+
+export const SHIFT_INSTANCE_STATUSES = ["scheduled", "cancelled"] as const;
+export type ShiftInstanceStatus = (typeof SHIFT_INSTANCE_STATUSES)[number];
+
+export const SHIFT_OVERTIME_STATUSES = [
+  "none",
+  "prompted",
+  "approved",
+  "declined",
+  "late_unanswered",
+] as const;
+export type ShiftOvertimeStatus = (typeof SHIFT_OVERTIME_STATUSES)[number];
+
+export const BREAK_PERIOD_MODES = ["fixed", "flexible"] as const;
+export type BreakPeriodMode = (typeof BREAK_PERIOD_MODES)[number];
+
+export const BREAK_SESSION_STATUSES = [
+  "scheduled",
+  "active",
+  "ended",
+  "overstayed",
+  "cancelled",
+] as const;
+export type BreakSessionStatus = (typeof BREAK_SESSION_STATUSES)[number];
+
+export const LEFT_ZONE_RESOLUTIONS = [
+  "require_admin",
+  "auto_approve_emergency",
+  "auto_day_deduction",
+] as const;
+export type LeftZoneResolution = (typeof LEFT_ZONE_RESOLUTIONS)[number];
+
+export const LEFT_ZONE_INCIDENT_RESOLUTIONS = [
+  "approved_emergency",
+  "day_deduction",
+] as const;
+export type LeftZoneIncidentResolution =
+  (typeof LEFT_ZONE_INCIDENT_RESOLUTIONS)[number];
+
+export const LEFT_ZONE_PHASES = [
+  "mid_shift",
+  "end_grace",
+  "overtime",
+  "break_overstay",
+] as const;
+export type LeftZonePhase = (typeof LEFT_ZONE_PHASES)[number];
+
+export const SHIFT_MATERIALIZE_HORIZON_DAYS = 45;
+
+export const TASK_PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export const TASK_STATUSES = [
+  "open",
+  "in_progress",
+  "submitted",
+  "changes_requested",
+  "completed",
+  "cancelled",
+] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_ASSIGNMENT_MODES = ["shared", "individual"] as const;
+export type TaskAssignmentMode = (typeof TASK_ASSIGNMENT_MODES)[number];
+
+export const TASK_ATTACHMENT_KINDS = ["link", "file"] as const;
+export type TaskAttachmentKind = (typeof TASK_ATTACHMENT_KINDS)[number];
+
+export const TASK_DELIVERABLE_TYPES = [
+  "report",
+  "docs",
+  "screenshots",
+  "other",
+] as const;
+export type TaskDeliverableType = (typeof TASK_DELIVERABLE_TYPES)[number];
+
+export const TASK_ACTIVITY_KINDS = [
+  "created",
+  "started",
+  "attached",
+  "deliverable_submitted",
+  "completed",
+  "submitted",
+  "reviewed",
+  "send_back",
+  "cancelled",
+] as const;
+export type TaskActivityKind = (typeof TASK_ACTIVITY_KINDS)[number];
 
 export const DEFAULT_PING_INTERVAL_SEC = 20;
 export const MIN_PING_INTERVAL_SEC = 15;
@@ -257,6 +355,23 @@ export const SUBSCRIPTION_STATUSES = [
   "expired",
 ] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
+
+export const LEAD_SOURCES = [
+  "demo",
+  "signup_trial",
+  "signup_paid",
+  "enterprise",
+] as const;
+export type LeadSource = (typeof LEAD_SOURCES)[number];
+
+export const LEAD_STATUSES = [
+  "new",
+  "contacted",
+  "qualified",
+  "converted",
+  "closed",
+] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
 
 export const PAYMOB_INTERVAL_DAYS = [7, 15, 30, 60, 90, 180, 360] as const;
 
@@ -485,15 +600,7 @@ export const MAX_INTEGRATION_RAW_RETENTION_DAYS = 90;
 export const DEFAULT_LATENESS_GRACE_MINUTES = 15;
 export const DEFAULT_SHIFT_START_HOUR = 9;
 
-/** Boolean gates stored on `plans.features`. Numeric limits use the same JSON. */
-export const PLAN_FEATURE_KEYS = [
-  "fieldOps",
-  "peopleOps",
-  "integrations",
-  "analytics",
-] as const;
-export type PlanFeatureKey = (typeof PLAN_FEATURE_KEYS)[number];
-
+/** Boolean module gates — see packages/shared/src/modules.ts (MODULE_KEYS). */
 /** Numeric / meta keys stored alongside boolean feature flags on `plans.features`. */
 export const PLAN_LIMIT_KEYS = [
   "pingIntervalSec",

@@ -26,6 +26,11 @@ import {
 import { requireActiveSubscription } from "../lib/features.js";
 import { createNotification } from "../services/notifications.js";
 import { broadcastToTenant } from "../ws-hub.js";
+import {
+  assertCanClockIn,
+  onClockInLinked,
+  onClockOutLinked,
+} from "../services/shifts.js";
 
 async function assertWithinGeofence(
   app: App,
@@ -105,6 +110,21 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(403).send(outside);
     }
 
+    try {
+      await assertCanClockIn(app, tenantId, user.employeeId);
+    } catch (err) {
+      const status =
+        typeof err === "object" &&
+        err &&
+        "statusCode" in err &&
+        typeof (err as { statusCode: unknown }).statusCode === "number"
+          ? (err as { statusCode: number }).statusCode
+          : 403;
+      return reply
+        .code(status)
+        .send({ error: err instanceof Error ? err.message : "Cannot clock in" });
+    }
+
     const now = new Date();
     const [record] = await app.db
       .insert(attendanceRecords)
@@ -118,11 +138,35 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
 
-    const features = await getTenantPlanFeatures(app.db, tenantId);
-    const hasFieldOps = planFeatureEnabled(features, "fieldOps");
+    await onClockInLinked(
+      app,
+      tenantId,
+      user.employeeId,
+      record.id,
+      now,
+    );
 
-    // People plan: clock with a geofence point, but no live GPS trail.
-    if (hasFieldOps) {
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const hasLiveMap = planFeatureEnabled(features, "liveMap");
+    const empRow = await app.db.query.employees.findFirst({
+      where: and(
+        eq(employees.id, user.employeeId),
+        eq(employees.tenantId, tenantId),
+      ),
+      columns: {
+        geofenceLat: true,
+        geofenceLng: true,
+        geofenceRadiusMeters: true,
+      },
+    });
+    const hasGeofence =
+      empRow?.geofenceLat != null &&
+      empRow?.geofenceLng != null &&
+      empRow?.geofenceRadiusMeters != null;
+    const complianceTracking = hasGeofence;
+
+    // Live map or compliance: maintain live location for geofence enforcement.
+    if (hasLiveMap || complianceTracking) {
       await app.db
         .insert(employeeLiveLocations)
         .values({
@@ -225,10 +269,33 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
       )
       .returning();
 
-    const features = await getTenantPlanFeatures(app.db, tenantId);
-    const hasFieldOps = planFeatureEnabled(features, "fieldOps");
+    await onClockOutLinked(
+      app,
+      tenantId,
+      user.employeeId,
+      record.id,
+      now,
+    );
 
-    if (hasFieldOps) {
+    const features = await getTenantPlanFeatures(app.db, tenantId);
+    const hasLiveMap = planFeatureEnabled(features, "liveMap");
+    const empOut = await app.db.query.employees.findFirst({
+      where: and(
+        eq(employees.id, user.employeeId),
+        eq(employees.tenantId, tenantId),
+      ),
+      columns: {
+        geofenceLat: true,
+        geofenceLng: true,
+        geofenceRadiusMeters: true,
+      },
+    });
+    const complianceOut =
+      empOut?.geofenceLat != null &&
+      empOut?.geofenceLng != null &&
+      empOut?.geofenceRadiusMeters != null;
+
+    if (hasLiveMap || complianceOut) {
       await app.db
         .update(employeeLiveLocations)
         .set({
@@ -362,7 +429,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     const tenantId = tenantIdOf(request);
     const user = request.user as JwtPayload;
     const features = await getTenantPlanFeatures(app.db, tenantId);
-    const liveTracking = planFeatureEnabled(features, "fieldOps");
+    const liveTracking = planFeatureEnabled(features, "liveMap");
     const tenant = await app.db.query.tenants.findFirst({
       where: eq(tenants.id, tenantId),
       columns: { settings: true },
@@ -376,6 +443,7 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
         clockedIn: false,
         attendance: null,
         liveTracking,
+        complianceTracking: false,
         pingIntervalSec,
       };
     }
@@ -386,10 +454,27 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
         isNull(attendanceRecords.clockOutAt),
       ),
     });
+    const emp = await app.db.query.employees.findFirst({
+      where: and(
+        eq(employees.id, user.employeeId),
+        eq(employees.tenantId, tenantId),
+      ),
+      columns: {
+        geofenceLat: true,
+        geofenceLng: true,
+        geofenceRadiusMeters: true,
+      },
+    });
+    const hasGeofence =
+      emp?.geofenceLat != null &&
+      emp?.geofenceLng != null &&
+      emp?.geofenceRadiusMeters != null;
+    const complianceTracking = Boolean(open) && hasGeofence;
     return {
       clockedIn: Boolean(open),
       attendance: open ?? null,
       liveTracking,
+      complianceTracking,
       pingIntervalSec,
     };
   });

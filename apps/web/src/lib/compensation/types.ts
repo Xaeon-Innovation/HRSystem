@@ -136,7 +136,7 @@ export type CompActor = {
   name: string;
   role: "super_admin" | "tenant_admin" | "employee";
   employeeId?: string | null;
-  systemModuleRoles?: Array<"kpis" | "leaves" | "hiring" | "compensation"> | null;
+  systemModuleRoles?: Array<"kpis" | "leaves" | "hiring" | "compensation" | "tasks"> | null;
 };
 
 export type CompEmployee = {

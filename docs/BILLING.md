@@ -51,14 +51,57 @@ Quote math lives in `@hr/shared` (`SEAT_QUOTES`) so marketing, checkout validati
 
 ## Feature gates
 
-Boolean keys on `plans.features` (see `PLAN_FEATURE_KEYS`):
+Boolean **module** keys on `plans.features` (see `MODULE_KEYS` / `PLAN_FEATURE_KEYS` in `@hr/shared`):
 
-- `fieldOps` — live map, team today, location WebSocket pings
-- `peopleOps` — leave, KPIs, hiring, compensation routes
-- `analytics` — `/v1/analytics/*`
-- `integrations` — `/v1/integrations/*`
+| Module | Pack group | Gates |
+|--------|------------|--------|
+| `liveMap` | fieldOps | Live map + WS presence |
+| `teamToday` | fieldOps | Team today |
+| `leave` | peopleOps | Leave |
+| `hiring` | peopleOps | Hiring |
+| `kpis` | peopleOps | KPIs |
+| `compensation` | peopleOps | Compensation |
+| `analytics` | analytics | Analytics |
+| `integrations` | integrations | Integrations |
+
+Legacy pack booleans (`fieldOps`, `peopleOps`) in stored JSON are expanded into modules at resolve time.
 
 Numeric limits: `pingIntervalSec`, `locationRetentionDays`, `trialDays`.
+
+### Launch status
+
+Each module has `draft` | `lab` | `ga` in `platform_modules` (edit under `/app/features`):
+
+- `draft` — hidden from tenants
+- `lab` — only Elevora Lab tenant (and Unlock-all workspace)
+- `ga` — normal plan/override resolution
+
+### Effective features (plan + tenant overrides + launch)
+
+Resolution order for tenant users:
+
+1. Load module flags from the live subscription’s plan (`plans.features`).
+2. Apply `tenant.settings.featureOverrides` when a key is explicitly `true` or `false` (inherits when absent).
+3. Apply launch filter (`draft`/`lab`/`ga`).
+4. Numeric limits stay plan-based (overrides do not change limits in v1).
+
+Edit modules under `/app/plans` or the matrix at `/app/features`. Per-tenant Inherit/On/Off lives on the tenant detail page. Aggregated view: `GET /v1/platform/features`.
+
+### Superadmin Lab + plan preview
+
+- Seeded Lab tenant: slug `elevora-lab` (`settings.platformLab: true`).
+- **Open Lab** / **Preview {plan}** on Features enter Lab with workspace mode `unlock_all` or `preview_plan`.
+- In-workspace chrome: switch Unlock all / As entitled / Preview plan (live catalog).
+- `GET /v1/auth/me` and enter-tenant return **effective** `planFeatures` plus `workspace` metadata.
+
+### Enterprise sales runbook
+
+1. Demo form → lead (`source: enterprise`) on `/app/leads`.
+2. **Provision Enterprise** on the lead (or create tenant with plan = Enterprise).
+3. On tenant detail: set purchased seats if needed; Inherit/On/Off modules for a custom 2–3 page experience.
+4. Force-active is already applied on provision with `planCode`.
+
+`GET /v1/auth/me` returns effective features in `planFeatures`.
 
 ## Flows
 
@@ -93,6 +136,14 @@ Active employee count is enforced against `purchased_seats` when set, otherwise 
 
 Super admins can cancel or force-activate subscriptions under `/app/subscriptions`.
 
+- **Cancel / expire** (platform override): local status updated; Polar cancel attempted when linked; tenant is **suspended**.
+- **Force active**: local subscription set to `active` and a suspended tenant is **unsuspended**. Does not recreate a Polar subscription — tenants may still need checkout to restore live billing.
+- **Suspend / activate tenant** (`/app/tenants`): blocks or restores login only; activate does not invent Polar billing.
+
+## Catalog price changes
+
+Edit amounts under `/app/plans` (or `PATCH /v1/plans/:id`). With `syncPolar: true` (or **Sync all (update prices)**), Elevora creates missing Polar products or calls Polar `products.update` so **new** checkouts see the new price. Existing Polar subscribers stay on grandfathered prices unless migrated in Polar.
+
 ## Smoke checklist
 
 1. Set `POLAR_*` env (sandbox recommended).
@@ -102,3 +153,4 @@ Super admins can cancel or force-activate subscriptions under `/app/subscription
 5. Confirm webhook updates status to `active` and `purchased_seats` matches the slider.
 6. Change seats in-app; confirm Polar prorates and the employee cap updates.
 7. Confirm Field-only tenants cannot open Live Map or Leave.
+8. Submit `/demo` and confirm a lead appears under `/app/leads`.

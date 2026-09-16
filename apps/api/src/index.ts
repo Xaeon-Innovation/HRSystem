@@ -31,15 +31,21 @@ import { notificationRoutes } from "./routes/notifications.js";
 import { leaveRoutes } from "./routes/leave.js";
 import { hiringRoutes } from "./routes/hiring.js";
 import { compensationRoutes } from "./routes/compensation.js";
+import { taskRoutes } from "./routes/tasks.js";
+import { shiftRoutes } from "./routes/shifts.js";
 import { healthRoutes } from "./routes/health.js";
 import { planRoutes } from "./routes/plans.js";
 import { subscriptionRoutes } from "./routes/subscriptions.js";
 import { billingRoutes } from "./routes/billing.js";
 import { auditRoutes } from "./routes/audits.js";
+import { leadRoutes } from "./routes/leads.js";
+import { paymentEventRoutes } from "./routes/payment-events.js";
+import { platformRoutes } from "./routes/platform.js";
 import { paymobWebhookRoutes } from "./routes/webhooks-paymob.js";
 import { polarWebhookRoutes } from "./routes/webhooks-polar.js";
 import { integrationWebhookRoutes } from "./routes/webhooks-integrations.js";
 import { integrationRoutes } from "./routes/integrations.js";
+import { integrationOAuthCallbackRoutes } from "./routes/integrations-oauth-callback.js";
 import { analyticsRoutes } from "./routes/analytics.js";
 import { registerWs } from "./ws.js";
 import { startJobs } from "./jobs.js";
@@ -81,10 +87,16 @@ async function main() {
   await app.register(subscriptionRoutes, { prefix: "/v1/subscriptions" });
   await app.register(billingRoutes, { prefix: "/v1/billing" });
   await app.register(auditRoutes, { prefix: "/v1/audits" });
+  await app.register(leadRoutes, { prefix: "/v1/leads" });
+  await app.register(paymentEventRoutes, { prefix: "/v1/payment-events" });
+  await app.register(platformRoutes, { prefix: "/v1/platform" });
   await app.register(paymobWebhookRoutes, { prefix: "/v1/webhooks/paymob" });
   await app.register(polarWebhookRoutes, { prefix: "/v1/webhooks/polar" });
   await app.register(integrationWebhookRoutes, {
     prefix: "/v1/webhooks/integrations",
+  });
+  await app.register(integrationOAuthCallbackRoutes, {
+    prefix: "/v1/integrations/oauth",
   });
   await app.register(integrationRoutes, { prefix: "/v1/integrations" });
   await app.register(analyticsRoutes, { prefix: "/v1/analytics" });
@@ -102,6 +114,8 @@ async function main() {
   await app.register(leaveRoutes, { prefix: "/v1/leave" });
   await app.register(hiringRoutes, { prefix: "/v1/hiring" });
   await app.register(compensationRoutes, { prefix: "/v1/compensation" });
+  await app.register(taskRoutes, { prefix: "/v1/tasks" });
+  await app.register(shiftRoutes, { prefix: "/v1/shifts" });
   await registerWs(app);
 
   startJobs(app);

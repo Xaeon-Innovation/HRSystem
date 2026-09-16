@@ -9,11 +9,12 @@ import {
   Palmtree,
   Timer,
 } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, getUser } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useUiRedesign } from "@/hooks/use-ui-redesign";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { PlatformOverview } from "@/components/platform-overview";
 import type { LeaveSnapshot } from "@/lib/leave";
 import { t } from "@/i18n";
 
@@ -25,6 +26,25 @@ type Dashboard = {
 };
 
 export default function DashboardPage() {
+  const [mode, setMode] = useState<"loading" | "platform" | "tenant">(
+    "loading",
+  );
+
+  useEffect(() => {
+    const user = getUser();
+    if (user?.role === "super_admin" && !user.tenantId) {
+      setMode("platform");
+    } else {
+      setMode("tenant");
+    }
+  }, []);
+
+  if (mode === "loading") return <PageSkeleton />;
+  if (mode === "platform") return <PlatformOverview />;
+  return <TenantDashboard />;
+}
+
+function TenantDashboard() {
   const redesign = useUiRedesign();
   const [data, setData] = useState<Dashboard | null>(null);
   const [pendingLeave, setPendingLeave] = useState<number | null>(null);
@@ -63,18 +83,19 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">{t("Dashboard")}</h1>
           <p className="text-sm text-muted-foreground">
-            {t("Live workforce pulse for your tenant")}</p>
+            {t("Live workforce pulse for your tenant")}
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {tiles.map((t) => (
-            <Card key={t.label}>
+          {tiles.map((tile) => (
+            <Card key={tile.label}>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {t.label}
+                  {tile.label}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-semibold">{t.value}</p>
+                <p className="text-3xl font-semibold">{tile.value}</p>
               </CardContent>
             </Card>
           ))}
@@ -106,7 +127,8 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">{t("Operations")}</h1>
           <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-            {t("Live workforce first, then goals and leave that need attention.")}</p>
+            {t("Live workforce first, then goals and leave that need attention.")}
+          </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -120,7 +142,8 @@ export default function DashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {t("Live presence")}</h2>
+          {t("Live presence")}
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           {presence.map((p) => {
             const Icon = p.icon;
@@ -150,7 +173,8 @@ export default function DashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {t("Exceptions")}</h2>
+          {t("Exceptions")}
+        </h2>
         <Card>
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-start gap-3">
@@ -158,7 +182,8 @@ export default function DashboardPage() {
               <div>
                 <p className="text-sm font-medium">{t("Unread alerts")}</p>
                 <p className="text-sm text-muted-foreground">
-                  {t("Missed clock-outs, anomalies, and announcements land here.")}</p>
+                  {t("Missed clock-outs, anomalies, and announcements land here.")}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -175,19 +200,22 @@ export default function DashboardPage() {
 
       <section className="space-y-3">
         <h2 className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-          {t("Goals & leave")}</h2>
+          {t("Goals & leave")}
+        </h2>
         <div className="grid gap-3 sm:grid-cols-2">
           <Link href="/app/kpis" className="group">
             <Card className="h-full transition-colors group-hover:border-primary/30">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {t("KPI attention")}</CardTitle>
+                  {t("KPI attention")}
+                </CardTitle>
                 <ClipboardList className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <p className="text-3xl font-semibold">{data.kpis}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t("Active KPI definitions, drill in for off-track results.")}</p>
+                  {t("Active KPI definitions, drill in for off-track results.")}
+                </p>
               </CardContent>
             </Card>
           </Link>
@@ -195,7 +223,8 @@ export default function DashboardPage() {
             <Card className="h-full transition-colors group-hover:border-primary/30">
               <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  {t("Leave queue")}</CardTitle>
+                  {t("Leave queue")}
+                </CardTitle>
                 <Palmtree className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -203,7 +232,8 @@ export default function DashboardPage() {
                   {pendingLeave == null ? "-" : pendingLeave}
                 </p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {t("Pending requests waiting for a decision.")}</p>
+                  {t("Pending requests waiting for a decision.")}
+                </p>
               </CardContent>
             </Card>
           </Link>
