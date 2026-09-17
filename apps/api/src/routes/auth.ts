@@ -51,6 +51,22 @@ async function auditLoginFailure(
   });
 }
 
+async function rejectInvalidLogin(
+  app: Parameters<typeof writeAudit>[0],
+  request: Parameters<typeof writeAudit>[1]["request"],
+  reply: { code: (n: number) => { send: (b: unknown) => unknown } },
+  input: {
+    email: string;
+    tenantSlug?: string | null;
+    tenantId?: string | null;
+    reason: string;
+  },
+) {
+  const { locked } = loginGuard.recordFailure(input.email, input.tenantSlug);
+  await auditLoginFailure(app, request, { ...input, locked });
+  return reply.code(401).send({ error: "Invalid credentials" });
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post(
     "/login",
@@ -89,14 +105,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         where: eq(tenants.slug, tenantSlug),
       });
       if (!tenant || tenant.status !== "active") {
-        const { locked } = loginGuard.recordFailure(email, tenantSlug);
-        await auditLoginFailure(app, request, {
+        return rejectInvalidLogin(app, request, reply, {
           email,
           tenantSlug,
           reason: "invalid_tenant",
-          locked,
         });
-        return reply.code(401).send({ error: "Invalid credentials" });
       }
       tenantId = tenant.id;
     }
@@ -123,28 +136,22 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (!resolved) {
-      const { locked } = loginGuard.recordFailure(email, tenantSlug);
-      await auditLoginFailure(app, request, {
+      return rejectInvalidLogin(app, request, reply, {
         email,
         tenantSlug,
         tenantId,
         reason: "unknown_user",
-        locked,
       });
-      return reply.code(401).send({ error: "Invalid credentials" });
     }
 
     const ok = await bcrypt.compare(password, resolved.passwordHash);
     if (!ok) {
-      const { locked } = loginGuard.recordFailure(email, tenantSlug);
-      await auditLoginFailure(app, request, {
+      return rejectInvalidLogin(app, request, reply, {
         email,
         tenantSlug,
         tenantId: resolved.tenantId,
         reason: "bad_password",
-        locked,
       });
-      return reply.code(401).send({ error: "Invalid credentials" });
     }
 
     const superOnly =

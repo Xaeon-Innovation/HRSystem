@@ -856,7 +856,6 @@ export const ar: Record<string, string> = {
   "No matching employees": "لا موظفون مطابقون",
   "No note": "لا ملاحظة",
   "No notes yet.": "لا ملاحظات بعد.",
-  "No stored password. Set a new one so you can look it up later.": "لا توجد كلمة مرور محفوظة. عيّن واحدة جديدة لتتمكن من الرجوع إليها لاحقاً.",
   "No password is stored for lookup. Set a new one when they need a reset.": "لا تُحفظ كلمة المرور للاطلاع لاحقاً. عيّن واحدة جديدة عند الحاجة لإعادة التعيين.",
   "Passwords cannot be viewed after they are set. Generate or enter a new password to reset sign-in.": "لا يمكن عرض كلمات المرور بعد تعيينها. أنشئ أو أدخل كلمة مرور جديدة لإعادة تعيين الدخول.",
   "Copy it now — it won’t be shown again.": "انسخها الآن — لن تظهر مرة أخرى.",
