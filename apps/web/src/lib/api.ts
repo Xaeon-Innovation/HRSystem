@@ -240,9 +240,13 @@ export async function api<T>(
 
 export { peekApiCache, clearApiCache };
 
-export function wsUrl(token: string) {
-  const base = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4000/ws";
-  return `${base}?token=${encodeURIComponent(token)}`;
+export function wsUrl() {
+  return process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:4000/ws";
+}
+
+/** Send JWT after connect so it never appears in URLs or proxy access logs. */
+export function wsSendAuth(ws: WebSocket, token: string) {
+  ws.send(JSON.stringify({ type: "auth", token }));
 }
 
 export { API_URL };

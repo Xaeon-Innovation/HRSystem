@@ -29,20 +29,24 @@ export const integrationWebhookRoutes: FastifyPluginAsync = async (app) => {
 
     const rawBody = typeof request.body === "string" ? request.body : "{}";
 
-    if (connection.webhookSecretEncrypted) {
-      const { secret } = decryptJson<{ secret: string }>(
-        connection.webhookSecretEncrypted,
-      );
-      const headerName = (
-        connection.connectorConfig.hmacHeader ?? "x-signature"
-      ).toLowerCase();
-      const provided =
-        (request.headers[headerName] as string | undefined) ??
-        (request.headers["x-hub-signature-256"] as string | undefined) ??
-        "";
-      if (!verifyWebhookHmac(secret, rawBody, provided)) {
-        return reply.code(401).send({ error: "Invalid HMAC" });
-      }
+    if (!connection.webhookSecretEncrypted) {
+      return reply
+        .code(401)
+        .send({ error: "Webhook secret required for this connection" });
+    }
+
+    const { secret } = decryptJson<{ secret: string }>(
+      connection.webhookSecretEncrypted,
+    );
+    const headerName = (
+      connection.connectorConfig.hmacHeader ?? "x-signature"
+    ).toLowerCase();
+    const provided =
+      (request.headers[headerName] as string | undefined) ??
+      (request.headers["x-hub-signature-256"] as string | undefined) ??
+      "";
+    if (!verifyWebhookHmac(secret, rawBody, provided)) {
+      return reply.code(401).send({ error: "Invalid HMAC" });
     }
 
     let parsedBody: unknown = {};

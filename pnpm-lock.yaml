@@ -47,6 +47,9 @@ importers:
       drizzle-orm:
         specifier: ^0.38.3
         version: 0.38.4(@types/react@19.2.18)(postgres@3.4.9)(react@19.2.8)
+      fast-jwt:
+        specifier: ^6.3.3
+        version: 6.3.3
       fastify:
         specifier: ^5.2.0
         version: 5.11.2
@@ -2065,6 +2068,10 @@ packages:
 
   fast-jwt@5.0.6:
     resolution: {integrity: sha512-LPE7OCGUl11q3ZgW681cEU2d0d2JZ37hhJAmetCgNyW8waVaJVZXhyFF6U2so1Iim58Yc7pfxJe2P7MNetQH2g==}
+    engines: {node: '>=20'}
+
+  fast-jwt@6.3.3:
+    resolution: {integrity: sha512-pQDXx7IHeZT4jSmpE9o80RrBqfrG4fPrl8anazSM5vErIdK1iCc13z/EWX+H0j7liWSRnwTpHswIKMeLYGAckw==}
     engines: {node: '>=20'}
 
   fast-querystring@1.1.2:
@@ -4308,6 +4315,14 @@ snapshots:
       asn1.js: 5.4.1
       ecdsa-sig-formatter: 1.0.11
       mnemonist: 0.40.4
+
+  fast-jwt@6.3.3:
+    dependencies:
+      '@lukeed/ms': 2.0.2
+      asn1.js: 5.4.1
+      ecdsa-sig-formatter: 1.0.11
+      mnemonist: 0.40.4
+      safe-regex2: 5.1.1
 
   fast-querystring@1.1.2:
     dependencies:

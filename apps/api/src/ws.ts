@@ -9,39 +9,33 @@ import { locationPingSchema, type JwtPayload } from "@hr/shared";
 import { tenantHasFeature } from "./lib/features.js";
 import { addClient, broadcastToTenant, removeClient } from "./ws-hub.js";
 
+const AUTH_TIMEOUT_MS = 5_000;
+
 export async function registerWs(app: FastifyInstance) {
-  app.get("/ws", { websocket: true }, (socket, request) => {
-    const url = new URL(request.url, "http://localhost");
-    const token = url.searchParams.get("token");
-    if (!token) {
-      socket.close();
-      return;
-    }
+  app.get("/ws", { websocket: true }, (socket, _request) => {
+    let user: JwtPayload | null = null;
+    let authed = false;
 
-    let user: JwtPayload;
-    try {
-      user = app.jwt.verify<JwtPayload>(token);
-    } catch {
-      socket.close();
-      return;
-    }
+    const authTimer = setTimeout(() => {
+      if (!authed) socket.close();
+    }, AUTH_TIMEOUT_MS);
 
-    const tenantId = user.tenantId;
-    if (!tenantId && user.role !== "super_admin") {
-      socket.close();
-      return;
-    }
+    const attachAdminMapRoom = () => {
+      if (user?.role === "tenant_admin" && user.tenantId) {
+        addClient(`tenant:${user.tenantId}:map`, socket);
+        socket.on("close", () =>
+          removeClient(`tenant:${user!.tenantId}:map`, socket),
+        );
+      }
+    };
 
-    if (user.role === "tenant_admin" && tenantId) {
-      addClient(`tenant:${tenantId}:map`, socket);
-      socket.on("close", () => removeClient(`tenant:${tenantId}:map`, socket));
-    }
-
-    socket.on("message", async (raw: Buffer) => {
+    const handleAuthedMessage = async (raw: Buffer) => {
+      if (!user) return;
       try {
         const msg = JSON.parse(raw.toString()) as {
           type: string;
           payload?: unknown;
+          token?: string;
         };
         if (msg.type === "ping") {
           socket.send(JSON.stringify({ type: "pong" }));
@@ -49,8 +43,6 @@ export async function registerWs(app: FastifyInstance) {
         }
         if (msg.type === "location.ping") {
           if (!user.employeeId || !user.tenantId) return;
-          // Allow pings for live map OR compliance (geofenced + clocked in).
-          // liveMap gate only applies to admin map subscribe below.
           const parsed = locationPingSchema.safeParse(msg.payload);
           if (!parsed.success) {
             socket.send(
@@ -167,6 +159,36 @@ export async function registerWs(app: FastifyInstance) {
         app.log.error(err);
         socket.send(JSON.stringify({ type: "error", error: "bad_message" }));
       }
+    };
+
+    socket.on("message", async (raw: Buffer) => {
+      if (!authed) {
+        try {
+          const msg = JSON.parse(raw.toString()) as {
+            type?: string;
+            token?: string;
+          };
+          if (msg.type !== "auth" || typeof msg.token !== "string") {
+            socket.close();
+            return;
+          }
+          user = app.jwt.verify<JwtPayload>(msg.token);
+          if (!user.tenantId && user.role !== "super_admin") {
+            socket.close();
+            return;
+          }
+          authed = true;
+          clearTimeout(authTimer);
+          attachAdminMapRoom();
+          socket.send(JSON.stringify({ type: "auth.ok" }));
+        } catch {
+          socket.close();
+        }
+        return;
+      }
+      await handleAuthedMessage(raw);
     });
+
+    socket.on("close", () => clearTimeout(authTimer));
   });
 }

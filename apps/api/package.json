@@ -21,6 +21,7 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",
+    "fast-jwt": "^6.3.3",
     "fastify": "^5.2.0",
     "zod": "^3.24.1"
   },

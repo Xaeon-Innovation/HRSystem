@@ -4,7 +4,6 @@ import {
   employees,
   leads,
   plans,
-  sealSecret,
   tenantSubscriptions,
   tenants,
   users,
@@ -81,7 +80,6 @@ export async function provisionTenant(
       name: data.adminName,
       role: "tenant_admin",
       passwordHash: await bcrypt.hash(data.adminPassword, 10),
-      loginPasswordCipher: sealSecret(data.adminPassword),
     })
     .returning();
 

@@ -16,21 +16,72 @@ import {
   toAuthUser,
   toJwtPayload,
   moduleRolesOf,
+  verifyRefreshToken,
 } from "../lib/auth-tokens.js";
 import { getTenantSubscription, subscriptionAllowsAccess } from "../lib/billing.js";
 import {
   getTenantPlanFeatures,
   resolvePingIntervalSec,
 } from "../lib/features.js";
+import { loginGuard } from "../lib/login-guard.js";
 import { authenticate } from "../types.js";
 
+async function auditLoginFailure(
+  app: Parameters<typeof writeAudit>[0],
+  request: Parameters<typeof writeAudit>[1]["request"],
+  input: {
+    email: string;
+    tenantSlug?: string | null;
+    tenantId?: string | null;
+    reason: string;
+    locked?: boolean;
+  },
+) {
+  await writeAudit(app, {
+    action: "auth.login.failure",
+    tenantId: input.tenantId ?? null,
+    resourceType: "user",
+    metadata: {
+      email: input.email,
+      tenantSlug: input.tenantSlug ?? null,
+      reason: input.reason,
+      locked: input.locked ?? false,
+    },
+    request,
+  });
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
-  app.post("/login", async (request, reply) => {
+  app.post(
+    "/login",
+    {
+      config: {
+        rateLimit: { max: 20, timeWindow: "1 minute" },
+      },
+    },
+    async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
     const { email, password, tenantSlug } = parsed.data;
+
+    if (loginGuard.isLocked(email, tenantSlug)) {
+      const retryAfterSec = Math.ceil(
+        loginGuard.remainingLockMs(email, tenantSlug) / 1000,
+      );
+      await auditLoginFailure(app, request, {
+        email,
+        tenantSlug,
+        reason: "locked",
+        locked: true,
+      });
+      reply.header("retry-after", String(retryAfterSec));
+      return reply.code(429).send({
+        error: "Too many failed sign-in attempts. Try again later.",
+        retryAfterSec,
+      });
+    }
 
     let tenantId: string | null = null;
     if (tenantSlug) {
@@ -38,6 +89,13 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         where: eq(tenants.slug, tenantSlug),
       });
       if (!tenant || tenant.status !== "active") {
+        const { locked } = loginGuard.recordFailure(email, tenantSlug);
+        await auditLoginFailure(app, request, {
+          email,
+          tenantSlug,
+          reason: "invalid_tenant",
+          locked,
+        });
         return reply.code(401).send({ error: "Invalid credentials" });
       }
       tenantId = tenant.id;
@@ -65,11 +123,29 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (!resolved) {
+      const { locked } = loginGuard.recordFailure(email, tenantSlug);
+      await auditLoginFailure(app, request, {
+        email,
+        tenantSlug,
+        tenantId,
+        reason: "unknown_user",
+        locked,
+      });
       return reply.code(401).send({ error: "Invalid credentials" });
     }
 
     const ok = await bcrypt.compare(password, resolved.passwordHash);
-    if (!ok) return reply.code(401).send({ error: "Invalid credentials" });
+    if (!ok) {
+      const { locked } = loginGuard.recordFailure(email, tenantSlug);
+      await auditLoginFailure(app, request, {
+        email,
+        tenantSlug,
+        tenantId: resolved.tenantId,
+        reason: "bad_password",
+        locked,
+      });
+      return reply.code(401).send({ error: "Invalid credentials" });
+    }
 
     const superOnly =
       process.env.PLATFORM_LOGIN_SUPER_ADMIN_ONLY === "1" ||
@@ -104,6 +180,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       employeeId = emp?.id ?? null;
     }
 
+    loginGuard.clear(email, tenantSlug);
     const payload = toJwtPayload(resolved, employeeId);
     const tokens = signTokens(app, payload);
 
@@ -131,9 +208,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
     try {
-      const payload = app.jwt.verify<JwtPayload & { typ?: string }>(
-        parsed.data.refreshToken,
-      );
+      const payload = verifyRefreshToken(app, parsed.data.refreshToken);
       const user = await app.db.query.users.findFirst({
         where: eq(users.id, payload.sub),
       });

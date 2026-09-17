@@ -129,7 +129,8 @@ Attendance rate = clocked-in / active employees (no roster). Labor cost uses ten
 | POST | `/v1/employees/import` |
 | GET | `/v1/employees/:id` |
 | PATCH | `/v1/employees/:id` |
-| GET | `/v1/employees/:id/credentials` | tenant_admin. `{ email, password }`, password is null if none is stored yet |
+| GET | `/v1/employees/:id/credentials` | tenant_admin. `{ email }` only — passwords are never stored for lookup |
+| POST | `/v1/employees/:id/password` | tenant_admin. Set a new password; response echoes `{ email, password }` once |
 | POST | `/v1/employees/:id/password` | tenant_admin. `{ password }` (min 8). Returns `{ email, password }` |
 
 ## Attendance

@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from "fastify";
 import bcrypt from "bcryptjs";
 import { and, eq, ilike, or } from "drizzle-orm";
-import { branches, employees, openSecret, sealSecret, sites, users } from "@hr/db";
+import { branches, employees, sites, users } from "@hr/db";
 import {
   createEmployeeSchema,
   importEmployeesBodySchema,
@@ -44,7 +44,6 @@ function emptyToNull(value: string | null | undefined): string | null | undefine
 async function hashedLoginPassword(plain: string) {
   return {
     passwordHash: await bcrypt.hash(plain, 10),
-    loginPasswordCipher: sealSecret(plain),
   };
 }
 
@@ -193,7 +192,6 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
             ? []
             : normalizeSystemModuleRoles(data.systemModuleRoles ?? []),
         passwordHash: hashed.passwordHash,
-        loginPasswordCipher: hashed.loginPasswordCipher,
       })
       .returning();
 
@@ -728,7 +726,6 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
       if (!user) return reply.code(404).send({ error: "Not found" });
       return {
         email: user.email,
-        password: openSecret(user.loginPasswordCipher),
       };
     },
   );
@@ -758,7 +755,6 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         .update(users)
         .set({
           passwordHash: hashed.passwordHash,
-          loginPasswordCipher: hashed.loginPasswordCipher,
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { api, getTokens, wsUrl } from "@/lib/api";
+import { api, getTokens, wsUrl, wsSendAuth } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -239,11 +239,9 @@ export default function MapPage() {
     }
 
     try {
-      ws = new WebSocket(wsUrl(access));
+      ws = new WebSocket(wsUrl());
       ws.onopen = () => {
-        setMode("ws");
-        ws?.send(JSON.stringify({ type: "subscribe.map" }));
-        if (fallbackTimer) clearTimeout(fallbackTimer);
+        wsSendAuth(ws!, access);
       };
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data as string) as {
@@ -253,6 +251,12 @@ export default function MapPage() {
             isClockedIn?: boolean;
           };
         };
+        if (msg.type === "auth.ok") {
+          setMode("ws");
+          ws?.send(JSON.stringify({ type: "subscribe.map" }));
+          if (fallbackTimer) clearTimeout(fallbackTimer);
+          return;
+        }
         if (msg.type === "location.update" && msg.payload) {
           const clockedIn = msg.payload.isClockedIn !== false;
           setLocations((prev) => {

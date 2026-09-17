@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
+import rateLimit from "@fastify/rate-limit";
 import { createDb, tenants } from "@hr/db";
 import { authRoutes } from "./routes/auth.js";
 import { employeeRoutes } from "./routes/employees.js";
@@ -38,6 +39,7 @@ describe("employee login credentials", () => {
 
       app = Fastify({ logger: false });
       await app.register(cors, { origin: true });
+      await app.register(rateLimit, { max: 1000, timeWindow: "1 minute" });
       await app.register(jwt, { secret: JWT_SECRET });
       app.decorate("db", created.db);
       app.decorate("env", {
@@ -85,7 +87,7 @@ describe("employee login credentials", () => {
     await client?.end();
   });
 
-  it("lets a tenant admin view and change an employee sign-in password", async () => {
+  it("lets a tenant admin set an employee password but never view a stored one", async () => {
     if (skip || !app) return;
     createdEmail = `creds-${Date.now()}@cms.local`;
     const create = await app.inject({
@@ -125,10 +127,8 @@ describe("employee login credentials", () => {
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(creds.statusCode).toBe(200);
-    expect(creds.json()).toEqual({
-      email: createdEmail,
-      password: created.temporaryPassword,
-    });
+    expect(creds.json()).toEqual({ email: createdEmail });
+    expect(creds.json()).not.toHaveProperty("password");
 
     const list = await app.inject({
       method: "GET",
@@ -156,6 +156,14 @@ describe("employee login credentials", () => {
       email: createdEmail,
       password: nextPassword,
     });
+
+    const afterSet = await app.inject({
+      method: "GET",
+      url: `/v1/employees/${createdId}/credentials`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(afterSet.statusCode).toBe(200);
+    expect(afterSet.json()).toEqual({ email: createdEmail });
 
     const employeeChange = await app.inject({
       method: "POST",

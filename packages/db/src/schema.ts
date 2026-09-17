@@ -447,8 +447,6 @@ export const users = pgTable(
     }),
     email: text("email").notNull(),
     passwordHash: text("password_hash").notNull(),
-    /** Encrypted copy of the sign-in password for tenant-admin lookup. */
-    loginPasswordCipher: text("login_password_cipher"),
     name: text("name").notNull(),
     role: roleEnum("role").notNull(),
     /** Module control grants (kpis, leaves, hiring, compensation). Empty for regular employees. */

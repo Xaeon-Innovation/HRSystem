@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { getTokens, wsUrl } from "@/lib/api";
+import { getTokens, wsUrl, wsSendAuth } from "@/lib/api";
 import { api } from "@/lib/api";
 import { DEFAULT_PING_INTERVAL_SEC } from "@hr/shared";
 import {
@@ -61,9 +61,10 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
     const { access } = getTokens();
     if (!access) return;
 
-    const ws = new WebSocket(wsUrl(access));
+    const ws = new WebSocket(wsUrl());
     wsRef.current = ws;
     const buffer: unknown[] = [];
+    let ready = false;
     const minIntervalMs = Math.max(intervalSec, 15) * 1000;
 
     const flush = () => {
@@ -72,7 +73,28 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
       }
     };
 
-    ws.onopen = () => flush();
+    ws.onopen = () => {
+      wsSendAuth(ws, access);
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(String(ev.data)) as {
+          type?: string;
+          autoClockedOut?: boolean;
+        };
+        if (msg.type === "auth.ok") {
+          ready = true;
+          flush();
+          return;
+        }
+        if (msg.type === "location.ack" && msg.autoClockedOut) {
+          onStatusChangeRef.current?.(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
 
     const sendPing = (lat: number, lng: number, force = false) => {
       const now = Date.now();
@@ -87,7 +109,7 @@ export function useLocationStream(enabled: boolean, options: Options = {}) {
           clientPingId: crypto.randomUUID(),
         },
       };
-      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
+      if (ready && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
       else buffer.push(msg);
     };
 

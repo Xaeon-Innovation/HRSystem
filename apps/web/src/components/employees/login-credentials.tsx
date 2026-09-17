@@ -11,7 +11,7 @@ import { t } from "@/i18n";
 
 type Credentials = {
   email: string;
-  password: string | null;
+  password?: string | null;
 };
 
 function generateLoginPassword() {
@@ -34,10 +34,13 @@ export function LoginCredentialsPanel({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  /** Shown once after admin sets a password; never loaded from the server. */
+  const [justSetPassword, setJustSetPassword] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setCreds(null);
+    setJustSetPassword(null);
     setLoadError(null);
     setFormError(null);
     setNextPassword("");
@@ -45,7 +48,7 @@ export function LoginCredentialsPanel({
     setShowPassword(false);
     void api<Credentials>(`/v1/employees/${employeeId}/credentials`)
       .then((res) => {
-        if (!cancelled) setCreds(res);
+        if (!cancelled) setCreds({ email: res.email });
       })
       .catch((err) => {
         if (!cancelled) {
@@ -90,7 +93,8 @@ export function LoginCredentialsPanel({
         method: "POST",
         body: JSON.stringify({ password: nextPassword }),
       });
-      setCreds(res);
+      setCreds({ email: res.email });
+      setJustSetPassword(res.password ?? nextPassword);
       setShowPassword(true);
       setNextPassword("");
       setConfirmPassword("");
@@ -111,7 +115,9 @@ export function LoginCredentialsPanel({
     >
       <p className="text-sm font-medium">{t("Sign-in credentials")}</p>
       <p className="mt-1 text-xs text-muted-foreground">
-        {t("This is the email and password they use to sign in.")}</p>
+        {t(
+          "Passwords cannot be viewed after they are set. Generate or enter a new password to reset sign-in.",
+        )}</p>
 
       {loadError ? (
         <p className="mt-3 text-sm text-destructive">{loadError}</p>
@@ -139,13 +145,13 @@ export function LoginCredentialsPanel({
           </div>
           <div className="space-y-1">
             <Label>{t("Login password")}</Label>
-            {creds.password ? (
+            {justSetPassword ? (
               <>
                 <div className="flex gap-2">
                   <Input
                     readOnly
                     type={showPassword ? "text" : "password"}
-                    value={creds.password}
+                    value={justSetPassword}
                     className="min-w-0"
                     autoComplete="off"
                   />
@@ -169,7 +175,7 @@ export function LoginCredentialsPanel({
                     variant="outline"
                     className="h-10 w-10 shrink-0 px-0"
                     aria-label={t("Copy password")}
-                    onClick={() => void copy("password", creds.password ?? "")}
+                    onClick={() => void copy("password", justSetPassword)}
                   >
                     <Copy className="h-4 w-4" />
                   </Button>
@@ -177,11 +183,13 @@ export function LoginCredentialsPanel({
                 {copied === "password" ? (
                   <p className="text-xs text-emerald-700">{t("Copied")}</p>
                 ) : null}
+                <p className="text-xs text-muted-foreground">
+                  {t("Copy it now — it won’t be shown again.")}</p>
               </>
             ) : (
               <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
                 {t(
-                  "No stored password. Set a new one so you can look it up later.",
+                  "No password is stored for lookup. Set a new one when they need a reset.",
                 )}</p>
             )}
           </div>

@@ -1,3 +1,4 @@
+import { createSigner, createVerifier } from "fast-jwt";
 import {
   normalizeSystemModuleRoles,
   type JwtPayload,
@@ -8,6 +9,8 @@ import type { App } from "../types.js";
 import { users } from "@hr/db";
 
 type UserRow = typeof users.$inferSelect;
+
+export type RefreshJwtPayload = JwtPayload & { typ: "refresh" };
 
 export function moduleRolesOf(
   user: Pick<UserRow, "role" | "systemModuleRoles">,
@@ -59,6 +62,22 @@ export function toJwtPayload(
 
 export function signTokens(app: App, payload: JwtPayload) {
   const accessToken = app.jwt.sign(payload, { expiresIn: "15m" });
-  const refreshToken = app.jwt.sign(payload, { expiresIn: "7d" });
+  const signRefresh = createSigner({
+    key: app.env.jwtRefreshSecret,
+    expiresIn: 60 * 60 * 24 * 7,
+  });
+  const refreshToken = signRefresh({ ...payload, typ: "refresh" });
   return { accessToken, refreshToken };
+}
+
+export function verifyRefreshToken(
+  app: App,
+  refreshToken: string,
+): RefreshJwtPayload {
+  const verify = createVerifier({ key: app.env.jwtRefreshSecret });
+  const payload = verify(refreshToken) as RefreshJwtPayload;
+  if (payload.typ !== "refresh") {
+    throw new Error("Invalid refresh token type");
+  }
+  return payload;
 }
