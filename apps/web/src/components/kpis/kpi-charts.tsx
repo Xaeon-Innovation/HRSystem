@@ -30,11 +30,11 @@ export function KpiCharts({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("Target vs result")}</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-ink-muted">
             {t("Grey bar is the target. Blue bar is the result. Click a row to open it.")}</p>
         </CardHeader>
         <CardContent>
-          <div className="mb-2 flex gap-4 text-[11px] text-muted-foreground">
+          <div className="mb-2 flex gap-4 text-[11px] text-ink-muted">
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-sm bg-slate-400" /> {t("Target")}</span>
             <span className="inline-flex items-center gap-1">
@@ -50,7 +50,7 @@ export function KpiCharts({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("Target vs actual")}</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-ink-muted">
             {t("Click a bar to open the KPI definition and evidence")}</p>
         </CardHeader>
         <CardContent>
@@ -60,7 +60,7 @@ export function KpiCharts({
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">{t("Performance trend")}</CardTitle>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-ink-muted">
             {t("Average achievement across review snapshots")}</p>
         </CardHeader>
         <CardContent>
@@ -294,7 +294,7 @@ function PreviousCompare({
   const height = items.length * rowH + 8;
   return (
     <div>
-      <div className="mb-2 flex gap-4 text-[11px] text-muted-foreground">
+      <div className="mb-2 flex gap-4 text-[11px] text-ink-muted">
         <span className="inline-flex items-center gap-1">
           <span className="h-2 w-2 rounded-sm bg-slate-400" /> {t("Previous")}</span>
         <span className="inline-flex items-center gap-1">
@@ -340,7 +340,7 @@ function PreviousCompare({
 
 function EmptyChart() {
   return (
-    <p className="py-10 text-center text-sm text-muted-foreground">
+    <p className="py-10 text-center text-sm text-ink-muted">
       {t("Not enough values to chart this period.")}</p>
   );
 }

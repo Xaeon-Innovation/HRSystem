@@ -29,6 +29,8 @@ import { reconcileAll } from "./analytics/reconcile.js";
 import { runLeaveJobsForAllTenants } from "./services/leave.js";
 import { runTaskJobsForAllTenants } from "./services/tasks.js";
 import { runShiftComplianceJobs } from "./services/shifts.js";
+import { buildAndUpsertReportsForAllTenants } from "./services/performance-reports.js";
+import { runDocumentExpiryForAllTenants } from "./services/document-expiry.js";
 
 export function startJobs(app: FastifyInstance) {
   const hourMs = 60 * 60 * 1000;
@@ -229,6 +231,18 @@ export function startJobs(app: FastifyInstance) {
       await detectStaleSyncs(app.db);
       await reconcileAll(app.db);
       await retention();
+      try {
+        const reports = await buildAndUpsertReportsForAllTenants(app);
+        app.log.info(reports, "performance reports generated");
+      } catch (err) {
+        app.log.error(err, "performance report job failed");
+      }
+      try {
+        const n = await runDocumentExpiryForAllTenants(app);
+        if (n) app.log.info({ notified: n }, "document expiry alerts sent");
+      } catch (err) {
+        app.log.error(err, "document expiry job failed");
+      }
     } catch (err) {
       app.log.error(err, "nightly analytics failed");
     }

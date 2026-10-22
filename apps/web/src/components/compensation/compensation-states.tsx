@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { AlertCircle, RefreshCw, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { EmptyState, Notice } from "@/components/elevora";
 import { t } from "@/i18n";
 
 export function CompLoadingSkeleton() {
@@ -17,20 +18,19 @@ export function CompErrorState({
   onRetry: () => void;
 }) {
   return (
-    <Card className="border-destructive/30 bg-rose-50/60 dark:bg-rose-950/40">
-      <CardContent className="flex flex-col items-start gap-3 py-8 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
-          <div>
-            <p className="font-medium">{t("Couldn’t load compensation")}</p>
-            <p className="text-sm text-muted-foreground">{message}</p>
-          </div>
+    <Notice tone="warn" className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex gap-3">
+        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-warn" />
+        <div>
+          <p className="font-medium text-ink">{t("Couldn’t load compensation")}</p>
+          <p className="text-sm text-ink-muted">{message}</p>
         </div>
-        <Button onClick={onRetry} variant="outline" size="sm">
-          <RefreshCw className="h-4 w-4" />
-          {t("Try again")}</Button>
-      </CardContent>
-    </Card>
+      </div>
+      <Button onClick={onRetry} variant="outline" size="sm" className="w-full sm:w-auto">
+        <RefreshCw className="h-4 w-4" />
+        {t("Try again")}
+      </Button>
+    </Notice>
   );
 }
 
@@ -44,27 +44,27 @@ export function CompEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col items-center py-12 text-center">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-          <Wallet className="h-6 w-6" />
-        </div>
-        <p className="text-base font-semibold">{title}</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
-        {action ? <div className="mt-5">{action}</div> : null}
-      </CardContent>
+    <Card className="overflow-hidden border-line bg-surface p-0">
+      <EmptyState
+        icon={<Wallet className="h-5 w-5" />}
+        title={title}
+        subtitle={description}
+        action={action}
+      />
     </Card>
   );
 }
 
 export function CompAccessDenied() {
   return (
-    <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/40">
-      <CardContent className="py-12 text-center">
-        <p className="text-base font-semibold">{t("Compensation is restricted")}</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          {t("Salary and payroll inputs are only available to HR admins and authorized managers. Use Profile or Alerts for your own updates.")}</p>
-      </CardContent>
+    <Card className="overflow-hidden border-line bg-surface p-0">
+      <EmptyState
+        icon={<Wallet className="h-5 w-5" />}
+        title={t("Compensation is restricted")}
+        subtitle={t(
+          "Salary and payroll inputs are only available to HR admins and authorized managers. Use Profile or Alerts for your own updates.",
+        )}
+      />
     </Card>
   );
 }

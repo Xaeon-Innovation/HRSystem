@@ -121,8 +121,8 @@ export function KpiPersonScorecard({
             </SheetHeader>
             <SheetBody className="space-y-6">
               {!isAdmin && pendingAck.length > 0 && onAcknowledge ? (
-                <div className="rounded-lg border border-primary/20 bg-accent/40 p-3">
-                  <p className="text-sm font-medium">
+                <div className="rounded-sm border border-accent/30 bg-accent-tint p-3">
+                  <p className="text-sm font-medium text-ink">
                     {pendingAck.length} {t("new result")}{pendingAck.length === 1 ? "" : "s"} {t("to acknowledge")}</p>
                   <Button
                     className="mt-2 w-full sm:w-auto"
@@ -147,9 +147,10 @@ export function KpiPersonScorecard({
               ) : null}
 
               <section>
-                <h3 className="text-sm font-semibold">{t("KPIs")}</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {t("Local targets and results for this period")}</p>
+                <h3 className="text-sm font-semibold text-ink">{t("Local KPIs")}</h3>
+                <p className="mt-0.5 text-xs text-ink-muted">
+                  {t("Local targets and results for this period — separate from CMS Goals")}
+                </p>
                 <ul className="mt-3 space-y-2">
                   {person.metrics.map((m) => (
                     <MetricRow
@@ -173,7 +174,7 @@ export function KpiPersonScorecard({
 
               {benchmarks ? (
                 <section>
-                  <h3 className="text-sm font-semibold">{t("How you compare")}</h3>
+                  <h3 className="text-sm font-semibold text-ink">{t("How you compare")}</h3>
                   <div className="mt-2">
                     <KpiBenchmarks
                       overall={person.overall}
@@ -184,25 +185,27 @@ export function KpiPersonScorecard({
               ) : null}
 
               {cms?.linked ? (
-                <section>
-                  <h3 className="text-sm font-semibold">{t("CMS Goals")}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {t("From CMS Goals, separate from local KPI overall")}{cms.total?.completionRate != null
+                <section className="rounded-sm border border-line bg-surface-2 p-3">
+                  <h3 className="text-sm font-semibold text-ink">{t("CMS Goals")}</h3>
+                  <p className="mt-0.5 text-xs text-ink-muted">
+                    {t("From CMS Goals, separate from local KPI overall")}
+                    {cms.total?.completionRate != null
                       ? ` · CMS completion ${formatNumber(cms.total.completionRate, 0)}%`
                       : ""}
                   </p>
                   {cms.goals.length === 0 ? (
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      {t("No CMS goals linked for this person yet.")}</p>
+                    <p className="mt-2 text-sm text-ink-muted">
+                      {t("No CMS goals linked for this person yet.")}
+                    </p>
                   ) : (
                     <ul className="mt-3 space-y-2">
                       {cms.goals.slice(0, 12).map((g) => (
                         <li
                           key={g.id}
-                          className="rounded-lg border px-3 py-2 text-sm"
+                          className="rounded-sm border border-line bg-surface px-3 py-2 text-sm"
                         >
-                          <p className="font-medium">{g.title}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="font-medium text-ink">{g.title}</p>
+                          <p className="text-xs text-ink-muted">
                             {[g.category, g.status].filter(Boolean).join(" · ") ||
                               t("CMS Goal")}
                             {g.valueAmount != null
@@ -236,29 +239,28 @@ function MetricRow({
 }) {
   const [busy, setBusy] = useState(false);
   return (
-    <li className="rounded-lg border">
+    <li className="rounded-sm border border-line">
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full min-w-0 items-start justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/40"
+        className="flex w-full min-w-0 items-start justify-between gap-3 px-3 py-2.5 text-left hover:bg-surface-2"
       >
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{metric.title}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {t("Target")}{formatKpiValue(metric.targetValue, metric.unit)} {t("· Result")}{" "}
+          <p className="truncate text-sm font-medium text-ink">{metric.title}</p>
+          <p className="mt-0.5 text-xs text-ink-muted">
+            {t("Target")} {formatKpiValue(metric.targetValue, metric.unit)} {t("· Result")}{" "}
             {formatKpiValue(metric.actualValue, metric.unit)} ·{" "}
-            {formatPercent(metric.achievementPercent, 0)} {t("of target")}</p>
+            {formatPercent(metric.achievementPercent, 0)} {t("of target")}
+          </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">
           <KpiStatusBadge status={metric.status} />
           <span
             className={cn(
               "text-[10px]",
-              metric.acknowledgedAt
-                ? "text-muted-foreground"
-                : metric.incomplete
-                  ? "text-muted-foreground"
-                  : "text-amber-700",
+              metric.acknowledgedAt || metric.incomplete
+                ? "text-ink-muted"
+                : "text-warn",
             )}
           >
             {metric.incomplete

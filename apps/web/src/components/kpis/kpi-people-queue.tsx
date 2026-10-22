@@ -1,11 +1,14 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { Users } from "lucide-react";
 import { UserAvatar } from "@/components/user-avatar";
+import { Card } from "@/components/ui/card";
+import { Chip, EmptyState, HatchBar } from "@/components/elevora";
 import { cn } from "@/lib/utils";
 import { formatNumber } from "@/lib/kpis/format";
 import type { PersonPulse } from "@/lib/kpis/people";
 import { t } from "@/i18n";
+import { KpiOnTrackChip } from "@/components/kpis/kpi-status-badge";
 
 const STATUS_COPY: Record<PersonPulse["status"], string> = {
   need_look: "Needs a look",
@@ -24,62 +27,82 @@ export function KpiPeopleQueue({
 }) {
   if (people.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed px-4 py-8 text-center text-sm text-muted-foreground">
-        {t("No one matches this pulse filter.")}</p>
+      <Card className="overflow-hidden border-line bg-surface p-0">
+        <EmptyState
+          icon={<Users className="h-5 w-5" />}
+          title={t("No one matches this pulse filter.")}
+        />
+      </Card>
     );
   }
 
   return (
-    <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-      {people.map((person) => (
-        <li key={person.employeeId}>
-          <button
-            type="button"
-            onClick={() => onSelect(person.employeeId)}
-            className={cn(
-              "flex w-full min-w-0 items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted/50 sm:px-4",
-              selectedId === person.employeeId && "bg-primary/5",
-            )}
-          >
-            <UserAvatar
-              name={person.name}
-              avatarUrl={person.avatarUrl}
-              className="h-10 w-10 shrink-0"
-            />
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <p className="truncate text-sm font-medium">{person.name}</p>
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    person.status === "need_look" &&
-                      "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200",
-                    person.status === "incomplete" &&
-                      "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200",
-                    person.status === "on_track" &&
-                      "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200",
-                  )}
-                >
-                  {t(STATUS_COPY[person.status])}
-                </span>
+    <ul className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(280px,1fr))]">
+      {people.map((person) => {
+        const score = person.overall;
+        const hatchTone =
+          score == null ? "idle" : score < 75 ? "warn" : "accent";
+        return (
+          <li key={person.employeeId} className="min-w-0">
+            <button
+              type="button"
+              onClick={() => onSelect(person.employeeId)}
+              className={cn(
+                "flex h-full w-full min-w-0 flex-col gap-3 rounded-sm border border-line bg-surface p-4 text-left transition-colors hover:border-line-strong",
+                selectedId === person.employeeId && "border-accent/40 bg-accent-tint",
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <UserAvatar
+                  name={person.name}
+                  avatarUrl={person.avatarUrl}
+                  className="h-10 w-10 shrink-0"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-ink">
+                    {person.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-ink-muted">
+                    {person.jobTitle || "-"}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-lg font-semibold tabular-nums text-ink">
+                    {score == null ? "-" : formatNumber(score, 0)}
+                  </p>
+                  <p className="text-[10px] text-ink-muted">{t("overall")}</p>
+                </div>
               </div>
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                {person.jobTitle || "-"} · {person.metricCount} {t("metric")}{person.metricCount === 1 ? "" : "s"}
-                {person.waitingAckCount > 0
-                  ? ` · ${person.waitingAckCount} waiting ack`
-                  : ""}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-lg font-semibold tabular-nums">
-                {person.overall == null ? "-" : formatNumber(person.overall, 0)}
-              </p>
-              <p className="text-[10px] text-muted-foreground">{t("overall")}</p>
-            </div>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-          </button>
-        </li>
-      ))}
+
+              <HatchBar
+                percent={score == null ? 0 : Math.min(100, Math.max(0, score))}
+                tone={hatchTone}
+                size="xs"
+              />
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-ink-muted">
+                  {person.metricCount} {t("local KPIs")}
+                  {person.waitingAckCount > 0
+                    ? ` · ${person.waitingAckCount} ${t("waiting ack")}`
+                    : ""}
+                </p>
+                {person.status === "on_track" ? (
+                  <KpiOnTrackChip onTrack />
+                ) : (
+                  <Chip
+                    tone={
+                      person.status === "need_look" ? "danger" : "warn"
+                    }
+                  >
+                    {t(STATUS_COPY[person.status])}
+                  </Chip>
+                )}
+              </div>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

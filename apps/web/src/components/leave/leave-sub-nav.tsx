@@ -30,8 +30,8 @@ export function LeaveSubNav({ isAdmin }: { isAdmin: boolean }) {
   const items = BASE.filter((i) => !i.adminOnly || isAdmin);
 
   return (
-    <nav className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1">
-      <div className="inline-flex min-w-min gap-1 rounded-lg bg-secondary p-1">
+    <nav className="-mx-1 overflow-x-auto px-1 pb-1" aria-label={t("Leave sections")}>
+      <div className="inline-flex min-w-min rounded-sm border border-line bg-surface p-0.5">
         {items.map((item) => {
           const active =
             item.section === "requests"
@@ -42,10 +42,10 @@ export function LeaveSubNav({ isAdmin }: { isAdmin: boolean }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "shrink-0 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                "shrink-0 rounded-[8px] px-3 py-2 text-xs font-medium transition-colors sm:py-1.5 sm:text-sm",
                 active
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-surface-3 text-ink shadow-sm"
+                  : "text-ink-muted hover:text-ink",
               )}
             >
               {item.label}

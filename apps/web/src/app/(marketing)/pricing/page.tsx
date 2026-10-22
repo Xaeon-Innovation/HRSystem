@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Reveal } from "@/components/marketing/reveal";
 import { useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
 import {
@@ -31,166 +30,103 @@ const FALLBACK_PLANS: PublicPlan[] = [
   {
     code: "field",
     name: "Field",
-    description: "Clock, live map, and field presence for crews",
-    amountCents: 11900,
+    description: "Field ops only",
+    amountCents: 600,
     currency: "USD",
     intervalDays: 30,
     seatLimit: 25,
-    features: {
-      fieldOps: true,
-      peopleOps: false,
-      analytics: false,
-      integrations: false,
-      pingIntervalSec: 60,
-      locationRetentionDays: 30,
-    },
+    features: { fieldOps: true, peopleOps: false, analytics: false, integrations: false },
   },
   {
     code: "people",
     name: "People",
-    description: "Leave, KPIs, hiring, and compensation for HR teams",
-    amountCents: 8900,
+    description: "People ops only",
+    amountCents: 600,
     currency: "USD",
     intervalDays: 30,
     seatLimit: 25,
-    features: {
-      fieldOps: false,
-      peopleOps: true,
-      analytics: false,
-      integrations: false,
-      pingIntervalSec: 60,
-      locationRetentionDays: 30,
-    },
+    features: { fieldOps: false, peopleOps: true, analytics: false, integrations: false },
   },
   {
     code: "ops",
     name: "Ops",
-    description: "Field + people ops with analytics for growing teams",
-    amountCents: 24900,
+    description: "Field + People + Analytics",
+    amountCents: 900,
     currency: "USD",
     intervalDays: 30,
     seatLimit: 50,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: false,
-      pingIntervalSec: 30,
-      locationRetentionDays: 60,
-    },
+    features: { fieldOps: true, peopleOps: true, analytics: true, integrations: false },
   },
   {
     code: "scale",
     name: "Scale",
-    description: "Full platform with integrations and priority support",
-    amountCents: 59900,
+    description: "Everything + Integrations",
+    amountCents: 1400,
     currency: "USD",
     intervalDays: 30,
     seatLimit: 150,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: true,
-      pingIntervalSec: 20,
-      locationRetentionDays: 90,
-    },
+    features: { fieldOps: true, peopleOps: true, analytics: true, integrations: true },
   },
   {
     code: "enterprise",
     name: "Enterprise",
-    description: "Custom seats, SLA, and dedicated support — talk to sales",
+    description: "Custom limits, dedicated success, single sign-on when it ships.",
     amountCents: 0,
     currency: "USD",
     intervalDays: 30,
     seatLimit: null,
-    features: {
-      fieldOps: true,
-      peopleOps: true,
-      analytics: true,
-      integrations: true,
-      pingIntervalSec: 15,
-      locationRetentionDays: 90,
-    },
+    features: { fieldOps: true, peopleOps: true, analytics: true, integrations: true },
   },
 ];
 
 const PLAN_ORDER = ["field", "people", "ops", "scale", "enterprise"] as const;
 
-function formatMoney(
-  amountCents: number,
-  currency: string,
-  t: (s: string) => string,
-) {
-  const amount = (amountCents / 100).toLocaleString("en-US", {
+const FEATURE_BULLETS: Record<string, string[]> = {
+  field: [
+    "Clock with geofences",
+    "Live map",
+    "Team today",
+    "Attendance and hours",
+  ],
+  people: [
+    "Leave and balances",
+    "Hiring pipeline",
+    "KPIs and tasks",
+    "Compensation",
+  ],
+  ops: [
+    "Everything in Field and People",
+    "Analytics and trends",
+    "Branch reports",
+    "Custom alert rules",
+  ],
+  scale: [
+    "Everything in Ops",
+    "CMS Goals and HubSpot",
+    "Custom REST and webhooks",
+    "Priority support",
+  ],
+};
+
+function formatMoney(amountCents: number, currency: string) {
+  return (amountCents / 100).toLocaleString("en-US", {
     style: "currency",
     currency: currency || "USD",
     maximumFractionDigits: 0,
   });
-  // Isolate the amount so Arabic "/شهر" does not BiDi-reorder as "شهر/$119".
-  return (
-    <span dir="ltr" className="inline-block tabular-nums">
-      {amount}
-      {t("/mo")}
-    </span>
-  );
 }
 
-function formatPrice(
-  plan: PublicPlan,
-  t: (s: string) => string,
-  seats?: number,
-) {
-  if (plan.code === "enterprise" || plan.amountCents === 0) {
-    return t("Custom");
-  }
-  if (seats != null && isSeatQuoteCode(plan.code)) {
-    return formatMoney(quoteForSeats(plan.code, seats), plan.currency, t);
-  }
-  return formatMoney(plan.amountCents, plan.currency, t);
-}
-
-function quoteHint(
-  code: SeatQuoteCode,
-  seats: number,
-  t: (s: string, v?: Record<string, string | number>) => string,
-): string {
-  const q = SEAT_QUOTES[code];
-  if (seats <= q.included) {
-    return t("Plan price · up to {n} seats included", { n: q.included });
-  }
-  const extra = seats - q.included;
-  const rate = `$${(q.overageCents / 100).toFixed(2)}`;
-  return t("+{extra} seats at {rate} each", { extra, rate });
-}
-
-function featureLines(
-  plan: PublicPlan,
-  t: (s: string, v?: Record<string, string | number>) => string,
-  skipSeats: boolean,
-): string[] {
-  const lines: string[] = [];
-  if (!skipSeats) {
-    if (plan.code === "enterprise" || plan.seatLimit == null) {
-      lines.push(t("150+ seats (custom)"));
-    } else {
-      lines.push(t("Up to {n} seats", { n: plan.seatLimit }));
-    }
-  }
+function featureLines(plan: PublicPlan, t: (s: string) => string): string[] {
+  const preset = FEATURE_BULLETS[plan.code];
+  if (preset) return preset.map((l) => t(l));
   const packs = derivePackFlags(
     (plan.features ?? {}) as Partial<Record<ModuleKey, boolean>>,
   );
-  // Legacy pack booleans still work via expand in derive when modules absent
-  const fieldOps =
-    packs.fieldOps || plan.features?.fieldOps === true;
-  const peopleOps =
-    packs.peopleOps || plan.features?.peopleOps === true;
-  if (fieldOps) {
+  const lines: string[] = [];
+  if (packs.fieldOps || plan.features?.fieldOps === true) {
     lines.push(t("Field ops: clock, live map, GPS presence"));
-  } else {
-    lines.push(t("Clock-in without live GPS trail"));
   }
-  if (peopleOps) {
+  if (packs.peopleOps || plan.features?.peopleOps === true) {
     lines.push(t("People ops: leave, KPIs, hiring, compensation"));
   }
   if (packs.analytics || plan.features?.analytics === true) {
@@ -199,75 +135,14 @@ function featureLines(
   if (packs.integrations || plan.features?.integrations === true) {
     lines.push(t("Integrations hub"));
   }
-  const ping = plan.features?.pingIntervalSec;
-  if (fieldOps && typeof ping === "number") {
-    lines.push(t("GPS every {n}s", { n: ping }));
-  }
-  if (plan.code === "scale" || plan.code === "enterprise") {
-    lines.push(t("Priority support"));
-  }
-  if (plan.code === "enterprise") {
-    lines.push(t("SLA and custom retention"));
-  }
   return lines;
-}
-
-function SeatSlider({
-  seats,
-  min,
-  max,
-  step,
-  onChange,
-  t,
-}: {
-  seats: number;
-  min: number;
-  max: number;
-  step: number;
-  onChange: (n: number) => void;
-  t: (s: string, v?: Record<string, string | number>) => string;
-}) {
-  const pct = ((seats - min) / (max - min)) * 100;
-  return (
-    <div className="mt-3 space-y-2">
-      <div className="flex items-baseline justify-between gap-2">
-        <label className="text-xs font-medium text-foreground">
-          {t("Seats")}
-        </label>
-        <span className="text-sm font-semibold tabular-nums text-foreground">
-          {t("{n} seats", { n: seats })}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={seats}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="seat-slider h-2.5 w-full cursor-pointer appearance-none rounded-full accent-primary [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-sm"
-        style={{
-          background: `linear-gradient(to right, hsl(var(--primary)) 0%, hsl(var(--primary)) ${pct}%, hsl(var(--border)) ${pct}%, hsl(var(--border)) 100%)`,
-        }}
-        aria-valuemin={min}
-        aria-valuemax={max}
-        aria-valuenow={seats}
-        aria-label={t("Seats")}
-      />
-      <div className="flex justify-between text-[10px] tabular-nums text-muted-foreground">
-        <span>{min}</span>
-        <span>{max}</span>
-      </div>
-    </div>
-  );
 }
 
 export default function PricingPage() {
   const t = useT();
   const [plans, setPlans] = useState<PublicPlan[]>(FALLBACK_PLANS);
   const [loading, setLoading] = useState(true);
-  const [opsSeats, setOpsSeats] = useState(50);
-  const [scaleSeats, setScaleSeats] = useState(150);
+  const [seats, setSeats] = useState(60);
 
   useEffect(() => {
     const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -280,27 +155,7 @@ export default function PricingPage() {
           const ordered = PLAN_ORDER.map((code) => byCode.get(code)).filter(
             (p): p is PublicPlan => Boolean(p),
           );
-          if (ordered.length) {
-            setPlans(ordered);
-            const ops = byCode.get("ops");
-            const scale = byCode.get("scale");
-            if (ops?.seatLimit) {
-              setOpsSeats(
-                Math.min(
-                  SEAT_QUOTES.ops.max,
-                  Math.max(SEAT_QUOTES.ops.min, ops.seatLimit),
-                ),
-              );
-            }
-            if (scale?.seatLimit) {
-              setScaleSeats(
-                Math.min(
-                  SEAT_QUOTES.scale.max,
-                  Math.max(SEAT_QUOTES.scale.min, scale.seatLimit),
-                ),
-              );
-            }
-          }
+          if (ordered.length) setPlans(ordered);
         }
       })
       .catch(() => undefined)
@@ -308,147 +163,194 @@ export default function PricingPage() {
   }, []);
 
   const displayPlans = useMemo(
-    () => plans.filter((p) => p.code !== "trial"),
+    () => plans.filter((p) => p.code !== "trial" && p.code !== "enterprise"),
     [plans],
   );
+  const enterprise = plans.find((p) => p.code === "enterprise");
+  const seatPct = ((seats - 5) / 495) * 100;
 
-  function seatsFor(code: string): number | undefined {
-    if (code === "ops") return opsSeats;
-    if (code === "scale") return scaleSeats;
-    return undefined;
+  function priceLabel(plan: PublicPlan) {
+    if (plan.amountCents === 0) return t("Custom");
+    if (isSeatQuoteCode(plan.code)) {
+      return formatMoney(quoteForSeats(plan.code as SeatQuoteCode, seats), plan.currency);
+    }
+    // Fallback: treat amountCents as monthly base scaled loosely by seats when no quote table
+    const perSeat = plan.amountCents;
+    if (perSeat < 5000) {
+      return formatMoney(perSeat * seats, plan.currency);
+    }
+    return formatMoney(plan.amountCents, plan.currency);
   }
 
-  function setSeatsFor(code: string, n: number) {
-    if (code === "ops") setOpsSeats(n);
-    if (code === "scale") setScaleSeats(n);
+  function perSeatHint(plan: PublicPlan) {
+    if (isSeatQuoteCode(plan.code)) {
+      const q = SEAT_QUOTES[plan.code];
+      if (seats <= q.included) {
+        return t("Plan price · up to {n} seats included", { n: q.included });
+      }
+      return `$${(q.overageCents / 100).toFixed(0)} ${t("per seat")}`;
+    }
+    if (plan.amountCents > 0 && plan.amountCents < 5000) {
+      return `${formatMoney(plan.amountCents, plan.currency)} ${t("per seat")}`;
+    }
+    return null;
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[90rem] flex-1 flex-col justify-center px-4 py-10 sm:px-6 sm:py-14">
-      <Reveal>
-        <div className="mx-auto max-w-2xl text-center">
-          <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-            {t("Plans for field crews and people ops")}
-          </h1>
-          <p className="mt-3 text-muted-foreground">
-            {t(
-              "Subscribe to start immediately. A 14-day free trial is available once on signup — no credit card required.",
-            )}
+    <div className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-10 sm:px-8 sm:py-14">
+      <div className="mx-auto max-w-2xl text-center">
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-ink-muted">
+          {t("Pricing")}
+        </p>
+        <h1 className="mt-2 text-[clamp(28px,3.5vw,40px)] font-semibold tracking-[-0.03em] text-ink">
+          {t("Pay per seat. Change any time.")}
+        </h1>
+        <p className="mt-2 text-sm text-ink-2">
+          {t("Every plan starts with a 14-day trial.")}
+        </p>
+      </div>
+
+      <div className="mx-auto mt-7 max-w-xl rounded-lg border border-line bg-surface p-[22px]">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold text-ink">{t("Team size")}</p>
+          <p className="text-sm font-medium tabular text-ink-2">
+            {seats} {t("seats")}
           </p>
         </div>
-      </Reveal>
+        <input
+          type="range"
+          min={5}
+          max={500}
+          step={1}
+          value={seats}
+          onChange={(e) => setSeats(Number(e.target.value))}
+          className="mt-3 h-2 w-full cursor-pointer appearance-none rounded-full accent-accent"
+          style={{
+            background: `linear-gradient(to right, hsl(var(--accent)) 0%, hsl(var(--accent)) ${seatPct}%, hsl(var(--line-strong)) ${seatPct}%, hsl(var(--line-strong)) 100%)`,
+          }}
+          aria-label={t("Team size")}
+        />
+        <div className="mt-1 flex justify-between text-2xs tabular text-ink-muted">
+          <span>5</span>
+          <span>500</span>
+        </div>
+      </div>
 
       {loading ? (
-        <div className="mt-12 flex justify-center text-muted-foreground">
+        <div className="mt-10 flex justify-center text-ink-muted">
           <Loader2 className="h-5 w-5 animate-spin" />
         </div>
       ) : null}
 
-      <div className="mt-10 -mx-4 overflow-x-auto px-4 pb-4 pt-2 sm:-mx-6 sm:px-6 lg:mx-0 lg:overflow-visible lg:px-0 lg:pb-2 lg:pt-1">
-        <div className="flex w-max min-w-full gap-3 lg:grid lg:w-full lg:grid-cols-5 lg:gap-3 lg:overflow-visible xl:gap-4">
-          {displayPlans.map((plan, i) => {
-            const highlighted = plan.code === "ops";
-            const quote = isSeatQuoteCode(plan.code)
-              ? SEAT_QUOTES[plan.code]
-              : null;
-            const seats = seatsFor(plan.code);
-            const ctaHref =
-              plan.code === "enterprise"
-                ? "/demo"
-                : seats != null
-                  ? `/signup?plan=${plan.code}&seats=${seats}`
-                  : `/signup?plan=${plan.code}`;
-            const ctaLabel =
-              plan.code === "enterprise"
-                ? t("Request demo")
-                : t("Start now");
-            const lines = featureLines(plan, t, Boolean(quote));
-            return (
-              <Reveal
-                key={plan.code}
-                delayMs={i * 40}
+      <div className="mt-7 grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {displayPlans.map((plan) => {
+          const featured = plan.code === "ops";
+          const ctaHref = `/signup?plan=${plan.code}&seats=${seats}`;
+          const lines = featureLines(plan, t);
+          const hint = perSeatHint(plan);
+          return (
+            <article
+              key={plan.code}
+              className={cn(
+                "flex flex-col gap-3.5 rounded-xl border p-6",
+                featured
+                  ? "border-ink bg-ink text-primary-foreground"
+                  : "border-line bg-surface text-ink",
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[17px] font-semibold">{t(plan.name)}</p>
+                {featured ? (
+                  <span className="rounded-full bg-accent px-2 py-0.5 text-[10.5px] font-semibold text-accent-ink">
+                    {t("Most popular")}
+                  </span>
+                ) : null}
+              </div>
+              <p
                 className={cn(
-                  "w-[min(17.5rem,78vw)] shrink-0 lg:w-auto lg:min-w-0",
-                  highlighted && "relative z-[1] lg:overflow-visible",
+                  "text-sm",
+                  featured ? "text-primary-foreground/60" : "text-ink-muted",
                 )}
               >
-                <article
+                {plan.description ? t(plan.description) : null}
+              </p>
+              <div>
+                <p className="text-stat-lg font-semibold tracking-tight tabular">
+                  <span dir="ltr">{priceLabel(plan)}</span>
+                </p>
+                <p
                   className={cn(
-                    "relative flex h-full flex-col rounded-2xl border p-4 sm:p-5",
-                    highlighted
-                      ? [
-                          "z-[1] border-primary bg-card",
-                          // Soft outer bloom (readable on light backgrounds)
-                          "shadow-[0_0_0_1px_hsl(var(--primary)/0.45),0_0_24px_4px_hsl(var(--primary)/0.35),0_0_48px_8px_hsl(var(--primary)/0.22),0_12px_32px_-8px_hsl(var(--primary)/0.3)]",
-                          "ring-2 ring-primary/50",
-                          "dark:border-primary/70 dark:bg-primary/10",
-                          "dark:shadow-[0_0_0_1px_hsl(var(--primary)/0.35),0_0_32px_-4px_hsl(var(--primary)/0.55),0_0_64px_-12px_hsl(var(--primary)/0.35)]",
-                          "dark:ring-primary/40",
-                          "before:pointer-events-none before:absolute before:-inset-2 before:-z-10 before:rounded-[1.25rem]",
-                          "before:bg-primary/30 before:blur-2xl",
-                          "dark:before:bg-primary/25 dark:before:blur-2xl",
-                          "after:pointer-events-none after:absolute after:inset-0 after:-z-0 after:rounded-2xl",
-                          "after:bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.18),transparent_60%)]",
-                          "dark:after:bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.28),transparent_65%)]",
-                        ].join(" ")
-                      : "border-border/90 bg-card shadow-md dark:border-white/10 dark:bg-card/75 dark:shadow-none dark:backdrop-blur",
+                    "text-sm",
+                    featured ? "text-primary-foreground/60" : "text-ink-muted",
                   )}
                 >
-                  {highlighted ? (
-                    <p className="relative z-[1] mb-2 inline-flex w-fit items-center rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.7)]">
-                      {t("Best value")}
-                    </p>
-                  ) : null}
-                  <h2 className="relative z-[1] text-base font-semibold text-foreground sm:text-lg">
-                    {t(plan.name)}
-                  </h2>
-                  <p className="relative z-[1] mt-1 line-clamp-2 text-xs text-foreground/65 sm:text-sm dark:text-muted-foreground">
-                    {plan.description ? t(plan.description) : null}
-                  </p>
-                  <p className="relative z-[1] mt-3 text-2xl font-semibold tracking-tight tabular-nums sm:mt-4 sm:text-3xl">
-                    {formatPrice(plan, t, seats)}
-                  </p>
-                  {quote && seats != null ? (
-                    <div className="relative z-[1]">
-                      <SeatSlider
-                        seats={seats}
-                        min={quote.min}
-                        max={quote.max}
-                        step={quote.step}
-                        onChange={(n) => setSeatsFor(plan.code, n)}
-                        t={t}
-                      />
-                      <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
-                        {quoteHint(plan.code as SeatQuoteCode, seats, t)}
-                      </p>
-                    </div>
-                  ) : null}
-                  <ul className="relative z-[1] mt-3 flex-1 space-y-1.5 text-xs text-foreground/70 sm:mt-4 sm:space-y-2 sm:text-sm dark:text-muted-foreground">
-                    {lines.map((line) => (
-                      <li key={line} className="flex gap-2">
-                        <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary sm:h-4 sm:w-4" />
-                        <span>{line}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    asChild
+                  {t("/month")}
+                </p>
+                {hint ? (
+                  <p
                     className={cn(
-                      "relative z-[1] mt-5 w-full sm:mt-6",
-                      highlighted
-                        ? "shadow-[0_0_22px_hsl(var(--primary)/0.45)] dark:shadow-[0_0_24px_hsl(var(--primary)/0.45)]"
-                        : "border-border bg-card text-foreground shadow-sm hover:bg-muted/70",
+                      "mt-1 text-2xs",
+                      featured ? "text-primary-foreground/50" : "text-ink-muted",
                     )}
-                    variant={highlighted ? "default" : "outline"}
                   >
-                    <Link href={ctaHref}>{ctaLabel}</Link>
-                  </Button>
-                </article>
-              </Reveal>
-            );
-          })}
-        </div>
+                    {hint}
+                  </p>
+                ) : null}
+              </div>
+              <Button
+                asChild
+                className={cn(
+                  "w-full",
+                  featured
+                    ? "bg-accent text-accent-ink hover:bg-accent-strong"
+                    : undefined,
+                )}
+                variant={featured ? "accent" : "default"}
+              >
+                <Link href={ctaHref}>{t("Start trial")}</Link>
+              </Button>
+              <ul className="mt-1 space-y-2.5 text-[13px]">
+                {lines.map((line) => (
+                  <li key={line} className="flex gap-2.5">
+                    <Check
+                      className={cn(
+                        "mt-0.5 h-4 w-4 shrink-0",
+                        featured ? "text-accent" : "text-accent-strong",
+                      )}
+                      strokeWidth={2.5}
+                    />
+                    <span
+                      className={
+                        featured ? "text-primary-foreground/90" : "text-ink-2"
+                      }
+                    >
+                      {line}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </article>
+          );
+        })}
       </div>
+
+      {enterprise ? (
+        <div className="mt-4 flex flex-col gap-3 rounded-lg border border-line bg-surface px-[22px] py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold text-ink">{t("Enterprise")}</p>
+            <p className="text-sm text-ink-muted">
+              {enterprise.description
+                ? t(enterprise.description)
+                : t(
+                    "Custom limits, dedicated success, single sign-on when it ships.",
+                  )}
+            </p>
+          </div>
+          <Button asChild variant="outline" className="w-full shrink-0 sm:w-auto">
+            <Link href="/demo">{t("Talk to sales")}</Link>
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

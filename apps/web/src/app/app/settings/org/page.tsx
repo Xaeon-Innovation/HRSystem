@@ -1,39 +1,45 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight, Plus } from "lucide-react";
 import { OrgSetupPanel } from "@/components/employees/org-setup-panel";
 import { Button } from "@/components/ui/button";
-import { useUiRedesignGate } from "@/hooks/use-ui-redesign";
-import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { PageHeader } from "@/components/elevora";
 import { t } from "@/i18n";
 
 export default function SettingsOrgPage() {
-  const { redesign } = useUiRedesignGate("/app/employees");
-
-  if (!redesign) {
-    return <PageSkeleton dense />;
-  }
-
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {t("Settings")}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("Org setup")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("Job roles and branches, kept off the employee roster.")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/app/settings">{t("All settings")}</Link>
+    <div className="space-y-5">
+      <PageHeader
+        breadcrumbs={
+          <span className="inline-flex flex-wrap items-center gap-1">
+            <Link href="/app/settings" className="hover:text-ink">
+              {t("Settings")}
+            </Link>
+            <ChevronRight className="h-3 w-3 rtl:rotate-180" aria-hidden />
+            <span className="text-ink">{t("Org setup")}</span>
+          </span>
+        }
+        title={t("Org setup")}
+        subtitle={t("Job roles, branches and sites used by the roster.")}
+        actions={
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => {
+              document
+                .getElementById("org-add-branch")
+                ?.scrollIntoView({ behavior: "smooth", block: "center" });
+              document
+                .querySelector<HTMLInputElement>("#org-add-branch input")
+                ?.focus();
+            }}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {t("Add branch")}
           </Button>
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href="/app/employees">{t("Back to roster")}</Link>
-          </Button>
-        </div>
-      </div>
-      <OrgSetupPanel layout="stacked" />
+        }
+      />
+      <OrgSetupPanel layout="grid" />
     </div>
   );
 }

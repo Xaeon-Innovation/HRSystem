@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BandBadge } from "@/components/compensation/compensation-status-badge";
+import { AreaLine, HatchBar, StatBlock } from "@/components/elevora";
 import {
   formatDate,
   formatMoney,
@@ -7,15 +8,6 @@ import {
 } from "@/lib/compensation/format";
 import type { CompEmployee, CompReport, OverviewSummary } from "@/lib/compensation/types";
 import { t } from "@/i18n";
-
-const PALETTE = [
-  "hsl(199 89% 32%)",
-  "hsl(173 45% 32%)",
-  "hsl(215 28% 32%)",
-  "hsl(38 82% 46%)",
-  "hsl(262 42% 48%)",
-  "hsl(0 62% 48%)",
-];
 
 export function CompensationReportsPanel({
   report,
@@ -31,12 +23,31 @@ export function CompensationReportsPanel({
   const currency = summary.currency;
   const nameOf = (id: string) => employees.find((e) => e.id === id)?.name ?? id;
 
+  const growthValues = report.growth.map((g) => g.amount);
+
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card>
+      <div className="grid gap-3 lg:grid-cols-12">
+        <Card className="border-line bg-surface lg:col-span-7">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("Total compensation by department")}</CardTitle>
+            <CardTitle className="text-base text-ink">
+              {t("Compensation growth")}
+            </CardTitle>
+            <p className="text-xs text-ink-muted">{t("Change events over recent months")}</p>
+          </CardHeader>
+          <CardContent>
+            {growthValues.length >= 2 ? (
+              <AreaLine values={growthValues} height={140} />
+            ) : (
+              <p className="py-8 text-center text-sm text-ink-muted">
+                {t("Not enough history.")}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <Card className="border-line bg-surface lg:col-span-5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base text-ink">{t("By department")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -48,9 +59,36 @@ export function CompensationReportsPanel({
             />
           </CardContent>
         </Card>
-        <Card>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Card className="border-line bg-surface p-4">
+          <StatBlock
+            label={t("Pending approvals")}
+            value={String(report.pendingApprovals)}
+            size="sm"
+          />
+        </Card>
+        <Card className="border-line bg-surface p-4">
+          <StatBlock
+            label={t("Bonuses this cycle")}
+            value={formatMoney(report.totalBonuses, currency)}
+            size="sm"
+          />
+        </Card>
+        <Card className="border-line bg-surface p-4">
+          <StatBlock
+            label={t("Commissions this cycle")}
+            value={formatMoney(report.totalCommissions, currency)}
+            size="sm"
+          />
+        </Card>
+      </div>
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <Card className="border-line bg-surface">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("Salary by role")}</CardTitle>
+            <CardTitle className="text-base text-ink">{t("Salary by role")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -62,9 +100,9 @@ export function CompensationReportsPanel({
             />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-line bg-surface">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("Average salary by branch")}</CardTitle>
+            <CardTitle className="text-base text-ink">{t("Average salary by branch")}</CardTitle>
           </CardHeader>
           <CardContent>
             <HBar
@@ -76,48 +114,33 @@ export function CompensationReportsPanel({
             />
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("Compensation growth (change events)")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <TrendChart
-              points={report.growth.map((g) => ({ label: g.month.slice(5), value: g.amount }))}
-            />
-          </CardContent>
-        </Card>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <MiniStat label="Pending approvals" value={String(report.pendingApprovals)} />
-        <MiniStat label="Bonuses this cycle" value={formatMoney(report.totalBonuses, currency)} />
-        <MiniStat
-          label="Commissions this cycle"
-          value={formatMoney(report.totalCommissions, currency)}
-        />
-      </div>
-
-      <Card>
+      <Card className="border-line bg-surface">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("Outside salary bands")}</CardTitle>
+          <CardTitle className="text-base text-ink">{t("Outside salary bands")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {report.outOfBand.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("Everyone in scope sits inside their band.")}</p>
+            <p className="text-sm text-ink-muted">
+              {t("Everyone in scope sits inside their band.")}
+            </p>
           ) : (
             report.outOfBand.map((row) => (
               <button
                 key={row.employeeId}
                 type="button"
-                className="flex w-full items-center justify-between rounded-lg border bg-card px-3 py-2 text-left text-sm hover:bg-accent/40"
+                className="flex w-full items-center justify-between rounded-sm border border-line bg-surface-2 px-3 py-2 text-left text-sm hover:border-line-strong"
                 onClick={() => onOpenEmployee(row.employeeId)}
               >
                 <span>
-                  <span className="font-medium">{row.name}</span>
-                  <span className="text-muted-foreground"> · {row.role}</span>
+                  <span className="font-medium text-ink">{row.name}</span>
+                  <span className="text-ink-muted"> · {row.role}</span>
                 </span>
                 <span className="flex items-center gap-2">
-                  <span className="tabular-nums">{formatMoney(row.monthly, currency)}</span>
+                  <span className="tabular-nums text-ink">
+                    {formatMoney(row.monthly, currency)}
+                  </span>
                   <BandBadge position={row.position} />
                 </span>
               </button>
@@ -126,28 +149,30 @@ export function CompensationReportsPanel({
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="border-line bg-surface">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("Recent salary changes")}</CardTitle>
+          <CardTitle className="text-base text-ink">{t("Recent salary changes")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {report.recentChanges.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No changes in the last 90 days.")}</p>
+            <p className="text-sm text-ink-muted">{t("No changes in the last 90 days.")}</p>
           ) : (
             report.recentChanges.slice(0, 8).map((h) => (
               <button
                 key={h.id}
                 type="button"
-                className="flex w-full items-center justify-between rounded-lg px-1 py-1.5 text-left text-sm hover:bg-accent/40"
+                className="flex w-full items-center justify-between rounded-sm px-1 py-1.5 text-left text-sm hover:bg-surface-2"
                 onClick={() => onOpenEmployee(h.employeeId)}
               >
-                <span>
+                <span className="text-ink">
                   {nameOf(h.employeeId)}
-                  <span className="text-muted-foreground"> · {formatDate(h.effectiveDate)}</span>
+                  <span className="text-ink-muted"> · {formatDate(h.effectiveDate)}</span>
                 </span>
                 <span
                   className={
-                    h.changeAmount >= 0 ? "tabular-nums text-emerald-700" : "tabular-nums text-rose-700"
+                    h.changeAmount >= 0
+                      ? "tabular-nums text-accent-strong"
+                      : "tabular-nums text-danger"
                   }
                 >
                   {formatMoney(h.changeAmount, currency)} {formatPercent(h.changePercent)}
@@ -161,17 +186,6 @@ export function CompensationReportsPanel({
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="py-4">
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="mt-1 text-xl font-semibold tabular-nums">{value}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
 function HBar({
   items,
   format,
@@ -180,78 +194,28 @@ function HBar({
   format: (v: number) => string;
 }) {
   if (items.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">{t("Nothing to chart.")}</p>;
+    return (
+      <p className="py-8 text-center text-sm text-ink-muted">{t("Nothing to chart.")}</p>
+    );
   }
   const max = Math.max(...items.map((i) => i.value), 1);
-  const width = 640;
-  const rowH = 36;
-  const height = items.length * rowH + 8;
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img">
-      {items.map((item, i) => {
-        const y = i * rowH + 6;
-        const w = (item.value / max) * 360;
-        return (
-          <g key={item.label}>
-            <text x={0} y={y + 14} fontSize="11" className="fill-muted-foreground">
-              {item.label.length > 28 ? `${item.label.slice(0, 27)}…` : item.label}
-            </text>
-            <rect x={220} y={y} width={360} height={16} rx="8" className="fill-secondary" />
-            <rect
-              x={220}
-              y={y}
-              width={Math.max(w, 0)}
-              height={16}
-              rx="8"
-              fill={PALETTE[i % PALETTE.length]}
-            />
-            <text x={590} y={y + 13} fontSize="11" className="fill-foreground">
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div key={item.label}>
+          <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+            <span className="min-w-0 truncate text-ink">{item.label}</span>
+            <span className="shrink-0 tabular-nums font-medium text-ink">
               {format(item.value)}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function TrendChart({ points }: { points: { label: string; value: number }[] }) {
-  if (points.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">{t("Not enough history.")}</p>;
-  }
-  const width = 640;
-  const height = 200;
-  const pad = { l: 8, r: 8, t: 12, b: 28 };
-  const min = Math.min(...points.map((p) => p.value), 0);
-  const max = Math.max(...points.map((p) => p.value), 1);
-  const span = Math.max(max - min, 1);
-  const x = (i: number) =>
-    pad.l + (points.length === 1 ? 0 : (i / (points.length - 1)) * (width - pad.l - pad.r));
-  const y = (v: number) => pad.t + (1 - (v - min) / span) * (height - pad.t - pad.b);
-  const d = points
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${y(p.value).toFixed(1)}`)
-    .join(" ");
-  const area = `${d} L ${x(points.length - 1).toFixed(1)} ${height - pad.b} L ${x(0).toFixed(1)} ${height - pad.b} Z`;
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" role="img">
-      <path d={area} fill="hsl(199 89% 32% / 0.12)" />
-      <path d={d} fill="none" stroke="hsl(199 89% 32%)" strokeWidth="2.5" />
-      {points.map((p, i) => (
-        <g key={p.label}>
-          <circle cx={x(i)} cy={y(p.value)} r="4" fill="white" stroke="hsl(199 89% 32%)" strokeWidth="2" />
-          {(i === 0 || i === points.length - 1) && (
-            <text
-              x={x(i)}
-              y={height - 8}
-              fontSize="10"
-              textAnchor={i === 0 ? "start" : "end"}
-              className="fill-muted-foreground"
-            >
-              {p.label}
-            </text>
-          )}
-        </g>
+            </span>
+          </div>
+          <HatchBar
+            percent={Math.max((item.value / max) * 100, 4)}
+            size="xs"
+            tone="accent"
+          />
+        </div>
       ))}
-    </svg>
+    </div>
   );
 }

@@ -1,15 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
+import { PersonCell, StatusChip } from "@/components/elevora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { UserAvatar } from "@/components/user-avatar";
 import { HiringEmptyState } from "@/components/hiring/hiring-states";
-import { JobStatusBadge, PriorityBadge } from "@/components/hiring/hiring-status-badge";
 import {
   employmentTypeLabel,
   formatDate,
-  formatMoney,
   jobStatusLabel,
   SELECT_CLASS,
 } from "@/lib/hiring/format";
@@ -48,17 +48,23 @@ export function JobOpeningsTable({
     });
   }, [jobs, search, status, dept]);
 
+  const candidateCount = (j: JobOpening) =>
+    Math.max(0, j.openingsCount - j.filledCount) + j.filledCount;
+
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        <Input
-          placeholder={t("Search title, department, manager…")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative min-w-0 flex-1 sm:max-w-sm">
+          <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
+          <Input
+            className="h-9 w-full pl-8"
+            placeholder={t("Search jobs")}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
         <select
-          className={`${SELECT_CLASS} w-auto`}
+          className={`${SELECT_CLASS} w-full sm:w-auto`}
           value={status}
           onChange={(e) => setStatus(e.target.value as JobStatus | "")}
         >
@@ -70,7 +76,7 @@ export function JobOpeningsTable({
           ))}
         </select>
         <select
-          className={`${SELECT_CLASS} w-auto`}
+          className={`${SELECT_CLASS} w-full sm:w-auto`}
           value={dept}
           onChange={(e) => setDept(e.target.value)}
         >
@@ -81,7 +87,13 @@ export function JobOpeningsTable({
             </option>
           ))}
         </select>
+        {canManage ? (
+          <Button size="sm" className="w-full sm:ms-auto sm:w-auto" onClick={onNew}>
+            {t("New job")}
+          </Button>
+        ) : null}
       </div>
+
       {filtered.length === 0 ? (
         <HiringEmptyState
           title={t("No job openings match")}
@@ -89,42 +101,76 @@ export function JobOpeningsTable({
           action={
             canManage ? (
               <Button size="sm" onClick={onNew}>
-                {t("New job opening")}</Button>
+                {t("New job opening")}
+              </Button>
             ) : null
           }
         />
       ) : (
-        <div className="space-y-2">
-          {filtered.map((job) => (
-            <Card key={job.id} className="overflow-hidden">
-              <CardContent className="py-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <button type="button" className="min-w-0 text-left" onClick={() => onOpen(job.id)}>
-                    <p className="font-semibold">{job.title}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {job.department} · {job.branchName} · {employmentTypeLabel(job.employmentType)} ·{" "}
-                      {job.hiringManagerName}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {job.filledCount}/{job.openingsCount} {t("filled · opened")}{formatDate(job.openedAt)} {t("· target")}{formatDate(job.targetHireDate)} ·{" "}
-                      {formatMoney(job.salaryRangeMin, job.currency)}–
-                      {formatMoney(job.salaryRangeMax, job.currency)}
-                    </p>
-                  </button>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <PriorityBadge priority={job.priority} />
-                    <JobStatusBadge status={job.status} />
-                    <Button size="sm" variant="outline" onClick={() => onOpen(job.id)}>
-                      {t("Open")}</Button>
-                    {canManage ? (
-                      <Button size="sm" variant="ghost" onClick={() => onRemove(job.id)}>
-                        {t("Remove")}</Button>
-                    ) : null}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="overflow-hidden rounded-sm border border-line bg-surface">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-2 text-left text-[11px] uppercase tracking-wide text-ink-muted">
+                  <th className="px-3 py-2.5 font-medium">{t("Role")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Hiring manager")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Recruiter")}</th>
+                  <th className="px-3 py-2.5 text-end font-medium">{t("Candidates")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2.5 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((job) => (
+                  <tr
+                    key={job.id}
+                    className="border-b border-line last:border-0 hover:bg-surface-2/80"
+                  >
+                    <td className="px-3 py-3">
+                      <button type="button" className="text-left" onClick={() => onOpen(job.id)}>
+                        <p className="font-semibold text-ink">{job.title}</p>
+                        <p className="text-xs text-ink-muted">
+                          {job.branchName || job.location} · {employmentTypeLabel(job.employmentType)}
+                          {" · "}
+                          {t("opened")} {formatDate(job.openedAt)}
+                        </p>
+                      </button>
+                    </td>
+                    <td className="px-3 py-3">
+                      <PersonCell
+                        name={job.hiringManagerName}
+                        avatar={<UserAvatar name={job.hiringManagerName} size="sm" />}
+                      />
+                    </td>
+                    <td className="px-3 py-3">
+                      <PersonCell
+                        name={job.recruiterOwnerName}
+                        avatar={<UserAvatar name={job.recruiterOwnerName} size="sm" />}
+                      />
+                    </td>
+                    <td className="px-3 py-3 text-end tabular-nums text-ink">
+                      {candidateCount(job)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <StatusChip status={job.status} label={jobStatusLabel(job.status)} />
+                    </td>
+                    <td className="px-3 py-3 text-end">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="outline" onClick={() => onOpen(job.id)}>
+                          {t("Edit")}
+                        </Button>
+                        {canManage ? (
+                          <Button size="sm" variant="ghost" onClick={() => onRemove(job.id)}>
+                            {t("Remove")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

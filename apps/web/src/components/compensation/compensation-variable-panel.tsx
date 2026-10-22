@@ -88,7 +88,7 @@ export function CompensationVariablePanel({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-muted">
           {t("Bonuses, commissions, and KPI-linked incentives for the current and upcoming cycles.")}</p>
         <Button size="sm" variant="outline" onClick={() => setOpen((v) => !v)}>
           {open ? t("Cancel") : t("New variable pay")}
@@ -180,7 +180,7 @@ export function CompensationVariablePanel({
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
-            {error ? <p className="text-sm text-destructive sm:col-span-2">{error}</p> : null}
+            {error ? <p className="text-sm text-danger sm:col-span-2">{error}</p> : null}
             <div>
               <Button size="sm" onClick={submit}>
                 {t("Submit for approval")}</Button>
@@ -203,7 +203,7 @@ export function CompensationVariablePanel({
             </div>
           ) : (
             <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
+              <thead className="border-y bg-surface-2 text-xs text-ink-muted">
                 <tr>
                   <th className="px-4 py-2 font-medium">{t("Employee")}</th>
                   <th className="px-3 py-2 font-medium">{t("Type")}</th>
@@ -224,14 +224,14 @@ export function CompensationVariablePanel({
                       >
                         {v.employeeName}
                       </button>
-                      <p className="text-xs text-muted-foreground">{v.notes || v.department}</p>
+                      <p className="text-xs text-ink-muted">{v.notes || v.department}</p>
                     </td>
                     <td className="px-3 py-3 text-xs">
                       {v.kind === "bonus" && v.bonusType
                         ? bonusTypeLabel(v.bonusType)
                         : t("Commission")}
                       {v.commissionFormula ? (
-                        <p className="text-[11px] text-muted-foreground">{v.commissionFormula}</p>
+                        <p className="text-[11px] text-ink-muted">{v.commissionFormula}</p>
                       ) : null}
                     </td>
                     <td className="px-3 py-3 tabular-nums font-medium">
@@ -239,7 +239,7 @@ export function CompensationVariablePanel({
                     </td>
                     <td className="px-3 py-3 text-xs">
                       {formatDate(v.payoutPeriodStart)} – {formatDate(v.payoutPeriodEnd)}
-                      <p className="text-muted-foreground">{variableCycleLabel(v.cycle)}</p>
+                      <p className="text-ink-muted">{variableCycleLabel(v.cycle)}</p>
                     </td>
                     <td className="px-3 py-3 text-xs">
                       {v.kpiLinked ? v.kpiScore ?? t("Linked") : "-"}

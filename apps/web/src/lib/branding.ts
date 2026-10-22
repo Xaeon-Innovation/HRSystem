@@ -16,34 +16,22 @@ type ServerBranding = {
 
 const STORAGE_PREFIX = "hr_tenant_brand:";
 
+/** Maps stored presets onto CSS data-accent values. neutral = default lime (no attr). */
+export const PRESET_TO_ACCENT: Record<BrandPresetId, string | null> = {
+  neutral: null,
+  teal: "teal",
+  forest: "emerald",
+  slate: "slate",
+};
+
 export const BRAND_PRESETS: Record<
   BrandPresetId,
-  { label: string; primary: string; ring: string; accent: string }
+  { label: string; swatch: string }
 > = {
-  neutral: {
-    label: "Neutral",
-    primary: "222 14% 28%",
-    ring: "222 14% 28%",
-    accent: "220 14% 94%",
-  },
-  teal: {
-    label: "Teal",
-    primary: "199 85% 32%",
-    ring: "199 85% 32%",
-    accent: "173 35% 92%",
-  },
-  forest: {
-    label: "Forest",
-    primary: "152 45% 28%",
-    ring: "152 45% 28%",
-    accent: "148 30% 92%",
-  },
-  slate: {
-    label: "Slate",
-    primary: "215 20% 32%",
-    ring: "215 20% 32%",
-    accent: "210 20% 94%",
-  },
+  neutral: { label: "Lime", swatch: "80 61% 50%" },
+  teal: { label: "Teal", swatch: "192 70% 46%" },
+  forest: { label: "Emerald", swatch: "160 84% 39%" },
+  slate: { label: "Slate", swatch: "215 16% 47%" },
 };
 
 export const DEFAULT_BRAND: TenantBrand = {
@@ -156,29 +144,28 @@ export async function removeTenantLogo(tenantId: string): Promise<TenantBrand> {
   return next;
 }
 
-export function applyBrandToDocument(brand: TenantBrand, redesignOn: boolean) {
+/**
+ * Apply tenant accent via data-accent. Does not paint --primary (ink buttons).
+ * @param _redesignOn kept for call-site compatibility; branding always applies.
+ */
+export function applyBrandToDocument(brand: TenantBrand, _redesignOn = true) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  if (!redesignOn) {
-    root.removeAttribute("data-ui-redesign");
-    root.removeAttribute("data-brand");
-    root.style.removeProperty("--primary");
-    root.style.removeProperty("--ring");
-    root.style.removeProperty("--accent");
-    root.style.removeProperty("--accent-foreground");
-    return;
-  }
-  root.dataset.uiRedesign = "1";
   root.dataset.brand = brand.preset;
-  const preset = BRAND_PRESETS[brand.preset];
-  root.style.setProperty("--primary", preset.primary);
-  root.style.setProperty("--ring", preset.ring);
-  root.style.setProperty("--accent", preset.accent);
-  if (brand.preset === "neutral" || brand.preset === "slate") {
-    root.style.setProperty("--accent-foreground", "222 14% 18%");
-  } else if (brand.preset === "forest") {
-    root.style.setProperty("--accent-foreground", "152 50% 18%");
+
+  const accent = PRESET_TO_ACCENT[brand.preset];
+  if (accent) {
+    root.dataset.accent = accent;
   } else {
-    root.style.setProperty("--accent-foreground", "175 50% 22%");
+    root.removeAttribute("data-accent");
   }
+
+  // Clear any leftover inline brand overrides from the previous design.
+  root.style.removeProperty("--primary");
+  root.style.removeProperty("--primary-foreground");
+  root.style.removeProperty("--ring");
+  root.style.removeProperty("--accent");
+  root.style.removeProperty("--accent-foreground");
+  root.style.removeProperty("--card-title");
+  root.removeAttribute("data-ui-redesign");
 }

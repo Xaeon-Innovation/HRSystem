@@ -16,6 +16,7 @@ import {
   CompStatusBadge,
   VariableStatusBadge,
 } from "@/components/compensation/compensation-status-badge";
+import { AccentCard } from "@/components/elevora";
 import {
   appraisalLabel,
   changeTypeLabel,
@@ -76,27 +77,48 @@ export function CompensationProfileDrawer({
           </SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-6">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <CompStatusBadge status={record.status} />
             <BandBadge position={band.position} />
             {canPropose ? (
-              <Button size="sm" className="ml-auto" onClick={() => onPropose(employee.id)}>
-                {t("Propose change")}</Button>
+              <Button
+                size="sm"
+                className="w-full sm:ms-auto sm:w-auto"
+                onClick={() => onPropose(employee.id)}
+              >
+                {t("Propose change")}
+              </Button>
             ) : null}
             {canEditRate && onSetHourly ? (
-              <Button size="sm" variant="outline" onClick={() => onSetHourly(employee.id)}>
-                {t("Set hourly rate")}</Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => onSetHourly(employee.id)}
+              >
+                {t("Set hourly rate")}
+              </Button>
             ) : null}
           </div>
 
+          <AccentCard>
+            <p className="text-xs opacity-80">{t("Total compensation")}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">
+              {formatMoney(profile.totalCompensation, record.currency)}
+            </p>
+            <p className="mt-1 text-xs opacity-80">
+              {t("Monthly equivalent")} {formatMoney(profile.monthlyEquivalent, record.currency)}
+            </p>
+          </AccentCard>
+
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-            <Fact label="Role / position" value={employee.role} />
-            <Fact label="Department" value={employee.department} />
-            <Fact label="Branch" value={employee.branchName} />
-            <Fact label="Employment type" value={employmentTypeLabel(employee.employmentType)} />
-            <Fact label="Salary type" value={payStructureLabel(record.payStructure)} />
+            <Fact label={t("Role / position")} value={employee.role} />
+            <Fact label={t("Department")} value={employee.department} />
+            <Fact label={t("Branch")} value={employee.branchName} />
+            <Fact label={t("Employment type")} value={employmentTypeLabel(employee.employmentType)} />
+            <Fact label={t("Salary type")} value={payStructureLabel(record.payStructure)} />
             <Fact
-              label="Base / rate"
+              label={t("Base / rate")}
               value={`${formatMoney(record.baseAmount, record.currency)}${rateUnit(record.payStructure)}`}
             />
             <Fact label="Currency" value={record.currency} />
@@ -115,7 +137,7 @@ export function CompensationProfileDrawer({
 
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t("Performance link")}</h4>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-ink-muted">
               {t("Latest KPI")}{employee.latestKpiScore ?? "-"} {t("· Last appraisal")}{" "}
               {appraisalLabel(employee.lastAppraisalResult)}
               {employee.lastAppraisalDate ? ` (${formatDate(employee.lastAppraisalDate)})` : ""}
@@ -127,13 +149,13 @@ export function CompensationProfileDrawer({
               <h4 className="text-sm font-semibold">
                 {t("Salary band")}{band.band.grade}
               </h4>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-muted">
                 {t("Min")}{formatMoney(band.band.min, band.band.currency)} {t("· Mid")}{" "}
                 {formatMoney(band.band.midpoint, band.band.currency)} {t("· Max")}{" "}
                 {formatMoney(band.band.max, band.band.currency)} {t("· Compa-ratio")}{" "}
                 {formatCompa(band.compaRatio)}
               </p>
-              <div className="relative h-2 rounded-full bg-secondary">
+              <div className="relative h-2 rounded-full bg-surface-2">
                 <div
                   className="absolute inset-y-0 left-0 rounded-full bg-primary/30"
                   style={{ width: "100%" }}
@@ -172,7 +194,7 @@ export function CompensationProfileDrawer({
                   <ul className="max-h-48 divide-y overflow-y-auto rounded-lg border text-sm">
                     {profile.hours.shifts.slice(0, 14).map((s, i) => (
                       <li key={`${s.clockInAt}-${i}`} className="flex justify-between px-3 py-1.5">
-                        <span className="text-muted-foreground">
+                        <span className="text-ink-muted">
                           {formatDate(s.clockInAt.slice(0, 10))}
                           {s.open ? t(" · open") : ""}
                         </span>
@@ -182,7 +204,7 @@ export function CompensationProfileDrawer({
                   </ul>
                 </>
               ) : (
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-ink-muted">
                   {t("No clock records in this payroll cycle yet. Pay will stay at zero until they clock in and out.")}</p>
               )}
             </section>
@@ -191,14 +213,14 @@ export function CompensationProfileDrawer({
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t("Components")}</h4>
             {profile.components.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("No extra line items.")}</p>
+              <p className="text-sm text-ink-muted">{t("No extra line items.")}</p>
             ) : (
               <ul className="divide-y rounded-lg border">
                 {profile.components.map((c) => (
                   <li key={c.id} className="flex items-center justify-between px-3 py-2 text-sm">
                     <span>
                       {c.label}
-                      <span className="text-muted-foreground"> · {componentKindLabel(c.kind)}</span>
+                      <span className="text-ink-muted"> · {componentKindLabel(c.kind)}</span>
                     </span>
                     <span
                       className={cn(
@@ -219,16 +241,16 @@ export function CompensationProfileDrawer({
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t("Salary history")}</h4>
             {profile.history.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("No history.")}</p>
+              <p className="text-sm text-ink-muted">{t("No history.")}</p>
             ) : (
               <ol className="space-y-2">
                 {profile.history.map((h) => (
-                  <li key={h.id} className="rounded-lg border bg-card px-3 py-2 text-sm">
+                  <li key={h.id} className="rounded-lg border bg-surface px-3 py-2 text-sm">
                     <div className="flex justify-between gap-2">
                       <span className="font-medium">{changeTypeLabel(h.changeType)}</span>
                       <span className="tabular-nums">{formatDate(h.effectiveDate)}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-ink-muted">
                       {formatMoney(h.previousAmount, record.currency)} →{" "}
                       {formatMoney(h.newAmount, record.currency)}{" "}
                       <span
@@ -239,7 +261,7 @@ export function CompensationProfileDrawer({
                         {formatPercent(h.changePercent)}
                       </span>
                     </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1 text-xs text-ink-muted">
                       {h.reason}
                       {h.reviewCycleName ? ` · ${h.reviewCycleName}` : ""} {t("· Submitted")}{" "}
                       {h.submittedByName}
@@ -254,7 +276,7 @@ export function CompensationProfileDrawer({
           <section className="space-y-2">
             <h4 className="text-sm font-semibold">{t("Variable pay")}</h4>
             {profile.variable.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("No bonuses or commissions on file.")}</p>
+              <p className="text-sm text-ink-muted">{t("No bonuses or commissions on file.")}</p>
             ) : (
               <ul className="space-y-2">
                 {profile.variable.map((v) => (
@@ -277,7 +299,7 @@ export function CompensationProfileDrawer({
           {record.notes ? (
             <section>
               <h4 className="text-sm font-semibold">{t("Notes")}</h4>
-              <p className="mt-1 text-sm text-muted-foreground">{record.notes}</p>
+              <p className="mt-1 text-sm text-ink-muted">{record.notes}</p>
             </section>
           ) : null}
 
@@ -294,7 +316,7 @@ export function CompensationProfileDrawer({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[11px] text-muted-foreground">{label}</dt>
+      <dt className="text-[11px] text-ink-muted">{label}</dt>
       <dd className="font-medium">{value}</dd>
     </div>
   );

@@ -5,21 +5,32 @@ import { api, getUser, type AuthUser } from "@/lib/api";
 import { userHasModule } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TEXTAREA_CLASS } from "@/lib/leave/format";
 import { LeaveBalancesTable } from "@/components/leave/leave-balances-table";
 import { LeaveCalendarView } from "@/components/leave/leave-calendar-view";
 import { LeaveHeader } from "@/components/leave/leave-header";
-import { LeaveOverviewCards } from "@/components/leave/leave-overview-cards";
 import { LeavePoliciesPanel } from "@/components/leave/leave-policies-panel";
 import { LeaveReportsPanel } from "@/components/leave/leave-reports-panel";
 import { LeaveRequestDetailDrawer } from "@/components/leave/leave-request-detail-drawer";
 import { LeaveRequestForm } from "@/components/leave/leave-request-form";
+import { LeaveRequestRail } from "@/components/leave/leave-request-rail";
 import { LeaveRequestsTable } from "@/components/leave/leave-requests-table";
 import { LeaveErrorState, LeaveLoadingSkeleton } from "@/components/leave/leave-states";
 import { LeaveSubNav, type LeaveSection } from "@/components/leave/leave-sub-nav";
-import { LeaveStore, actorCanActOnStep, currentApprovalStep, type LeaveActor, type LeaveRequestFilters, type LeaveSnapshot } from "@/lib/leave";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { Notice, Segmented } from "@/components/elevora";
+import {
+  LeaveStore,
+  actorCanActOnStep,
+  currentApprovalStep,
+  type LeaveActor,
+  type LeaveBalance,
+  type LeaveEmployee,
+  type LeaveRequest,
+  type LeaveRequestDraft,
+  type LeaveRequestFilters,
+  type LeaveSnapshot,
+  type LeaveType,
+} from "@/lib/leave";
 import { useRouter } from "next/navigation";
 import { t } from "@/i18n";
 
@@ -46,9 +57,8 @@ function actorFrom(user: AuthUser | null): LeaveActor {
 }
 
 export function LeaveDashboard({ section }: { section?: LeaveSection }) {
-  const redesign = useUiRedesign();
   const router = useRouter();
-  const split = Boolean(redesign && section);
+  const split = Boolean(section);
   const storeRef = useRef(new LeaveStore());
   const store = storeRef.current;
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -173,105 +183,80 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
         }}
       />
 
-      {error ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
 
       {reminderCount > 0 && isAdmin ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          {reminderCount} {t("pending request")}{reminderCount === 1 ? "" : "s"} {t("past the reminder or escalation window.")}</p>
+        <Notice tone="warn">
+          {reminderCount} {t("pending request")}{reminderCount === 1 ? "" : "s"}{" "}
+          {t("past the reminder or escalation window.")}
+        </Notice>
       ) : null}
 
       {managerPending.length > 0 ? (
-        <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 dark:border-sky-800 dark:bg-sky-950/50">
-          <p className="text-sm font-semibold text-sky-950 dark:text-sky-100">
-            {t("Team leave to approve")}</p>
-          <p className="mt-0.5 text-xs text-sky-900/80 dark:text-sky-200/80">
-            {managerPending.length} {t("request")}{managerPending.length === 1 ? "" : "s"} {t("waiting on you as manager.")}</p>
-        </div>
+        <Notice tone="accent">
+          <p className="font-semibold text-ink">{t("Team leave to approve")}</p>
+          <p className="mt-0.5 text-ink-muted">
+            {managerPending.length} {t("request")}{managerPending.length === 1 ? "" : "s"}{" "}
+            {t("waiting on you as manager.")}
+          </p>
+        </Notice>
       ) : null}
 
       {split ? <LeaveSubNav isAdmin={isAdmin} /> : null}
 
-      {(!split || section === "requests") ? (
-      <LeaveOverviewCards
-        summary={
-          isAdmin
-            ? summary
-            : {
-                ...summary,
-                pendingCount: requests.filter((r) => r.status === "pending").length,
-                upcomingAbsences: requests.filter((r) => r.status === "approved").length,
-              }
-        }
-        remaining={myAnnual?.remaining ?? null}
-        isAdmin={isAdmin}
-      />
-      ) : null}
-
       {!split ? (
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="requests" className="flex-none px-3">
-            {t("Requests")}</TabsTrigger>
-          <TabsTrigger value="balances" className="flex-none px-3">
-            {t("Balances")}</TabsTrigger>
-          <TabsTrigger value="calendar" className="flex-none px-3">
-            {t("Calendar")}</TabsTrigger>
-          {isAdmin ? (
-            <TabsTrigger value="policies" className="flex-none px-3">
-              {t("Policies")}</TabsTrigger>
-          ) : null}
-          <TabsTrigger value="reports" className="flex-none px-3">
-            {t("Reports")}</TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <div className="max-w-full overflow-x-auto">
+          <Segmented
+            className="w-max"
+            aria-label={t("Leave sections")}
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: "requests", label: t("Requests") },
+              { value: "balances", label: t("Balances") },
+              { value: "calendar", label: t("Calendar") },
+              ...(isAdmin
+                ? [{ value: "policies", label: t("Policies") }]
+                : []),
+              { value: "reports", label: t("Reports") },
+            ]}
+          />
+        </div>
 
-        <TabsContent value="requests" className="mt-4 space-y-3">
-          {isAdmin && selectedIds.length > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
-              <p className="text-sm">{selectedIds.length} {t("selected")}</p>
-              <Button
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        ids: selectedIds,
-                        decision: "approved",
-                        comment: t("Bulk approved"),
-                      }),
-                    });
-                    applyLeave(res.leave);
-                    setSelectedIds([]);
-                  })
-                }
-              >
-                {t("Approve selected")}</Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const first = selectedIds[0];
-                  if (first) setRejectId(first);
-                }}
-              >
-                {t("Reject selected")}</Button>
-              <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                {t("Clear")}</Button>
-            </div>
-          ) : null}
-          <LeaveRequestsTable
+        {tab === "requests" ? (
+          <RequestsRailBody
+            isAdmin={isAdmin}
+            selectedIds={selectedIds}
+            busy={busy}
             requests={requests}
             filters={filters}
-            onChange={patchFilters}
+            patchFilters={patchFilters}
             employees={employees}
             types={types}
-            isAdmin={isAdmin}
             actor={actor}
+            store={store}
+            annualBalance={myAnnual}
+            annualType={types.find((lt) => lt.id === annualId)}
+            onBulkApprove={() =>
+              void run(async () => {
+                const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    ids: selectedIds,
+                    decision: "approved",
+                    comment: t("Bulk approved"),
+                  }),
+                });
+                applyLeave(res.leave);
+                setSelectedIds([]);
+              })
+            }
+            onBulkReject={() => {
+              const first = selectedIds[0];
+              if (first) setRejectId(first);
+            }}
+            onClearSelect={() => setSelectedIds([])}
             onOpen={setSelectedId}
             onQuickApprove={(id) =>
               void run(async () => {
@@ -283,16 +268,26 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
               })
             }
             onQuickReject={(id) => setRejectId(id)}
-            selectedIds={selectedIds}
             onToggleSelect={(id, selectedNow) =>
               setSelectedIds((prev) =>
                 selectedNow ? [...new Set([...prev, id])] : prev.filter((x) => x !== id),
               )
             }
+            onRailSubmit={async (draft) => {
+              const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests", {
+                method: "POST",
+                body: JSON.stringify(draft),
+              });
+              applyLeave(res.leave);
+            }}
+            onOpenFullForm={() => {
+              setEditingId(null);
+              setFormOpen(true);
+            }}
           />
-        </TabsContent>
+        ) : null}
 
-        <TabsContent value="balances" className="mt-4">
+        {tab === "balances" ? (
           <LeaveBalancesTable
             balances={viewerBalances}
             employees={employees}
@@ -309,9 +304,9 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
               })
             }
           />
-        </TabsContent>
+        ) : null}
 
-        <TabsContent value="calendar" className="mt-4">
+        {tab === "calendar" ? (
           <LeaveCalendarView
             events={store.calendar()}
             employees={employees}
@@ -319,10 +314,9 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
             requests={store.requests(undefined, isAdmin ? actor : actor)}
             onOpen={setSelectedId}
           />
-        </TabsContent>
+        ) : null}
 
-        {isAdmin ? (
-          <TabsContent value="policies" className="mt-4">
+        {isAdmin && tab === "policies" ? (
             <LeavePoliciesPanel
               types={types}
               policies={policies}
@@ -366,79 +360,75 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
               }
               lastPosted={accrualMsg}
             />
-          </TabsContent>
         ) : null}
 
-        <TabsContent value="reports" className="mt-4">
-          <LeaveReportsPanel summary={summary} />
-        </TabsContent>
-      </Tabs>
+        {tab === "reports" ? (
+          <LeaveReportsPanel summary={summary} requests={store.requests(undefined, actor)} />
+        ) : null}
+      </div>
       ) : (
         <div className="space-y-3">
           {section === "requests" ? (
-            <>
-              {isAdmin && selectedIds.length > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card px-3 py-2">
-                  <p className="text-sm">{selectedIds.length} {t("selected")}</p>
-                  <Button
-                    size="sm"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(async () => {
-                        const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
-                          method: "POST",
-                          body: JSON.stringify({
-                            ids: selectedIds,
-                            decision: "approved",
-                            comment: t("Bulk approved"),
-                          }),
-                        });
-                        applyLeave(res.leave);
-                        setSelectedIds([]);
-                      })
-                    }
-                  >
-                    {t("Approve selected")}</Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      const first = selectedIds[0];
-                      if (first) setRejectId(first);
-                    }}
-                  >
-                    {t("Reject selected")}</Button>
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedIds([])}>
-                    {t("Clear")}</Button>
-                </div>
-              ) : null}
-              <LeaveRequestsTable
-                requests={requests}
-                filters={filters}
-                onChange={patchFilters}
-                employees={employees}
-                types={types}
-                isAdmin={isAdmin}
-                actor={actor}
-                onOpen={setSelectedId}
-                onQuickApprove={(id) =>
-                  void run(async () => {
-                    const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
-                      method: "POST",
-                      body: JSON.stringify({ decision: "approved", comment: t("Approved") }),
-                    });
-                    applyLeave(res.leave);
-                  })
-                }
-                onQuickReject={(id) => setRejectId(id)}
-                selectedIds={selectedIds}
-                onToggleSelect={(id, selectedNow) =>
-                  setSelectedIds((prev) =>
-                    selectedNow ? [...new Set([...prev, id])] : prev.filter((x) => x !== id),
-                  )
-                }
-              />
-            </>
+            <RequestsRailBody
+              isAdmin={isAdmin}
+              selectedIds={selectedIds}
+              busy={busy}
+              requests={requests}
+              filters={filters}
+              patchFilters={patchFilters}
+              employees={employees}
+              types={types}
+              actor={actor}
+              store={store}
+              annualBalance={myAnnual}
+              annualType={types.find((lt) => lt.id === annualId)}
+              onBulkApprove={() =>
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests/bulk-decide", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      ids: selectedIds,
+                      decision: "approved",
+                      comment: t("Bulk approved"),
+                    }),
+                  });
+                  applyLeave(res.leave);
+                  setSelectedIds([]);
+                })
+              }
+              onBulkReject={() => {
+                const first = selectedIds[0];
+                if (first) setRejectId(first);
+              }}
+              onClearSelect={() => setSelectedIds([])}
+              onOpen={setSelectedId}
+              onQuickApprove={(id) =>
+                void run(async () => {
+                  const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
+                    method: "POST",
+                    body: JSON.stringify({ decision: "approved", comment: t("Approved") }),
+                  });
+                  applyLeave(res.leave);
+                })
+              }
+              onQuickReject={(id) => setRejectId(id)}
+              onToggleSelect={(id, selectedNow) =>
+                setSelectedIds((prev) =>
+                  selectedNow ? [...new Set([...prev, id])] : prev.filter((x) => x !== id),
+                )
+              }
+              onRailSubmit={async (draft) => {
+                const res = await api<{ leave: LeaveSnapshot }>("/v1/leave/requests", {
+                  method: "POST",
+                  body: JSON.stringify(draft),
+                });
+                applyLeave(res.leave);
+              }}
+              onOpenFullForm={() => {
+                setEditingId(null);
+                setFormOpen(true);
+              }}
+            />
           ) : null}
           {section === "balances" ? (
             <LeaveBalancesTable
@@ -512,7 +502,9 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
               lastPosted={accrualMsg}
             />
           ) : null}
-          {section === "reports" ? <LeaveReportsPanel summary={summary} /> : null}
+          {section === "reports" ? (
+            <LeaveReportsPanel summary={summary} requests={store.requests(undefined, actor)} />
+          ) : null}
         </div>
       )}
 
@@ -545,6 +537,12 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
         }}
         isAdmin={isAdmin}
         actor={actor}
+        balanceRemaining={
+          selected ? store.balance(selected.employeeId, selected.leaveTypeId)?.remaining ?? null : null
+        }
+        balancePending={
+          selected ? store.balance(selected.employeeId, selected.leaveTypeId)?.pending ?? null : null
+        }
         onApprove={(id, comment) =>
           void run(async () => {
             const res = await api<{ leave: LeaveSnapshot }>(`/v1/leave/requests/${id}/decide`, {
@@ -660,6 +658,104 @@ export function LeaveDashboard({ section }: { section?: LeaveSection }) {
           placeholder={t("Why this request is being declined")}
         />
       </ConfirmDialog>
+    </div>
+  );
+}
+
+function RequestsRailBody({
+  isAdmin,
+  selectedIds,
+  busy,
+  requests,
+  filters,
+  patchFilters,
+  employees,
+  types,
+  actor,
+  store,
+  annualBalance,
+  annualType,
+  onBulkApprove,
+  onBulkReject,
+  onClearSelect,
+  onOpen,
+  onQuickApprove,
+  onQuickReject,
+  onToggleSelect,
+  onRailSubmit,
+  onOpenFullForm,
+}: {
+  isAdmin: boolean;
+  selectedIds: string[];
+  busy: boolean;
+  requests: LeaveRequest[];
+  filters: LeaveRequestFilters;
+  patchFilters: (patch: Partial<LeaveRequestFilters>) => void;
+  employees: LeaveEmployee[];
+  types: LeaveType[];
+  actor: LeaveActor;
+  store: LeaveStore;
+  annualBalance?: LeaveBalance;
+  annualType?: LeaveType;
+  onBulkApprove: () => void;
+  onBulkReject: () => void;
+  onClearSelect: () => void;
+  onOpen: (id: string) => void;
+  onQuickApprove: (id: string) => void;
+  onQuickReject: (id: string) => void;
+  onToggleSelect: (id: string, selected: boolean) => void;
+  onRailSubmit: (draft: LeaveRequestDraft) => Promise<void>;
+  onOpenFullForm: () => void;
+}) {
+  return (
+    <div className="grid gap-3.5 lg:grid-cols-[minmax(0,1fr)_minmax(240px,300px)]">
+      <div className="min-w-0 space-y-3">
+        {isAdmin && selectedIds.length > 0 ? (
+          <div className="flex flex-col gap-2 rounded-sm border border-line bg-surface px-3 py-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <p className="text-sm">{selectedIds.length} {t("selected")}</p>
+            <Button size="sm" className="w-full sm:w-auto" disabled={busy} onClick={onBulkApprove}>
+              {t("Approve selected")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={onBulkReject}
+            >
+              {t("Reject selected")}
+            </Button>
+            <Button size="sm" variant="ghost" className="w-full sm:w-auto" onClick={onClearSelect}>
+              {t("Clear")}
+            </Button>
+          </div>
+        ) : null}
+        <LeaveRequestsTable
+          requests={requests}
+          filters={filters}
+          onChange={patchFilters}
+          employees={employees}
+          types={types}
+          isAdmin={isAdmin}
+          actor={actor}
+          onOpen={onOpen}
+          onQuickApprove={onQuickApprove}
+          onQuickReject={onQuickReject}
+          selectedIds={selectedIds}
+          onToggleSelect={onToggleSelect}
+        />
+      </div>
+      <aside className="min-w-0">
+        <LeaveRequestRail
+          store={store}
+          actor={actor}
+          isAdmin={isAdmin}
+          annualBalance={annualBalance}
+          annualType={annualType}
+          busy={busy}
+          onSubmit={onRailSubmit}
+          onOpenFullForm={onOpenFullForm}
+        />
+      </aside>
     </div>
   );
 }

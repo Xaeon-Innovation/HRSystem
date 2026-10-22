@@ -8,7 +8,8 @@ import {
   TrendingDown,
   Users,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import { IconTile, StatBlock } from "@/components/elevora";
 import { formatMoney } from "@/lib/compensation/format";
 import type { OverviewSummary } from "@/lib/compensation/types";
 import { t } from "@/i18n";
@@ -81,22 +82,14 @@ export function CompensationOverviewCards({ summary }: { summary: OverviewSummar
       {cards.map((c) => {
         const Icon = c.icon;
         return (
-          <Card
-            key={c.label}
-            className="overflow-hidden border-primary/10 bg-gradient-to-br from-card to-accent/25"
-          >
-            <CardContent className="py-4">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-xs font-medium text-muted-foreground">{c.label}</p>
-                <span className="rounded-md bg-card p-1.5 text-primary">
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-              </div>
-              <p className="mt-2 text-xl font-semibold tabular-nums tracking-tight sm:text-2xl">
-                {c.value}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">{c.hint}</p>
-            </CardContent>
+          <Card key={c.label} className="border-line bg-surface p-4">
+            <div className="flex items-start justify-between gap-2">
+              <StatBlock label={c.label} value={c.value} size="sm" />
+              <IconTile tone="neutral">
+                <Icon className="h-3.5 w-3.5" />
+              </IconTile>
+            </div>
+            <p className="mt-2 text-xs text-ink-muted">{c.hint}</p>
           </Card>
         );
       })}

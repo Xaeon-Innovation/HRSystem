@@ -1,27 +1,36 @@
 "use client";
 
-import { HardHat, Users, Building2 } from "lucide-react";
-import { MarketingSection } from "@/components/marketing/section";
-import { Reveal } from "@/components/marketing/reveal";
+import {
+  HardHat,
+  ShoppingBag,
+  Stethoscope,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 import { useLocale, useT } from "@/i18n/provider";
 
-const AUDIENCES = [
+const AUDIENCES: { icon: LucideIcon; title: string; body: string }[] = [
   {
-    title: "Field operations",
-    body: "See who’s on shift, where they are, and when GPS clock-in happened — without calling around.",
+    icon: Truck,
+    title: "Logistics and delivery",
+    body: "Drivers clock in anywhere. Managers see them live.",
+  },
+  {
+    icon: Stethoscope,
+    title: "Clinics and healthcare",
+    body: "Shifts, leave cover and staff credentials.",
+  },
+  {
     icon: HardHat,
+    title: "Facilities and maintenance",
+    body: "Technicians, visits, jobs and KPIs.",
   },
   {
-    title: "HR & people ops",
-    body: "Leave, KPIs, hiring, and compensation stay next to attendance, so HR works from one source of truth.",
-    icon: Users,
+    icon: ShoppingBag,
+    title: "Retail and hospitality",
+    body: "Multi-branch rosters with fixed zones.",
   },
-  {
-    title: "Site supervisors",
-    body: "Live presence and mobile-first tools that stay useful on a phone at the job site.",
-    icon: Building2,
-  },
-] as const;
+];
 
 export function WhoItsFor() {
   const t = useT();
@@ -29,41 +38,33 @@ export function WhoItsFor() {
   const isAr = locale === "ar";
 
   return (
-    <MarketingSection compact id="who">
-      <Reveal>
-        <div className="max-w-2xl" dir={isAr ? "rtl" : undefined}>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            {t("Made for outdoor and ops teams")}
-          </p>
-          <h2 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-            {t("Who Elevora is built for")}
-          </h2>
-        </div>
-      </Reveal>
-
-      <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-5">
-        {AUDIENCES.map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <Reveal key={item.title} delayMs={i * 60}>
-              <article
-                className="flex h-full flex-col rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm backdrop-blur-sm dark:border-white/10 sm:p-6"
-                dir={isAr ? "rtl" : undefined}
-              >
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary">
-                  <Icon className="h-5 w-5" aria-hidden />
-                </span>
-                <h3 className="mt-4 text-lg font-semibold tracking-tight text-foreground">
-                  {t(item.title)}
-                </h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  {t(item.body)}
-                </p>
-              </article>
-            </Reveal>
-          );
-        })}
+    <section id="who" className="scroll-mt-24 py-12 sm:py-14">
+      <div className="max-w-2xl" dir={isAr ? "rtl" : undefined}>
+        <p className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-ink-muted">
+          {t("Who it is for")}
+        </p>
+        <h2 className="mt-2 text-[clamp(28px,3.5vw,40px)] font-semibold tracking-[-0.03em] text-ink">
+          {t("Teams that work in the field and the office.")}
+        </h2>
       </div>
-    </MarketingSection>
+
+      <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {AUDIENCES.map(({ icon: Icon, title, body }) => (
+          <article
+            key={title}
+            className="rounded-lg border border-line bg-surface p-5"
+            dir={isAr ? "rtl" : undefined}
+          >
+            <span className="grid h-11 w-11 place-items-center rounded-[9px] bg-surface-2 text-ink">
+              <Icon className="h-5 w-5" strokeWidth={1.7} />
+            </span>
+            <h3 className="mt-3 text-[15px] font-semibold text-ink">
+              {t(title)}
+            </h3>
+            <p className="mt-1 text-sm text-ink-muted">{t(body)}</p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }

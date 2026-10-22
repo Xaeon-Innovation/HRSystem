@@ -51,7 +51,7 @@ export function KpiDetailDrawer({
               <div className="flex flex-wrap items-center gap-2">
                 <KpiStatusBadge status={kpi.status} />
               </div>
-              <p className="text-sm leading-relaxed text-muted-foreground">{kpi.description}</p>
+              <p className="text-sm leading-relaxed text-ink-muted">{kpi.description}</p>
 
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <Fact label={t("Target")} value={formatKpiValue(kpi.targetValue, kpi.unit)} />
@@ -76,7 +76,7 @@ export function KpiDetailDrawer({
               !kpi.incomplete ? (
                 <div className="rounded-lg border border-primary/20 bg-accent/40 p-3">
                   <p className="text-sm font-medium">{t("Acknowledge this result")}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-ink-muted">
                     {t("Soft confirmation that you have seen this period’s result.")}</p>
                   <Button
                     className="mt-3 w-full"
@@ -97,13 +97,13 @@ export function KpiDetailDrawer({
               ) : null}
 
               {!kpi.incomplete && kpi.acknowledgedAt ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-muted">
                   {t("Acknowledged")}{formatDate(kpi.acknowledgedAt)}
                 </p>
               ) : null}
 
               <Section title={t("How this is scored")}>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-ink-muted">
                   {kpi.direction === "lower"
                     ? t("Lower results are better. Score is target ÷ result.")
                     : t("Higher results are better. Score is result ÷ target.")}{" "}
@@ -116,7 +116,7 @@ export function KpiDetailDrawer({
                   {showMath ? t("Hide formula") : t("Show formula")}
                 </button>
                 {showMath ? (
-                  <code className="mt-2 block rounded-md bg-secondary px-3 py-2 text-xs leading-relaxed">
+                  <code className="mt-2 block rounded-md bg-surface-2 px-3 py-2 text-xs leading-relaxed">
                     {kpi.formula}
                   </code>
                 ) : null}
@@ -124,7 +124,7 @@ export function KpiDetailDrawer({
 
               <Section title={t("Past results")}>
                 {kpi.history.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("No results recorded yet.")}</p>
+                  <p className="text-sm text-ink-muted">{t("No results recorded yet.")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {kpi.history.map((h) => (
@@ -134,7 +134,7 @@ export function KpiDetailDrawer({
                       >
                         <div>
                           <p className="font-medium">{formatDate(h.reviewDate)}</p>
-                          <p className="text-xs text-muted-foreground">{h.notes || t("No note")}</p>
+                          <p className="text-xs text-ink-muted">{h.notes || t("No note")}</p>
                         </div>
                         <p className="tabular-nums">{formatKpiValue(h.actualValue, kpi.unit)}</p>
                       </li>
@@ -155,7 +155,7 @@ export function KpiDetailDrawer({
                     <li key={r}>{r}</li>
                   ))}
                   {recommendationsFor(kpi.templateKey, kpi.roleScope).length === 0 ? (
-                    <li className="list-none pl-0 text-muted-foreground">
+                    <li className="list-none pl-0 text-ink-muted">
                       {t("Keep this metric at or above the target next period.")}</li>
                   ) : null}
                 </ul>
@@ -179,8 +179,8 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-secondary/60 px-3 py-2">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+    <div className="rounded-md bg-surface-2 px-3 py-2">
+      <dt className="text-xs text-ink-muted">{label}</dt>
       <dd className="mt-0.5 font-medium">{value}</dd>
     </div>
   );
@@ -216,7 +216,7 @@ function RecordScoreForm({
   return (
     <form onSubmit={handle} className="space-y-3 rounded-lg border border-primary/20 bg-accent/40 p-3">
       <p className="text-sm font-medium">{t("Enter this period’s result")}</p>
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-ink-muted">
         {t("Type the actual number (same unit as the target of")}{targetHint}{t("). This is not filled in from clock-ins or jobs.")}</p>
       <div className="space-y-1">
         <Label>{t("Result")}</Label>
@@ -237,7 +237,7 @@ function RecordScoreForm({
           placeholder={t("Why this number, or what to do next")}
         />
       </div>
-      {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      {error ? <p className="text-xs text-danger">{error}</p> : null}
       <Button type="submit" disabled={busy} className="w-full">
         {busy ? t("Saving…") : t("Save result")}
       </Button>

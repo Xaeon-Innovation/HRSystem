@@ -72,10 +72,10 @@ export function AlertRuleSheet({
             <CategoryBadge category={draft.category} />
             <UrgencyBadge urgency={draft.urgency} />
           </div>
-          <div className="flex items-center justify-between rounded-lg border bg-secondary/40 px-3 py-2">
+          <div className="flex items-center justify-between rounded-lg border bg-surface-2/40 px-3 py-2">
             <div>
               <p className="text-sm font-medium">{t("Enabled")}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-ink-muted">
                 {t("Off events stay configured but never notify.")}</p>
             </div>
             <Switch
@@ -95,7 +95,7 @@ export function AlertRuleSheet({
                   className={`rounded-md border px-2 py-2 text-sm ${
                     draft.urgency === urgency
                       ? "border-primary bg-accent"
-                      : "hover:bg-secondary"
+                      : "hover:bg-surface-2"
                   }`}
                 >
                   {ALERT_URGENCY_META[urgency].label}
@@ -147,7 +147,7 @@ export function AlertRuleSheet({
                   />
                   <span>
                     <span className="font-medium">{ALERT_CHANNEL_META[channel].label}</span>
-                    <span className="block text-xs text-muted-foreground">
+                    <span className="block text-xs text-ink-muted">
                       {ALERT_CHANNEL_META[channel].hint}
                     </span>
                   </span>
@@ -194,7 +194,7 @@ export function AlertRuleSheet({
                 })
               }
             />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("Remind the next recipient if nobody acts. Typical for pending approvals and overdue reviews.")}</p>
           </div>
         </SheetBody>

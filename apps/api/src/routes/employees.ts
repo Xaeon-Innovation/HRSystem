@@ -59,6 +59,7 @@ const employeeSelect = {
   emergencyContactName: employees.emergencyContactName,
   emergencyContactPhone: employees.emergencyContactPhone,
   status: employees.status,
+  presenceMode: employees.presenceMode,
   branchId: employees.branchId,
   siteId: employees.siteId,
   managerId: employees.managerId,
@@ -209,12 +210,18 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         emergencyContactName: emptyToNull(data.emergencyContactName) ?? null,
         emergencyContactPhone: emptyToNull(data.emergencyContactPhone) ?? null,
         status: data.status,
+        presenceMode: data.presenceMode ?? "fixed_zone",
         branchId,
         siteId: data.siteId ?? null,
         managerId: managerId ?? null,
-        geofenceLat: data.geofenceLat ?? null,
-        geofenceLng: data.geofenceLng ?? null,
-        geofenceRadiusMeters: data.geofenceRadiusMeters ?? null,
+        geofenceLat:
+          data.presenceMode === "mobile" ? null : (data.geofenceLat ?? null),
+        geofenceLng:
+          data.presenceMode === "mobile" ? null : (data.geofenceLng ?? null),
+        geofenceRadiusMeters:
+          data.presenceMode === "mobile"
+            ? null
+            : (data.geofenceRadiusMeters ?? null),
       })
       .returning();
 
@@ -546,21 +553,30 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
         parsed.data.geofenceLat === null &&
         parsed.data.geofenceLng === null &&
         parsed.data.geofenceRadiusMeters === null;
-      const nextGeofenceLat = clearingGeofence
+      const nextPresenceMode =
+        parsed.data.presenceMode !== undefined
+          ? parsed.data.presenceMode
+          : emp.presenceMode ?? "fixed_zone";
+      let nextGeofenceLat = clearingGeofence
         ? null
         : parsed.data.geofenceLat !== undefined
           ? parsed.data.geofenceLat
           : emp.geofenceLat;
-      const nextGeofenceLng = clearingGeofence
+      let nextGeofenceLng = clearingGeofence
         ? null
         : parsed.data.geofenceLng !== undefined
           ? parsed.data.geofenceLng
           : emp.geofenceLng;
-      const nextGeofenceRadius = clearingGeofence
+      let nextGeofenceRadius = clearingGeofence
         ? null
         : parsed.data.geofenceRadiusMeters !== undefined
           ? parsed.data.geofenceRadiusMeters
           : emp.geofenceRadiusMeters;
+      if (nextPresenceMode === "mobile") {
+        nextGeofenceLat = null;
+        nextGeofenceLng = null;
+        nextGeofenceRadius = null;
+      }
 
       const user = await app.db.query.users.findFirst({
         where: eq(users.id, emp.userId),
@@ -611,6 +627,7 @@ export const employeeRoutes: FastifyPluginAsync = async (app) => {
               ? emptyToNull(parsed.data.emergencyContactPhone) ?? null
               : emp.emergencyContactPhone,
           status: nextStatus,
+          presenceMode: nextPresenceMode,
           branchId: nextBranchId,
           siteId: nextSiteId,
           managerId: nextManagerId,

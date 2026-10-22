@@ -113,7 +113,7 @@ export function CompensationPaySetupForm({
             </select>
           </Field>
           {rec ? (
-            <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded-lg bg-surface-2/70 px-3 py-2 text-xs text-ink-muted">
               {t("Current")}{payStructureLabel(rec.payStructure)} ·{" "}
               {formatMoney(rec.baseAmount, rec.currency)}
               {rec.payStructure === "hourly" ? "/hr" : ""}
@@ -153,11 +153,11 @@ export function CompensationPaySetupForm({
             </Field>
           </div>
           {payStructure === "hourly" ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("Payroll uses actual clocked hours × this rate. Overtime starts after")}{" "}
               {(Number(hoursPerWeek) || 40) / 5} {t("hours in a day.")}</p>
           ) : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

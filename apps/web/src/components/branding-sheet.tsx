@@ -176,7 +176,7 @@ export function BrandingSheet({
                   <span className="font-medium">{t(BRAND_PRESETS[id].label)}</span>
                   <span
                     className="mt-2 block h-2 rounded-full"
-                    style={{ background: `hsl(${BRAND_PRESETS[id].primary})` }}
+                    style={{ background: `hsl(${BRAND_PRESETS[id].swatch})` }}
                   />
                 </button>
               ))}

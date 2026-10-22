@@ -1,13 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Chip, HatchBar } from "@/components/elevora";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserAvatar } from "@/components/user-avatar";
-import { FitScoreBadge } from "@/components/hiring/fit-score-badge";
 import { HiringEmptyState } from "@/components/hiring/hiring-states";
-import { formatDateTime, SELECT_CLASS } from "@/lib/hiring/format";
-import { bandFor } from "@/lib/hiring/fit-score";
+import { SELECT_CLASS } from "@/lib/hiring/format";
 import type { BestFitDraft, Candidate, JobOpening } from "@/lib/hiring/types";
 import { t } from "@/i18n";
 
@@ -29,66 +28,104 @@ export function BestFitPanel({
   onRemove: (draftId: string) => void;
 }) {
   const byId = useMemo(() => new Map(candidates.map((c) => [c.id, c])), [candidates]);
+  const [jobFilter, setJobFilter] = useState(openJobs[0]?.id ?? "");
   const [jobByDraft, setJobByDraft] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<BestFitDraft | null>(null);
 
+  const ranked = useMemo(() => {
+    return drafts
+      .slice()
+      .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
+  }, [drafts]);
+
   return (
     <div className="space-y-3">
-      <div>
-        <h2 className="text-sm font-semibold">{t("Best-fit bench")}</h2>
-        <p className="text-xs text-muted-foreground">
-          {t("Strong contacts kept for later openings. Removing someone from the bench does not delete them.")}</p>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <select
+          className={`${SELECT_CLASS} w-full sm:w-auto`}
+          value={jobFilter}
+          onChange={(e) => setJobFilter(e.target.value)}
+        >
+          {openJobs.length === 0 ? <option value="">{t("No open jobs")}</option> : null}
+          {openJobs.map((j) => (
+            <option key={j.id} value={j.id}>
+              {j.title}
+            </option>
+          ))}
+        </select>
+        <span className="text-xs text-ink-muted">
+          {t("Ranked drafts against open jobs")}
+        </span>
       </div>
-      {drafts.length === 0 ? (
+
+      {ranked.length === 0 ? (
         <HiringEmptyState
           title={t("No best-fit drafts yet")}
-          description={t("Save a candidate as best fit from their profile or the pipeline when you want to keep the contact warm.")}
+          description={t(
+            "Save a candidate as best fit from their profile or the pipeline when you want to keep the contact warm.",
+          )}
         />
       ) : (
-        <ul className="space-y-2">
-          {drafts.map((d) => {
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fill,minmax(260px,1fr))]">
+          {ranked.map((d, i) => {
             const c = byId.get(d.candidateId);
-            const jobId = jobByDraft[d.id] ?? openJobs[0]?.id ?? "";
-            const fit = d.fitScore == null ? null : { score: d.fitScore, band: bandFor(d.fitScore), matchedSkills: [], missingSkills: [], knockout: false, usedInterview: false };
+            const score = d.fitScore ?? 0;
+            const jobId = jobByDraft[d.id] ?? (jobFilter || openJobs[0]?.id || "");
+            const skills = (c?.skills ?? c?.tags ?? []).slice(0, 3);
             return (
-              <li
+              <div
                 key={d.id}
-                className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="rounded-sm border border-line bg-surface p-4"
               >
-                <div className="flex min-w-0 items-start gap-3">
-                  <UserAvatar name={c?.fullName ?? d.jobTitle} size="md" />
-                  <div className="min-w-0">
-                    <p className="font-semibold">{c?.fullName ?? t("Candidate removed")}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {d.jobTitle} · {d.department}
-                      {d.jobId ? "" : t(" · opening gone")}
-                    </p>
-                    {c ? (
-                      <p className="mt-1 text-xs">
-                        {c.email}
-                        {c.phone ? ` · ${c.phone}` : ""}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <UserAvatar name={c?.fullName ?? d.jobTitle} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">
+                        {c?.fullName ?? t("Candidate removed")}
                       </p>
-                    ) : null}
-                    {d.note ? <p className="mt-1 text-sm">{d.note}</p> : null}
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      {t("Saved by")}{d.savedByName} · {formatDateTime(d.savedAt)}
-                    </p>
+                      <p className="text-xs text-ink-muted">
+                        #{i + 1} {t("match")}
+                      </p>
+                    </div>
                   </div>
+                  <span className="text-lg font-semibold tabular-nums text-ink">{score}</span>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {fit ? <FitScoreBadge result={fit} /> : <FitScoreBadge result={{ score: null, band: null, matchedSkills: [], missingSkills: [], knockout: false, usedInterview: false }} />}
+                <HatchBar className="mt-2" size="sm" percent={score} tone="accent" />
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {skills.length > 0
+                    ? skills.map((s) => (
+                        <Chip key={s} tone="neutral">
+                          {s}
+                        </Chip>
+                      ))
+                    : (
+                      <Chip tone="neutral">{d.department || d.jobTitle}</Chip>
+                    )}
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
                   {c ? (
-                    <Button size="sm" variant="outline" onClick={() => onOpenCandidate(c.id)}>
-                      {t("Profile")}</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => onOpenCandidate(c.id)}
+                    >
+                      {t("Profile")}
+                    </Button>
                   ) : null}
                   {canManage && c ? (
                     <>
                       <select
-                        className={`${SELECT_CLASS} w-auto`}
+                        className={`${SELECT_CLASS} w-full`}
                         value={jobId}
-                        onChange={(e) => setJobByDraft((prev) => ({ ...prev, [d.id]: e.target.value }))}
+                        onChange={(e) =>
+                          setJobByDraft((prev) => ({ ...prev, [d.id]: e.target.value }))
+                        }
                       >
-                        {openJobs.length === 0 ? <option value="">{t("No open jobs")}</option> : null}
+                        {openJobs.length === 0 ? (
+                          <option value="">{t("No open jobs")}</option>
+                        ) : null}
                         {openJobs.map((j) => (
                           <option key={j.id} value={j.id}>
                             {j.title}
@@ -97,22 +134,31 @@ export function BestFitPanel({
                       </select>
                       <Button
                         size="sm"
+                        className="w-full"
                         disabled={!jobId}
                         onClick={() => {
                           if (jobId) onAttach(d.id, jobId);
                         }}
                       >
-                        {t("Attach to opening")}</Button>
-                      <Button size="sm" variant="ghost" onClick={() => setPending(d)}>
-                        {t("Remove from bench")}</Button>
+                        {t("Attach to opening")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="w-full"
+                        onClick={() => setPending(d)}
+                      >
+                        {t("Remove from bench")}
+                      </Button>
                     </>
                   ) : null}
                 </div>
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
+
       <ConfirmDialog
         open={Boolean(pending)}
         title={`Remove “${byId.get(pending?.candidateId ?? "")?.fullName ?? "this draft"}” from the bench?`}

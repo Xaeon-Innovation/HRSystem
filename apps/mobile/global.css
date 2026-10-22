@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Light defaults before ThemeProvider vars bind (matches @hr/tokens light). */
+:root {
+  color-scheme: light;
+  --accent: #9acd32;
+  --accent-strong: #6fa01b;
+  --accent-soft: #c9e98a;
+  --accent-tint: #eef7dc;
+  --accent-ink: #1a2600;
+  --warn: #f4a259;
+  --warn-soft: #fde6cf;
+  --warn-text: #b4610f;
+  --yellow: #efe444;
+  --danger: #e5484d;
+  --danger-soft: #fce3e3;
+  --info: #3e8bff;
+  --info-soft: #dce9ff;
+  --canvas: #e6e6e3;
+  --frame: #f6f6f4;
+  --surface: #ffffff;
+  --surface-2: #f3f3f1;
+  --surface-3: #eaeae7;
+  --line: #ecece9;
+  --line-strong: #dededa;
+  --text: #121212;
+  --text-2: #4a4a47;
+  --muted: #8e8e89;
+  --faint: #bdbdb8;
+  --bar-idle: #ebebe8;
+  --bar-idle-stripe: #f4f4f2;
+  --ink: #121212;
+  --ink-text: #ffffff;
+}
+
+.dark {
+  color-scheme: dark;
+}

@@ -23,8 +23,10 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Notice, Segmented } from "@/components/elevora";
+import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
-import { DELIVERABLE_TYPE_LABEL } from "./types";
+import { DELIVERABLE_TYPE_LABEL, TASK_PRIORITY_LABEL } from "./types";
 
 type EmployeeOpt = { id: string; name: string };
 type JobRoleOpt = { id: string; name: string };
@@ -284,19 +286,12 @@ export function TaskCreateSheet({
           </SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-4">
-          {error ? (
-            <div
-              role="alert"
-              className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-            >
-              {error}
-            </div>
-          ) : null}
+          {error ? <Notice tone="warn">{error}</Notice> : null}
 
           <div className="space-y-1.5">
             <Label
               htmlFor="task-title"
-              className={titleError ? "text-destructive" : undefined}
+              className={titleError ? "text-danger" : undefined}
             >
               {t("Name")}
             </Label>
@@ -311,12 +306,12 @@ export function TaskCreateSheet({
               aria-invalid={Boolean(titleError)}
               className={
                 titleError
-                  ? "border-destructive bg-destructive/10 ring-2 ring-destructive/40 focus-visible:ring-destructive"
+                  ? "border-danger bg-danger/10 ring-2 ring-danger/40 focus-visible:ring-danger"
                   : undefined
               }
             />
             {titleError ? (
-              <p className="text-xs font-medium text-destructive">{titleError}</p>
+              <p className="text-xs font-medium text-danger">{titleError}</p>
             ) : null}
           </div>
 
@@ -324,27 +319,58 @@ export function TaskCreateSheet({
             <Label htmlFor="task-desc">{t("Description")}</Label>
             <textarea
               id="task-desc"
-              className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              className="min-h-24 w-full rounded-sm border border-line bg-surface px-3 py-2 text-sm text-ink"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
 
+          <div className="space-y-2">
+            <Label>{t("Assignment mode")}</Label>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {TASK_ASSIGNMENT_MODES.map((mode) => {
+                const active = assignmentMode === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setAssignmentMode(mode)}
+                    className={cn(
+                      "rounded-sm border px-3 py-3 text-left transition-colors",
+                      active
+                        ? "border-accent/40 bg-accent-tint"
+                        : "border-line bg-surface hover:border-line-strong",
+                    )}
+                  >
+                    <span className="block text-sm font-semibold text-ink">
+                      {mode === "shared"
+                        ? t("Shared")
+                        : t("Individual")}
+                    </span>
+                    <span className="mt-1 block text-xs text-ink-muted">
+                      {mode === "shared"
+                        ? t("Everyone collaborates on one task and sees activity.")
+                        : t("Each assignee gets their own copy to complete.")}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label htmlFor="task-priority">{t("Priority")}</Label>
-              <select
-                id="task-priority"
-                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              <Label>{t("Priority")}</Label>
+              <Segmented
+                aria-label={t("Priority")}
                 value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
-              >
-                {TASK_PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={setPriority}
+                options={TASK_PRIORITIES.map((p) => ({
+                  value: p,
+                  label: t(TASK_PRIORITY_LABEL[p]),
+                }))}
+                className="flex w-full flex-wrap"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="task-due">{t("Due date")}</Label>
@@ -357,41 +383,10 @@ export function TaskCreateSheet({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>{t("Assignment mode")}</Label>
-            <div className="flex flex-col gap-2">
-              {TASK_ASSIGNMENT_MODES.map((mode) => (
-                <label
-                  key={mode}
-                  className="flex cursor-pointer items-start gap-2 rounded-md border border-input px-3 py-2 text-sm"
-                >
-                  <input
-                    type="radio"
-                    className="mt-1"
-                    checked={assignmentMode === mode}
-                    onChange={() => setAssignmentMode(mode)}
-                  />
-                  <span>
-                    <span className="font-medium">
-                      {mode === "shared"
-                        ? t("Shared team task")
-                        : t("Separate task per person")}
-                    </span>
-                    <span className="mt-0.5 block text-muted-foreground">
-                      {mode === "shared"
-                        ? t("Everyone collaborates on one task and sees activity.")
-                        : t("Each assignee gets their own copy to complete.")}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 rounded-md border border-input px-3 py-2">
+          <div className="flex items-center justify-between gap-3 rounded-sm border border-line bg-surface px-3 py-2">
             <div>
-              <p className="text-sm font-medium">{t("Requires admin review")}</p>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm font-medium text-ink">{t("Require review")}</p>
+              <p className="text-xs text-ink-muted">
                 {t("Assignees submit deliverables; you approve or send back.")}
               </p>
             </div>
@@ -400,38 +395,38 @@ export function TaskCreateSheet({
 
           <div
             id="task-assignees"
-            className={`space-y-3 rounded-lg p-3 ${
+            className={`space-y-3 rounded-sm p-3 ${
               assigneeError
-                ? "border-2 border-destructive bg-destructive/10 ring-2 ring-destructive/30"
+                ? "border-2 border-danger bg-danger/10 ring-2 ring-danger/30"
                 : "border border-transparent"
             }`}
           >
             <div className="space-y-1">
-              <Label className={assigneeError ? "text-destructive" : undefined}>
+              <Label className={assigneeError ? "text-danger" : undefined}>
                 {t("Assignees")}
-                <span className="text-destructive"> *</span>
+                <span className="text-danger"> *</span>
               </Label>
               <p
                 className={`text-xs ${
-                  assigneeError ? "text-destructive/90" : "text-muted-foreground"
+                  assigneeError ? "text-danger/90" : "text-ink-muted"
                 }`}
               >
                 {t("Pick people, job roles, and/or branches.")}
               </p>
               {assigneeError ? (
-                <p role="alert" className="text-sm font-medium text-destructive">
+                <p role="alert" className="text-sm font-medium text-danger">
                   {assigneeError}
                 </p>
               ) : null}
             </div>
 
             <div className="space-y-1.5">
-              <p className="text-xs font-medium text-muted-foreground">
+              <p className="text-xs font-medium text-ink-muted">
                 {t("Employees")}
               </p>
               <div
-                className={`max-h-36 space-y-1 overflow-y-auto rounded-md border bg-background/60 p-2 ${
-                  assigneeError ? "border-destructive" : "border-input"
+                className={`max-h-36 space-y-1 overflow-y-auto rounded-sm border bg-surface p-2 ${
+                  assigneeError ? "border-danger" : "border-line"
                 }`}
               >
                 {employees.map((e) => (
@@ -447,7 +442,7 @@ export function TaskCreateSheet({
                   </label>
                 ))}
                 {!employees.length ? (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-muted">
                     {t("No employees")}
                   </p>
                 ) : null}
@@ -456,12 +451,12 @@ export function TaskCreateSheet({
 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-xs font-medium text-ink-muted">
                   {t("Job roles")}
                 </p>
                 <div
-                  className={`max-h-28 space-y-1 overflow-y-auto rounded-md border bg-background/60 p-2 ${
-                    assigneeError ? "border-destructive" : "border-input"
+                  className={`max-h-28 space-y-1 overflow-y-auto rounded-sm border bg-surface p-2 ${
+                    assigneeError ? "border-danger" : "border-line"
                   }`}
                 >
                   {jobRoles.map((r) => (
@@ -482,12 +477,12 @@ export function TaskCreateSheet({
                 </div>
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs font-medium text-muted-foreground">
+                <p className="text-xs font-medium text-ink-muted">
                   {t("Branches")}
                 </p>
                 <div
-                  className={`max-h-28 space-y-1 overflow-y-auto rounded-md border bg-background/60 p-2 ${
-                    assigneeError ? "border-destructive" : "border-input"
+                  className={`max-h-28 space-y-1 overflow-y-auto rounded-sm border bg-surface p-2 ${
+                    assigneeError ? "border-danger" : "border-line"
                   }`}
                 >
                   {branches.map((b) => (
@@ -522,18 +517,24 @@ export function TaskCreateSheet({
 
           <div className="space-y-2">
             <Label>{t("Required deliverables")}</Label>
-            <div className="flex flex-wrap gap-2">
+            <div
+              role="group"
+              aria-label={t("Required deliverables")}
+              className="inline-flex flex-wrap rounded-sm border border-line bg-surface p-0.5"
+            >
               {TASK_DELIVERABLE_TYPES.map((type) => {
                 const on = deliverables.includes(type);
                 return (
                   <button
                     key={type}
                     type="button"
-                    className={`rounded-full border px-3 py-1 text-xs ${
+                    aria-pressed={on}
+                    className={cn(
+                      "rounded-[8px] px-3 py-1.5 text-xs font-medium transition-colors",
                       on
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-input text-muted-foreground"
-                    }`}
+                        ? "bg-surface-3 text-ink shadow-sm"
+                        : "text-ink-muted hover:text-ink",
+                    )}
                     onClick={() =>
                       setDeliverables((prev) =>
                         on ? prev.filter((x) => x !== type) : [...prev, type],

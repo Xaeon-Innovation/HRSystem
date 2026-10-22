@@ -223,7 +223,7 @@ export function LeaveRequestForm({
           </Field>
 
           {leaveType ? (
-            <p className="text-xs text-muted-foreground">{leaveType.description}</p>
+            <p className="text-xs text-ink-muted">{leaveType.description}</p>
           ) : null}
 
           <div className="grid grid-cols-2 gap-3">
@@ -296,7 +296,7 @@ export function LeaveRequestForm({
           ) : null}
 
           <fieldset className="space-y-2">
-            <legend className="text-xs text-muted-foreground">{t("Urgency")}</legend>
+            <legend className="text-xs text-ink-muted">{t("Urgency")}</legend>
             <div className="flex gap-2">
               {(["planned", "emergency"] as const).map((u) => (
                 <button
@@ -307,7 +307,7 @@ export function LeaveRequestForm({
                     "rounded-full px-3 py-1 text-xs font-medium ring-1",
                     form.urgency === u
                       ? "bg-primary text-primary-foreground ring-primary"
-                      : "bg-card text-muted-foreground ring-border hover:bg-secondary",
+                      : "bg-surface text-ink-muted ring-line hover:bg-surface-2",
                   )}
                 >
                   {u === "planned" ? t("Planned") : t("Emergency")}
@@ -361,7 +361,7 @@ export function LeaveRequestForm({
                 e.target.value = "";
               }}
             />
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs text-ink-muted">
               {t("Up to")}{MAX_ATTACHMENTS} {t("files, 1.5MB each.")}</p>
             {attachments.length > 0 ? (
               <ul className="mt-2 space-y-1">
@@ -373,7 +373,7 @@ export function LeaveRequestForm({
                     <span className="min-w-0 truncate">{a.name}</span>
                     <button
                       type="button"
-                      className="shrink-0 text-destructive underline"
+                      className="shrink-0 text-danger underline"
                       onClick={() => removeAttachment(a.id)}
                     >
                       {t("Remove")}</button>
@@ -384,16 +384,16 @@ export function LeaveRequestForm({
           </Field>
 
           {preview?.balance && leaveType?.tracksBalance ? (
-            <div className="rounded-lg border bg-secondary/40 px-3 py-2 text-sm">
+            <div className="rounded-lg border bg-surface-2/40 px-3 py-2 text-sm">
               <p className="font-medium">{t("Balance before you submit")}</p>
-              <p className="mt-1 tabular-nums text-muted-foreground">
+              <p className="mt-1 tabular-nums text-ink-muted">
                 {t("Remaining")}{formatDays(preview.balance.remaining)} {t("· pending")}{formatDays(preview.balance.pending)} {t("· available")}{formatDays(preview.available)} {t("· this request")}{formatDays(effectiveDays)}
               </p>
             </div>
           ) : null}
 
           {preview ? <LeaveConflictWarnings conflicts={preview.conflicts} /> : null}
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
 
           <div className="flex flex-wrap justify-end gap-2 pt-2">
             <Button type="button" variant="outline" disabled={saving || busy} onClick={() => submit(true)}>
@@ -411,7 +411,7 @@ export function LeaveRequestForm({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-ink-muted">{label}</Label>
       {children}
     </div>
   );

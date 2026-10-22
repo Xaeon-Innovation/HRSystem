@@ -161,9 +161,9 @@ export function CandidateForm({
               disabled={parsing}
               onChange={(e) => void onFile(e.target.files?.[0])}
             />
-            {parsing ? <p className="text-xs text-muted-foreground">{t("Reading CV in the browser…")}</p> : null}
+            {parsing ? <p className="text-xs text-ink-muted">{t("Reading CV in the browser…")}</p> : null}
             {form.resumeFileName ? (
-              <p className="text-xs text-muted-foreground">{t("Attached:")}{form.resumeFileName}</p>
+              <p className="text-xs text-ink-muted">{t("Attached:")}{form.resumeFileName}</p>
             ) : null}
           </Field>
           {warnings.length > 0 ? (

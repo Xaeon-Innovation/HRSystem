@@ -23,12 +23,12 @@ export function KpiCategoryPanel({
     <Card className="h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Category breakdown")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {t("Weighted score by KPI group, click to filter the table")}</p>
       </CardHeader>
       <CardContent className="space-y-2">
         {categories.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No categorized KPIs in view.")}</p>
+          <p className="text-sm text-ink-muted">{t("No categorized KPIs in view.")}</p>
         ) : (
           categories.map((c) => {
             const selected = active === c.id;
@@ -39,12 +39,12 @@ export function KpiCategoryPanel({
                 onClick={() => onSelect(selected ? "" : c.id)}
                 className={cn(
                   "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left transition-colors",
-                  selected ? "border-primary bg-accent" : "hover:bg-secondary/70",
+                  selected ? "border-primary bg-accent" : "hover:bg-surface-2/70",
                 )}
               >
                 <div>
                   <p className="text-sm font-medium">{c.label}</p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-[11px] text-ink-muted">
                     {c.metCount}/{c.kpiCount} {t("at target")}{c.missingCount ? ` · ${c.missingCount} missing` : ""}
                   </p>
                 </div>
@@ -71,7 +71,7 @@ export function KpiAlertsPanel({
     <Card className="h-full" id="kpi-alerts">
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Alerts & exceptions")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {t("Thresholds and gaps that need a decision, not just a number")}</p>
       </CardHeader>
       <CardContent className="space-y-2">

@@ -135,7 +135,7 @@ export function CompensationChangeForm({
             </select>
           </Field>
           {profile ? (
-            <p className="rounded-lg bg-secondary/70 px-3 py-2 text-xs text-muted-foreground">
+            <p className="rounded-lg bg-surface-2/70 px-3 py-2 text-xs text-ink-muted">
               {t("Current")}{formatMoney(profile.record.baseAmount, profile.record.currency)} {t("· KPI")}{" "}
               {profile.employee.latestKpiScore ?? "-"} {t("· Last appraisal")}{" "}
               {profile.employee.lastAppraisalResult ?? "-"}
@@ -204,7 +204,7 @@ export function CompensationChangeForm({
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={asDraft} onChange={(e) => setAsDraft(e.target.checked)} />
             {t("Save as draft (do not submit yet)")}</label>
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
         </SheetBody>
         <SheetFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

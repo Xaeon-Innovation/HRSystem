@@ -67,6 +67,8 @@ services:
       SMTP_WEBHOOK_URL: ${SMTP_WEBHOOK_URL:-}
       FCM_SERVER_KEY: ${FCM_SERVER_KEY:-}
       PLATFORM_LOGIN_SUPER_ADMIN_ONLY: ${PLATFORM_LOGIN_SUPER_ADMIN_ONLY:-}
+      SEED_SUPER_ADMIN_EMAIL: ${SEED_SUPER_ADMIN_EMAIL:-}
+      SEED_SUPER_ADMIN_PASSWORD: ${SEED_SUPER_ADMIN_PASSWORD:-}
     # Bind localhost only so existing public sites are unaffected
     ports:
       - "127.0.0.1:${API_PUBLISH_PORT:-4000}:4000"

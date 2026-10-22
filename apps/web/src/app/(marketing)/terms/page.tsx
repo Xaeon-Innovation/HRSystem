@@ -2,88 +2,65 @@
 
 import { useT } from "@/i18n/provider";
 
+const SECTIONS = [
+  {
+    id: "account",
+    title: "Your account",
+    body: "You are responsible for your workspace, the people you invite and the roles you grant.",
+  },
+  {
+    id: "subscriptions",
+    title: "Subscriptions",
+    body: "Plans are billed per seat. Cancel any time; access continues to period end.",
+  },
+  {
+    id: "use",
+    title: "Acceptable use",
+    body: "Do not use Elevora to track people outside working hours or without notice.",
+  },
+  {
+    id: "liability",
+    title: "Liability",
+    body: "The service is provided as is, within the limits of applicable law.",
+  },
+] as const;
+
 export default function TermsPage() {
   const t = useT();
+
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        {t("Terms of Service")}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {t("Last updated:")} 13 September 2026
+    <div className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-10 sm:px-8 sm:py-14">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-ink-muted">
+        {t("Legal")}
       </p>
-      <div className="prose prose-neutral mt-8 max-w-none space-y-6 text-sm leading-relaxed text-muted-foreground dark:prose-invert">
-        <p>
-          {t(
-            "These Terms govern access to Elevora, a multi-tenant HR and field workforce platform operated by Xaeon (“we”, “us”). By creating an account or using the service, you agree to these Terms.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("1. The service")}
-        </h2>
-        <p>
-          {t(
-            "Elevora provides workforce tools including attendance clock-in/out, optional GPS location for field presence, KPIs, leave, hiring, compensation, and related administration. Features depend on your plan and configuration.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("2. Accounts and organizations")}
-        </h2>
-        <p>
-          {t(
-            "You must provide accurate information when creating an organization. You are responsible for admin credentials, employee accounts under your tenant, and lawful use of location and personal data for your workforce.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("3. Trials and billing")}
-        </h2>
-        <p>
-          {t(
-            "New organizations may receive a limited free trial. Paid subscriptions are managed inside the product. Fees, seat limits, and renewals follow the plan you select and any payment-provider terms.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("4. Acceptable use")}
-        </h2>
-        <p>
-          {t(
-            "You may not misuse the service, attempt unauthorized access, interfere with other tenants, or use Elevora in violation of employment, privacy, or location-tracking laws applicable to your operations.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("5. Data and privacy")}
-        </h2>
-        <p>
-          {t(
-            "Our handling of personal data is described in the Privacy Policy. Tenant data is isolated by organization. You remain the controller of employee data you upload or collect through the product.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("6. Availability and changes")}
-        </h2>
-        <p>
-          {t(
-            "We aim for reliable service but do not guarantee uninterrupted availability. We may update features and these Terms; continued use after notice constitutes acceptance of material changes where permitted by law.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("7. Contact")}
-        </h2>
-        <p>
-          {t("Questions about these Terms:")}{" "}
-          <a
-            className="text-foreground underline"
-            href="mailto:info@xaeons.com"
-          >
-            info@xaeons.com
-          </a>
-        </p>
-        <p className="text-xs">
-          {t(
-            "This document is a general SaaS draft and is not legal advice.",
-          )}
-        </p>
+      <h1 className="mt-2.5 text-[clamp(32px,4vw,40px)] font-semibold tracking-[-0.035em] text-ink">
+        {t("Terms of use")}
+      </h1>
+      <p className="mt-1.5 text-sm text-ink-muted">
+        {t("Last updated")} 01 October 2026
+      </p>
+
+      <div className="mt-10 grid gap-10 lg:grid-cols-[200px_minmax(0,720px)]">
+        <nav className="hidden space-y-2 text-sm lg:sticky lg:top-24 lg:block lg:self-start">
+          {SECTIONS.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="block text-ink-muted hover:text-ink"
+            >
+              {t(s.title)}
+            </a>
+          ))}
+        </nav>
+        <div className="max-w-[720px] space-y-8 text-[15px] leading-relaxed text-ink-2">
+          {SECTIONS.map((s) => (
+            <section key={s.id} id={s.id} className="scroll-mt-28">
+              <h2 className="text-lg font-semibold text-ink">{t(s.title)}</h2>
+              <p className="mt-2">{t(s.body)}</p>
+            </section>
+          ))}
+        </div>
       </div>
-    </article>
+    </div>
   );
 }

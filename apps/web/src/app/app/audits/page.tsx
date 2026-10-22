@@ -4,8 +4,14 @@ import { FormEvent, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
+import {
+  EmptyState,
+  Notice,
+  PageHeader,
+  PersonCell,
+} from "@/components/elevora";
+import { Search, ScrollText } from "lucide-react";
 import { t } from "@/i18n";
 
 type Audit = {
@@ -13,17 +19,28 @@ type Audit = {
   action: string;
   actorUserId: string | null;
   actorRole: string | null;
+  actorName: string | null;
   tenantId: string | null;
   resourceType: string | null;
   resourceId: string | null;
+  resourceName: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
 };
+
+function auditWho(a: Audit): string {
+  if (a.actorName) return a.actorName;
+  if (a.resourceType === "user" && a.resourceName) return a.resourceName;
+  const email = a.metadata?.email;
+  if (typeof email === "string" && email) return email;
+  return a.actorRole ?? "System";
+}
 
 export default function AuditsPage() {
   const [audits, setAudits] = useState<Audit[]>([]);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const [filters, setFilters] = useState({
     action: "",
     tenantId: "",
@@ -45,68 +62,107 @@ export default function AuditsPage() {
     load().catch((err) => setError(err.message));
   }, []);
 
+  const filtered = q.trim()
+    ? audits.filter((a) => {
+        const hay = `${auditWho(a)} ${a.action} ${a.resourceName ?? ""}`.toLowerCase();
+        return hay.includes(q.trim().toLowerCase());
+      })
+    : audits;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Audits")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Platform and tenant-admin sensitive actions (")}{total} {t("matching)")}</p>
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <PageHeader
+        title={t("Audits")}
+        subtitle={`${t("Platform audit log")} · ${total}`}
+        actions={
+          <div className="relative w-full sm:w-60">
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+              aria-hidden
+            />
+            <Input
+              className="ps-9"
+              placeholder={t("Filter actor or action")}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+          </div>
+        }
+      />
+      {error ? <Notice tone="warn">{error}</Notice> : null}
 
       <form
-        className="flex flex-wrap items-end gap-3"
+        className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end"
         onSubmit={(e) => load(e).catch((err) => setError(err.message))}
       >
-        <div className="space-y-1">
-          <Label>{t("Action")}</Label>
-          <Input
-            placeholder={t("tenant.suspend")}
-            value={filters.action}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, action: e.target.value }))
-            }
-          />
-        </div>
-        <div className="space-y-1">
-          <Label>{t("Tenant ID")}</Label>
-          <Input
-            placeholder={t("uuid")}
-            value={filters.tenantId}
-            onChange={(e) =>
-              setFilters((f) => ({ ...f, tenantId: e.target.value }))
-            }
-          />
-        </div>
-        <Button type="submit">{t("Filter")}</Button>
+        <Input
+          className="w-full sm:max-w-xs"
+          placeholder={t("Action")}
+          value={filters.action}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, action: e.target.value }))
+          }
+        />
+        <Input
+          className="w-full sm:max-w-xs"
+          placeholder={t("Tenant ID")}
+          value={filters.tenantId}
+          onChange={(e) =>
+            setFilters((f) => ({ ...f, tenantId: e.target.value }))
+          }
+        />
+        <Button type="submit" className="w-full sm:w-auto">
+          {t("Filter")}
+        </Button>
       </form>
 
-      <div className="space-y-2">
-        {audits.map((a) => (
-          <Card key={a.id}>
-            <CardContent className="py-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{a.action}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {a.actorRole ?? "system"}
-                    {a.tenantId ? ` · tenant ${a.tenantId.slice(0, 8)}…` : ""}
-                    {a.resourceType
-                      ? ` · ${a.resourceType}:${a.resourceId?.slice(0, 8) ?? ""}`
-                      : ""}
-                  </p>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(a.createdAt).toLocaleString()}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {audits.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No audit events.")}</p>
-        ) : null}
-      </div>
+      <Card className="overflow-hidden">
+        {filtered.length === 0 ? (
+          <EmptyState
+            icon={<ScrollText className="h-5 w-5" aria-hidden />}
+            title={t("No audit events")}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[40rem] text-sm">
+              <thead>
+                <tr className="border-b border-line text-start text-2xs text-ink-muted">
+                  <th className="px-5 py-3 font-medium">{t("Actor")}</th>
+                  <th className="px-3 py-3 font-medium">{t("Action")}</th>
+                  <th className="px-3 py-3 font-medium">{t("Target")}</th>
+                  <th className="px-5 py-3 font-medium">{t("Time")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a) => (
+                  <tr key={a.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-3 align-middle">
+                      <PersonCell
+                        name={auditWho(a)}
+                        subtitle={a.actorRole ?? "system"}
+                      />
+                    </td>
+                    <td className="px-3 py-3 align-middle">
+                      <code className="rounded-sm bg-surface-2 px-1.5 py-0.5 text-xs text-ink">
+                        {a.action}
+                      </code>
+                    </td>
+                    <td className="px-3 py-3 align-middle text-xs text-ink-2">
+                      {a.resourceName ||
+                        (a.tenantId
+                          ? `tenant ${a.tenantId.slice(0, 8)}…`
+                          : "—")}
+                    </td>
+                    <td className="px-5 py-3 align-middle tabular text-xs text-ink-muted">
+                      {new Date(a.createdAt).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

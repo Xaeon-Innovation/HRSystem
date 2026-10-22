@@ -56,7 +56,7 @@ export function AlertsEventRules({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="text-sm text-ink-muted">
         {t("Turn each lifecycle event on or off, then choose who gets it, how it is delivered, and how urgent it is. Batch quieter events into a digest so the inbox stays useful.")}</p>
       <div className="flex flex-col gap-3 lg:flex-row">
         <aside className="flex gap-1 overflow-x-auto lg:w-48 lg:flex-col lg:overflow-visible">
@@ -84,7 +84,7 @@ export function AlertsEventRules({
         </aside>
         <div className="min-w-0 flex-1 space-y-4">
           <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -99,12 +99,12 @@ export function AlertsEventRules({
                   <h2 className="text-sm font-semibold">
                     {ALERT_CATEGORY_META[group.category].label}
                   </h2>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-muted">
                     {ALERT_CATEGORY_META[group.category].blurb}
                   </p>
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-muted">
                   {ALERT_CATEGORY_META[group.category].blurb}
                 </p>
               )}
@@ -128,10 +128,10 @@ export function AlertsEventRules({
                         <p className="font-medium">{rule.name}</p>
                         <UrgencyBadge urgency={rule.urgency} />
                       </div>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs text-ink-muted">
                         {rule.description}
                       </p>
-                      <p className="mt-2 text-xs text-muted-foreground">
+                      <p className="mt-2 text-xs text-ink-muted">
                         {rule.recipients.map((r) => ALERT_RECIPIENT_META[r].label).join(", ")}
                         {" · "}
                         {rule.channels.map((c) => ALERT_CHANNEL_META[c].label).join(", ")}
@@ -144,7 +144,7 @@ export function AlertsEventRules({
                     </button>
                     <button
                       type="button"
-                      className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                      className="rounded-md p-2 text-ink-muted hover:bg-surface-2 hover:text-ink"
                       onClick={() => onOpen(rule)}
                       aria-label={`Configure ${rule.name}`}
                     >
@@ -156,7 +156,7 @@ export function AlertsEventRules({
             </section>
           ))}
           {visible.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No events match that search.")}</p>
+            <p className="text-sm text-ink-muted">{t("No events match that search.")}</p>
           ) : null}
         </div>
       </div>
@@ -183,14 +183,14 @@ function CategoryTab({
       onClick={onClick}
       className={cn(
         "inline-flex shrink-0 items-center justify-between gap-2 rounded-md px-3 py-2 text-sm",
-        active ? "bg-primary text-primary-foreground" : "hover:bg-secondary",
+        active ? "bg-primary text-primary-foreground" : "hover:bg-surface-2",
       )}
     >
       <span className="inline-flex items-center gap-2">
         {Icon ? <Icon className="h-3.5 w-3.5" /> : null}
         {label}
       </span>
-      <span className={cn("text-xs", active ? "opacity-80" : "text-muted-foreground")}>
+      <span className={cn("text-xs", active ? "opacity-80" : "text-ink-muted")}>
         {count}
       </span>
     </button>

@@ -179,7 +179,7 @@ export function AlertsCustomBuilder({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-xl text-sm text-muted-foreground">
+        <p className="max-w-xl text-sm text-ink-muted">
           {t("Build a threshold on a metric, pick who should hear about it, and write the message. Start from a common example or define your own.")}</p>
         <Button size="sm" onClick={() => openNew()}>
           <Plus className="h-4 w-4" />
@@ -191,7 +191,7 @@ export function AlertsCustomBuilder({
             key={example.name}
             type="button"
             onClick={() => openNew(example)}
-            className="rounded-full bg-card px-3 py-1 text-xs font-medium ring-1 ring-border hover:bg-secondary"
+            className="rounded-full bg-surface px-3 py-1 text-xs font-medium ring-1 ring-line hover:bg-surface-2"
           >
             {example.name}
           </button>
@@ -199,7 +199,7 @@ export function AlertsCustomBuilder({
       </div>
       {custom.length === 0 ? (
         <Card className="border-dashed">
-          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+          <CardContent className="py-10 text-center text-sm text-ink-muted">
             {t("No custom alerts yet. Try “Low annual leave balance” to see the builder with a real example filled in.")}</CardContent>
         </Card>
       ) : (
@@ -222,7 +222,7 @@ export function AlertsCustomBuilder({
                     <CategoryBadge category={rule.category} />
                     <UrgencyBadge urgency={rule.urgency} />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-ink-muted">
                     {ALERT_SOURCE_META[rule.source ?? "leave"].label}
                     {rule.metric ? ` · ${ALERT_METRIC_META[rule.metric].label}` : ""}
                     {rule.condition ? ` ${ALERT_CONDITION_META[rule.condition].label.toLowerCase()}` : ""}
@@ -333,7 +333,7 @@ function CustomAlertSheet({
         <button
           key={field.key}
           type="button"
-          className="rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground"
+          className="rounded-full bg-surface-2 px-2 py-0.5 text-[11px] text-ink-muted hover:text-ink"
           onClick={() =>
             onChange({
               ...draft,
@@ -532,13 +532,13 @@ function CustomAlertSheet({
               onChange={(e) => onChange({ ...draft, bodyTemplate: e.target.value })}
             />
             <div className="flex flex-wrap gap-1">{fieldButtons}</div>
-            <div className="rounded-md bg-secondary/60 p-3 text-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="rounded-md bg-surface-2 p-3 text-sm">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-muted">
                 {t("Preview")}</p>
               <p className="mt-1 font-medium">
                 {interpolateAlertTemplate(draft.titleTemplate, previewVars)}
               </p>
-              <p className="mt-1 text-muted-foreground">
+              <p className="mt-1 text-ink-muted">
                 {interpolateAlertTemplate(draft.bodyTemplate, previewVars)}
               </p>
             </div>
@@ -554,7 +554,7 @@ function CustomAlertSheet({
                   className={`rounded-md border px-2 py-2 text-sm ${
                     draft.urgency === urgency
                       ? "border-primary bg-accent"
-                      : "hover:bg-secondary"
+                      : "hover:bg-surface-2"
                   }`}
                 >
                   {ALERT_URGENCY_META[urgency].label}

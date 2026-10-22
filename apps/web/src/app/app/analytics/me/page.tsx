@@ -15,5 +15,5 @@ export default function MyAnalyticsRedirect() {
       router.replace("/app");
     }
   }, [router]);
-  return <p className="text-muted-foreground">{t("Opening your analytics…")}</p>;
+  return <p className="text-sm text-ink-muted">{t("Opening your analytics…")}</p>;
 }

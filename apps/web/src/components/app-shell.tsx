@@ -5,14 +5,16 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   Bell,
+  CalendarCheck2,
   CalendarDays,
+  ChevronsUpDown,
   ClipboardList,
   CreditCard,
   FileText,
   LayoutDashboard,
   LogOut,
   Package,
-  Palette,
+  Plus,
   Settings,
   Timer,
   Users,
@@ -35,17 +37,14 @@ import {
 } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ClockStatusProvider } from "@/components/clock-status-provider";
 import { UserAvatar, initialsOf } from "@/components/user-avatar";
-import { ThemeToggle } from "@/components/theme-toggle";
 import { LanguageToggle } from "@/components/language-toggle";
 import { PreviewBadge } from "@/components/ui/preview-badge";
-import { BrandingSheet } from "@/components/branding-sheet";
 import { useTenantBrand } from "@/components/brand-provider";
 import { NavigationProgress, PageTransition } from "@/components/page-motion";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { isUiRedesignEnabled } from "@/lib/ui-redesign";
 import { userHasModule, workspaceUnlocksAll } from "@/lib/permissions";
 import { PlatformRoleGate } from "@/lib/platform-gate";
 import { FeatureGate } from "@/lib/feature-gate";
@@ -60,12 +59,35 @@ import {
   type ModuleNavFlags,
 } from "@/lib/module-nav";
 import type { ModuleKey } from "@hr/shared";
+import {
+  AppFrame,
+  NavGroup,
+  NavItem,
+  NavSub,
+  NavSubItem,
+  Sidebar,
+  Topbar,
+  IconButton,
+} from "@/components/elevora";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+
+type NavChild = {
+  href: string;
+  label: string;
+};
 
 type NavLink = {
   href: string;
   label: string;
   icon: LucideIcon;
   preview?: boolean;
+  children?: NavChild[];
 };
 
 type NavSection = { title: string; links: NavLink[] };
@@ -100,7 +122,7 @@ function WorkspaceMark({
     setBroken(false);
   }, [src]);
   return (
-    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-[11px] font-semibold tracking-tight text-primary ring-1 ring-black/[0.06] md:h-9 md:w-9 dark:ring-white/10">
+    <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[8px] bg-ink text-[11px] font-semibold tracking-tight text-primary-foreground">
       {src && !broken ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -137,82 +159,35 @@ function pushModule(
   });
 }
 
-const flatLinksFor = (user: AuthUser, opts: NavOptions = {}): NavLink[] => {
-  if (user.role === "super_admin" && !user.tenantId) {
-    return [
-      { href: "/app", label: t("Overview"), icon: LayoutDashboard },
-      { href: "/app/tenants", label: t("Tenants"), icon: Building2 },
-      { href: "/app/subscriptions", label: t("Subscriptions"), icon: CreditCard },
-      { href: "/app/leads", label: t("Leads"), icon: Inbox },
-      { href: "/app/plans", label: t("Plans"), icon: Package },
-      { href: "/app/features", label: t("Features"), icon: ToggleLeft },
-      { href: "/app/payments", label: t("Payments"), icon: Receipt },
-      { href: "/app/audits", label: t("Audits"), icon: FileText },
-      { href: "/app/health", label: t("Health"), icon: Activity },
-      { href: "/app/profile", label: t("Profile"), icon: UserCircle },
-    ];
-  }
-  if (user.role === "tenant_admin" || (user.role === "super_admin" && user.tenantId)) {
-    const links: NavLink[] = [
-      { href: "/app", label: t("Dashboard"), icon: LayoutDashboard },
-    ];
-    pushModule(links, opts.features, "teamToday");
-    pushModule(links, opts.features, "liveMap", { label: t("Live Map") });
-    pushModule(links, opts.features, "integrations");
-    pushModule(links, opts.features, "analytics");
-    links.push({ href: "/app/employees", label: t("Employees"), icon: Users });
-    links.push({ href: "/app/shifts", label: t("Shifts"), icon: CalendarDays });
-    pushModule(links, opts.features, "hiring");
-    pushModule(links, opts.features, "kpis");
-    pushModule(links, opts.features, "leave");
-    pushModule(links, opts.features, "compensation");
-    pushModule(links, opts.features, "tasks");
-    links.push(
-      { href: "/app/notifications", label: t("Alerts"), icon: Bell },
-      { href: "/app/billing", label: t("Billing"), icon: CreditCard },
-      { href: "/app/health", label: t("Health"), icon: ClipboardList },
-      { href: "/app/clock", label: t("Clock"), icon: Timer },
-      { href: "/app/profile", label: t("Profile"), icon: UserCircle },
-    );
-    return links;
-  }
-
-  const links: NavLink[] = [
-    { href: "/app/clock", label: t("Clock"), icon: Timer },
-    { href: "/app/attendance", label: t("History"), icon: ClipboardList },
-  ];
-  if (opts.managesTeam) {
-    pushModule(links, opts.features, "teamToday");
-  }
-  pushModule(links, opts.features, "kpis", {
-    label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
-  });
-  pushModule(links, opts.features, "leave");
-  if (userHasModule(user, "hiring")) {
-    pushModule(links, opts.features, "hiring");
-  }
-  if (userHasModule(user, "compensation")) {
-    pushModule(links, opts.features, "compensation");
-  }
-  pushModule(links, opts.features, "tasks");
-  pushModule(links, opts.features, "analytics", {
-    href: employeeHrefFor("analytics"),
-    label: t("My analytics"),
-  });
-  links.push(
-    { href: "/app/notifications", label: t("Alerts"), icon: Bell },
-    { href: "/app/profile", label: t("Profile"), icon: UserCircle },
-  );
-  return links;
-};
-
-/** Grouped nav for redesign; treats entered superadmin like tenant admin. */
+/** Grouped nav; treats entered superadmin like tenant admin. */
 const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
   if (user.role === "super_admin" && !user.tenantId) {
-    return [{ title: t("Platform"), links: flatLinksFor(user, opts) }];
+    return [
+      {
+        title: t("Platform"),
+        links: [
+          { href: "/app", label: t("Overview"), icon: LayoutDashboard },
+          { href: "/app/tenants", label: t("Tenants"), icon: Building2 },
+          {
+            href: "/app/subscriptions",
+            label: t("Subscriptions"),
+            icon: CreditCard,
+          },
+          { href: "/app/leads", label: t("Leads"), icon: Inbox },
+          { href: "/app/plans", label: t("Plans"), icon: Package },
+          { href: "/app/features", label: t("Features"), icon: ToggleLeft },
+          { href: "/app/payments", label: t("Payments"), icon: Receipt },
+          { href: "/app/audits", label: t("Audits"), icon: FileText },
+          { href: "/app/health", label: t("Health"), icon: Activity },
+        ],
+      },
+    ];
   }
 
-  if (user.role === "tenant_admin" || (user.role === "super_admin" && user.tenantId)) {
+  if (
+    user.role === "tenant_admin" ||
+    (user.role === "super_admin" && user.tenantId)
+  ) {
     const operate: NavLink[] = [
       { href: "/app", label: t("Dashboard"), icon: LayoutDashboard },
     ];
@@ -220,7 +195,15 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
     pushModule(operate, opts.features, "liveMap", { label: t("Live Map") });
     operate.push(
       { href: "/app/clock", label: t("Clock"), icon: Timer },
-      { href: "/app/attendance", label: t("Attendance"), icon: ClipboardList },
+      {
+        href: "/app/attendance",
+        label: t("Attendance"),
+        icon: CalendarCheck2,
+        children: [
+          { href: "/app/attendance", label: t("Day view") },
+          { href: "/app/attendance/hours", label: t("Hours report") },
+        ],
+      },
       { href: "/app/notifications", label: t("Alerts"), icon: Bell },
     );
 
@@ -228,13 +211,36 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
       { href: "/app/employees", label: t("Employees"), icon: Users },
       { href: "/app/shifts", label: t("Shifts"), icon: CalendarDays },
     ];
-    pushModule(people, opts.features, "leave");
+    if (opts.features?.leave) {
+      people.push({
+        href: "/app/leave",
+        label: t("Leave"),
+        icon: moduleIcon("leave"),
+        children: [
+          { href: "/app/leave", label: t("Requests") },
+          { href: "/app/leave/balances", label: t("Balances") },
+          { href: "/app/leave/calendar", label: t("Calendar") },
+          { href: "/app/leave/policies", label: t("Policies") },
+          { href: "/app/leave/reports", label: t("Reports") },
+        ],
+      });
+    }
     pushModule(people, opts.features, "hiring");
     pushModule(people, opts.features, "tasks");
 
     const perform: NavLink[] = [];
     pushModule(perform, opts.features, "kpis");
-    pushModule(perform, opts.features, "analytics");
+    if (opts.features?.analytics) {
+      perform.push({
+        href: "/app/analytics",
+        label: t("Analytics"),
+        icon: moduleIcon("analytics"),
+        children: [
+          { href: "/app/analytics", label: t("Overview") },
+          { href: "/app/analytics/alerts", label: t("Alerts") },
+        ],
+      });
+    }
     pushModule(perform, opts.features, "compensation");
 
     const system: NavLink[] = [];
@@ -243,7 +249,6 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
       { href: "/app/settings", label: t("Settings"), icon: Settings },
       { href: "/app/billing", label: t("Billing"), icon: CreditCard },
       { href: "/app/health", label: t("Health"), icon: Activity },
-      { href: "/app/profile", label: t("Profile"), icon: UserCircle },
     );
 
     const sections: NavSection[] = [{ title: t("Operate"), links: operate }];
@@ -253,41 +258,35 @@ const groupedNavFor = (user: AuthUser, opts: NavOptions = {}): NavSection[] => {
     return sections;
   }
 
-  const operate: NavLink[] = [
+  const me: NavLink[] = [
     { href: "/app/clock", label: t("Clock"), icon: Timer },
     { href: "/app/attendance", label: t("History"), icon: ClipboardList },
+    { href: "/app/notifications", label: t("Alerts"), icon: Bell },
   ];
-  if (opts.managesTeam) {
-    pushModule(operate, opts.features, "teamToday");
-  }
-  operate.push({ href: "/app/notifications", label: t("Alerts"), icon: Bell });
 
-  const people: NavLink[] = [];
-  pushModule(people, opts.features, "leave");
-  if (userHasModule(user, "hiring")) {
-    pushModule(people, opts.features, "hiring");
-  }
-  pushModule(people, opts.features, "tasks");
-
-  const perform: NavLink[] = [];
-  pushModule(perform, opts.features, "kpis", {
+  const workspace: NavLink[] = [];
+  pushModule(workspace, opts.features, "leave", { label: t("My leave") });
+  pushModule(workspace, opts.features, "tasks", { label: t("My tasks") });
+  pushModule(workspace, opts.features, "kpis", {
     label: userHasModule(user, "kpis") ? t("KPIs") : t("My KPIs"),
   });
-  pushModule(perform, opts.features, "analytics", {
+  pushModule(workspace, opts.features, "analytics", {
     href: employeeHrefFor("analytics"),
     label: t("My analytics"),
   });
+  if (opts.managesTeam) {
+    pushModule(workspace, opts.features, "teamToday");
+  }
+  if (userHasModule(user, "hiring")) {
+    pushModule(workspace, opts.features, "hiring");
+  }
   if (userHasModule(user, "compensation")) {
-    pushModule(perform, opts.features, "compensation");
+    pushModule(workspace, opts.features, "compensation");
   }
 
-  const sections: NavSection[] = [{ title: t("Operate"), links: operate }];
-  if (people.length) sections.push({ title: t("People"), links: people });
-  if (perform.length) sections.push({ title: t("Perform"), links: perform });
-  sections.push({
-    title: t("Account"),
-    links: [{ href: "/app/profile", label: t("Profile"), icon: UserCircle }],
-  });
+  const sections: NavSection[] = [{ title: t("Me"), links: me }];
+  if (workspace.length)
+    sections.push({ title: t("Workspace"), links: workspace });
   return sections;
 };
 
@@ -296,41 +295,247 @@ function linkActive(pathname: string, href: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function NavItem({
-  link,
+function childActive(pathname: string, href: string) {
+  return pathname === href;
+}
+
+function parentOpen(pathname: string, link: NavLink) {
+  if (!link.children?.length) return false;
+  if (pathname === link.href || pathname.startsWith(`${link.href}/`)) return true;
+  return link.children.some((c) => pathname === c.href || pathname.startsWith(`${c.href}/`));
+}
+
+function hasLockedModule(user: AuthUser): boolean {
+  if (user.role !== "tenant_admin") return false;
+  if (workspaceUnlocksAll(user)) return false;
+  const features = featuresOf(user);
+  const keys: ModuleKey[] = [
+    "liveMap",
+    "teamToday",
+    "leave",
+    "hiring",
+    "kpis",
+    "compensation",
+    "tasks",
+    "analytics",
+    "integrations",
+  ];
+  return keys.some((k) => !features[k]);
+}
+
+function NavLinks({
+  sections,
   pathname,
   unread,
+  onNavigate,
 }: {
-  link: NavLink;
+  sections: NavSection[];
   pathname: string;
   unread: number;
+  onNavigate?: () => void;
 }) {
-  const Icon = link.icon;
-  const active = linkActive(pathname, link.href);
   return (
-    <Link
-      href={link.href}
-      className={cn(
-        "inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-[background-color,color,transform] duration-200 ease-out md:w-full",
-        active
-          ? "bg-accent/80 text-accent-foreground backdrop-blur-sm"
-          : "text-muted-foreground hover:bg-secondary/70 hover:text-foreground active:scale-[0.98]",
-      )}
-    >
-      <Icon className="h-4 w-4 shrink-0" />
-      <span className="truncate">{link.label}</span>
-      {link.preview ? <PreviewBadge className="ml-0.5" /> : null}
-      {link.href === "/app/notifications" && unread > 0 ? (
-        <span
-          className={cn(
-            "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
-            active ? "bg-accent-foreground/15" : "bg-primary/15 text-primary",
-          )}
+    <>
+      {sections.map((section) => (
+        <NavGroup key={section.title} label={section.title}>
+          {section.links.map((l) => {
+            const Icon = l.icon;
+            const hasChildren = Boolean(l.children?.length);
+            const open = hasChildren && parentOpen(pathname, l);
+            const active = hasChildren
+              ? open
+              : linkActive(pathname, l.href);
+            return (
+              <div key={`${l.href}:${l.label}`}>
+                <NavItem
+                  href={l.href}
+                  active={active}
+                  open={open}
+                  showChevron={hasChildren}
+                  icon={<Icon strokeWidth={1.7} />}
+                  count={
+                    l.href === "/app/notifications" && unread > 0 ? (
+                      <span className="grid min-h-5 min-w-5 place-items-center rounded-full bg-ink px-1.5 text-[10.5px] font-semibold text-primary-foreground tabular">
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    ) : l.preview ? (
+                      <PreviewBadge />
+                    ) : undefined
+                  }
+                  onClick={onNavigate}
+                >
+                  {l.label}
+                </NavItem>
+                {hasChildren && open ? (
+                  <NavSub>
+                    {l.children!.map((child) => (
+                      <NavSubItem
+                        key={child.href}
+                        href={child.href}
+                        active={childActive(pathname, child.href)}
+                        onClick={onNavigate}
+                      >
+                        {child.label}
+                      </NavSubItem>
+                    ))}
+                  </NavSub>
+                ) : null}
+              </div>
+            );
+          })}
+        </NavGroup>
+      ))}
+      <div className="my-2 h-px bg-line mx-3" />
+      <NavGroup label="">
+        <NavItem
+          href="/app/profile"
+          active={linkActive(pathname, "/app/profile")}
+          icon={<UserCircle strokeWidth={1.7} />}
+          onClick={() => onNavigate?.()}
         >
-          {unread > 99 ? "99+" : unread}
+          {t("Profile")}
+        </NavItem>
+      </NavGroup>
+    </>
+  );
+}
+
+function UserChipMenu({
+  user,
+  onSignOut,
+}: {
+  user: AuthUser;
+  onSignOut: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-10 max-w-[200px] items-center gap-2 rounded-sm border border-line bg-surface px-2 pe-2.5 text-start hover:bg-surface-2"
+      >
+        <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
+        <span className="hidden min-w-0 flex-1 sm:block">
+          <span className="block truncate text-xs font-semibold leading-tight text-ink">
+            {user.name}
+          </span>
+          <span className="block truncate text-[10.5px] text-ink-muted">
+            {user.email}
+          </span>
         </span>
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0 text-ink-muted" />
+      </button>
+      {open ? (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40"
+            aria-label="Close menu"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute end-0 top-full z-50 mt-1.5 w-56 rounded-md border border-line bg-surface p-1 shadow-pop">
+            <Link
+              href="/app/profile"
+              className="flex items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink hover:bg-surface-2"
+              onClick={() => setOpen(false)}
+            >
+              <UserCircle className="h-4 w-4" />
+              {t("Profile")}
+            </Link>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 rounded-sm px-3 py-2 text-sm text-ink hover:bg-surface-2"
+              onClick={() => {
+                setOpen(false);
+                onSignOut();
+              }}
+            >
+              <LogOut className="h-4 w-4" />
+              {t("Sign out")}
+            </button>
+          </div>
+        </>
       ) : null}
-    </Link>
+    </div>
+  );
+}
+
+function NavSearchDialog({
+  open,
+  onOpenChange,
+  links,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  links: NavLink[];
+}) {
+  const router = useRouter();
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return links;
+    return links.filter((l) => l.label.toLowerCase().includes(needle));
+  }, [links, q]);
+
+  useEffect(() => {
+    if (!open) setQ("");
+  }, [open]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        onOpenChange(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onOpenChange]);
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-w-md">
+        <SheetHeader>
+          <SheetTitle>{t("Search")}</SheetTitle>
+        </SheetHeader>
+        <SheetBody className="space-y-3">
+          <input
+            autoFocus
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={t("Go to…")}
+            className="flex h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm"
+          />
+          <ul className="divide-y divide-line rounded-md border border-line">
+            {filtered.map((l) => {
+              const Icon = l.icon;
+              return (
+                <li key={l.href}>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-start text-sm hover:bg-surface-2"
+                    onClick={() => {
+                      onOpenChange(false);
+                      router.push(l.href);
+                    }}
+                  >
+                    <Icon className="h-4 w-4 text-ink-muted" />
+                    {l.label}
+                  </button>
+                </li>
+              );
+            })}
+            {filtered.length === 0 ? (
+              <li className="px-3 py-4 text-sm text-ink-muted">
+                {t("No matches")}
+              </li>
+            ) : null}
+          </ul>
+        </SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 
@@ -338,8 +543,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [unread, setUnread] = useState(0);
   const [managesTeam, setManagesTeam] = useState(false);
-  const [redesign, setRedesign] = useState(false);
-  const [brandOpen, setBrandOpen] = useState(false);
+  const [mobileNav, setMobileNav] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const brand = useTenantBrand();
   const pathname = usePathname();
   const router = useRouter();
@@ -351,7 +556,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     setUser(u);
-    setRedesign(isUiRedesignEnabled(u));
   }, [router]);
 
   useEffect(() => {
@@ -359,7 +563,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       .then(async (me) => {
         updateSessionUser(me);
         setUser(me);
-        setRedesign(isUiRedesignEnabled(me));
         const { refresh } = getTokens();
         if (!refresh) return;
         try {
@@ -389,17 +592,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const sync = () => {
       const u = getUser();
-      if (u) {
-        setUser(u);
-        setRedesign(isUiRedesignEnabled(u));
-      }
+      if (u) setUser(u);
     };
     window.addEventListener("hr-session-user", sync);
-    window.addEventListener("hr-ui-redesign", sync);
-    return () => {
-      window.removeEventListener("hr-session-user", sync);
-      window.removeEventListener("hr-ui-redesign", sync);
-    };
+    return () => window.removeEventListener("hr-session-user", sync);
   }, []);
 
   useEffect(() => {
@@ -449,187 +645,191 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const sections = useMemo(() => {
     if (!user) return [];
-    const opts = {
+    return groupedNavFor(user, {
       managesTeam,
       features: featuresOf(user),
-    };
-    return redesign
-      ? groupedNavFor(user, opts)
-      : [{ title: "", links: flatLinksFor(user, opts) }];
-  }, [user, redesign, managesTeam]);
+    });
+  }, [user, managesTeam]);
 
   const flatLinks = useMemo(
-    () => sections.flatMap((s) => s.links),
+    () =>
+      sections.flatMap((s) =>
+        s.links.flatMap((l) =>
+          l.children?.length
+            ? [
+                { href: l.href, label: l.label, icon: l.icon },
+                ...l.children.map((c) => ({
+                  href: c.href,
+                  label: `${l.label} · ${c.label}`,
+                  icon: l.icon,
+                })),
+              ]
+            : [l],
+        ),
+      ),
     [sections],
   );
 
+  const signOut = useCallback(() => {
+    clearSession();
+    router.push("/login");
+  }, [router]);
+
   if (!user) {
     return (
-      <div className="flex min-h-dvh items-center justify-center p-6">
+      <div className="flex min-h-dvh items-center justify-center bg-canvas p-6">
         <PageSkeleton dense className="w-full max-w-lg" />
       </div>
     );
   }
 
-  const productName = redesign ? brand.brandingName : "Elevora";
+  const productName = brand.brandingName || "Elevora";
+  const showUpsell = hasLockedModule(user);
+
+  const brandHeader = (
+    <Link
+      href={homeHrefFor(user)}
+      className="mb-5 flex items-center gap-2.5 px-2.5"
+    >
+      <WorkspaceMark name={productName} logoUrl={brand.logoUrl} />
+      <div className="min-w-0">
+        <p className="truncate text-[17px] font-bold tracking-[0.02em] text-ink">
+          {productName}
+        </p>
+        <p className="truncate text-[11px] text-ink-muted">
+          {t(ROLE_LABEL[user.role])}
+        </p>
+      </div>
+    </Link>
+  );
+
+  const upsell =
+    showUpsell ? (
+      <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <p className="text-base font-semibold text-ink">{t("Upgrade to Scale")}</p>
+        <p className="mt-1 text-xs text-ink-2">
+          {t("Unlock modules locked on your plan.")}
+        </p>
+        <Button asChild className="mt-3 w-full" size="sm">
+          <Link href="/app/billing">{t("View plans")}</Link>
+        </Button>
+      </div>
+    ) : user.role === "super_admin" && !user.tenantId ? (
+      <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <p className="text-base font-semibold text-ink">{t("Lab workspace")}</p>
+        <p className="mt-1 text-xs text-ink-2">{t("Enter lab · all unlocked")}</p>
+        <Button asChild className="mt-3 w-full" size="sm">
+          <Link href="/app/features">{t("Enter lab")}</Link>
+        </Button>
+      </div>
+    ) : undefined;
+
+  const sidebarBody = (
+    <>
+      {brandHeader}
+      <NavLinks
+        sections={sections}
+        pathname={pathname}
+        unread={unread}
+        onNavigate={() => setMobileNav(false)}
+      />
+    </>
+  );
+
+  const primaryAction =
+    user.role === "super_admin" && !user.tenantId ? (
+      <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Link href="/app/tenants">
+          <Plus className="h-4 w-4" />
+          {t("Provision tenant")}
+        </Link>
+      </Button>
+    ) : user.role === "tenant_admin" ||
+      (user.role === "super_admin" && user.tenantId) ? (
+      <Button asChild size="sm" className="hidden sm:inline-flex">
+        <Link href="/app/employees">
+          <Plus className="h-4 w-4" />
+          {t("Quick add")}
+        </Link>
+      </Button>
+    ) : null;
 
   const shell = (
-    <div className="flex min-h-dvh w-full flex-col">
+    <>
       <WorkspaceChrome user={user} onUserChange={setUser} />
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-      <aside
-        className={cn(
-          "flex flex-col border-b border-white/40 bg-card md:sticky md:top-0 md:h-dvh md:shrink-0 md:border-b-0 md:border-r md:border-white/40 dark:border-white/10",
-          redesign ? "md:w-64" : "md:w-60",
-        )}
+      <AppFrame
+        sidebar={
+          <Sidebar upsell={upsell} className="h-full">
+            {sidebarBody}
+          </Sidebar>
+        }
       >
-        <div className="flex items-center justify-between gap-2 border-b border-border/70 px-3 py-2.5">
-          <Link
-            href={homeHrefFor(user)}
-            aria-label={productName}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-2 py-1.5 outline-none ring-offset-background transition-colors hover:bg-secondary/70 focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <WorkspaceMark
-              name={productName}
-              logoUrl={redesign ? brand.logoUrl : null}
-            />
-            <div className="min-w-0">
-              <p
-                title={productName}
-                className="line-clamp-2 text-sm font-semibold leading-snug tracking-tight text-foreground"
-              >
-                {productName}
+        <Topbar
+          onMenuClick={() => setMobileNav(true)}
+          onSearchOpen={() => setSearchOpen(true)}
+          langToggle={<LanguageToggle showLabels={false} />}
+          notifications={
+            <IconButton
+              aria-label={t("Alerts")}
+              dot={unread > 0}
+              onClick={() => router.push("/app/notifications")}
+            >
+              <Bell className="h-4 w-4" />
+            </IconButton>
+          }
+          userChip={<UserChipMenu user={user} onSignOut={signOut} />}
+          primaryAction={primaryAction}
+        />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-20 pt-1 sm:px-4 md:px-5">
+          {user.accessAllowed === false && user.role === "tenant_admin" ? (
+            <div className="mb-4 flex flex-col gap-3 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="min-w-0 text-sm text-ink">
+                {t(
+                  "Your subscription has ended. Choose a plan to restore access.",
+                )}
+              </p>
+              {pathname !== "/app/billing" ? (
+                <Button asChild className="w-full shrink-0 sm:w-auto">
+                  <Link href="/app/billing">{t("Billing")}</Link>
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+          {user.accessAllowed === false && user.role === "employee" ? (
+            <div className="mb-4 rounded-lg border border-warn/40 bg-warn/10 px-4 py-3 text-sm">
+              <p className="font-medium">{t("Subscription ended")}</p>
+              <p className="mt-1 text-ink-muted">
+                {t("Contact your admin to renew the subscription.")}
               </p>
             </div>
-          </Link>
-          <div className="flex items-center gap-1 md:hidden">
-            <LanguageToggle showLabels={false} />
-            <ThemeToggle showLabels={false} />
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                clearSession();
-                router.push("/login");
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          ) : null}
+          <NavigationProgress />
+          <PageTransition>
+            <PlatformRoleGate>
+              <FeatureGate>{children}</FeatureGate>
+            </PlatformRoleGate>
+          </PageTransition>
         </div>
-        <nav className="app-sidebar-nav flex gap-1 overflow-x-auto px-2 pb-3 md:flex-1 md:flex-col md:overflow-y-auto md:overflow-x-hidden md:px-3">
-          {redesign
-            ? sections.map((section) => (
-                <div key={section.title} className="mb-2 hidden md:block">
-                  <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    {section.title}
-                  </p>
-                  <div className="flex flex-col gap-0.5">
-                    {section.links.map((l) => (
-                      <NavItem
-                        key={l.href}
-                        link={l}
-                        pathname={pathname}
-                        unread={unread}
-                      />
-                    ))}
-                  </div>
-                </div>
-              ))
-            : null}
-          {/* Mobile: flat scroll; desktop redesign uses sections above */}
-          <div className={cn("flex gap-1 md:contents", redesign && "md:hidden")}>
-            {(redesign ? flatLinks : sections[0]?.links ?? []).map((l) => (
-              <NavItem
-                key={`m-${l.href}`}
-                link={l}
-                pathname={pathname}
-                unread={unread}
-              />
-            ))}
-          </div>
-        </nav>
-        <div className="hidden border-t border-border/70 p-3 md:block">
-          <Link
-            href="/app/profile"
-            aria-label={t("Open profile")}
-            className="mb-2 flex items-center gap-2.5 rounded-lg px-2 py-2 transition-colors hover:bg-secondary/70"
+      </AppFrame>
+
+      <Sheet open={mobileNav} onOpenChange={setMobileNav}>
+        <SheetContent className="w-full max-w-[280px] p-0 sm:max-w-[280px]">
+          <Sidebar
+            upsell={upsell}
+            className="h-full rounded-none border-0"
+            onCollapse={() => setMobileNav(false)}
           >
-            <UserAvatar name={user.name} avatarUrl={user.avatarUrl} size="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium leading-tight">
-                {user.name}
-              </span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {t(ROLE_LABEL[user.role])}
-              </span>
-            </span>
-          </Link>
-          <div className="space-y-2">
-            {redesign && user.role === "tenant_admin" ? (
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => setBrandOpen(true)}
-              >
-                <Palette className="h-4 w-4" />
-                {t("Branding")}</Button>
-            ) : null}
-            <LanguageToggle className="w-full" />
-            <ThemeToggle className="w-full" />
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                clearSession();
-                router.push("/login");
-              }}
-            >
-              <LogOut className="h-4 w-4" />
-              {t("Sign out")}</Button>
-          </div>
-        </div>
-      </aside>
-      <main
-        className={cn(
-          "min-w-0 flex-1 p-4 md:p-6",
-          redesign && "space-y-0 md:p-8",
-        )}
-      >
-        {user.accessAllowed === false && user.role === "tenant_admin" ? (
-          <div className="mb-4 flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="min-w-0 text-sm text-foreground">
-              {t(
-                "Your subscription has ended. Choose a plan to restore access.",
-              )}
-            </p>
-            {pathname !== "/app/billing" ? (
-              <Button asChild className="w-full shrink-0 sm:w-auto">
-                <Link href="/app/billing">{t("Billing")}</Link>
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        {user.accessAllowed === false && user.role === "employee" ? (
-          <div className="mb-4 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-            <p className="font-medium">{t("Subscription ended")}</p>
-            <p className="mt-1 text-muted-foreground">
-              {t("Contact your admin to renew the subscription.")}
-            </p>
-          </div>
-        ) : null}
-        <NavigationProgress />
-        <PageTransition>
-          <PlatformRoleGate>
-            <FeatureGate>{children}</FeatureGate>
-          </PlatformRoleGate>
-        </PageTransition>
-      </main>
-      {redesign ? (
-        <BrandingSheet open={brandOpen} onOpenChange={setBrandOpen} />
-      ) : null}
-      </div>
-    </div>
+            {sidebarBody}
+          </Sidebar>
+        </SheetContent>
+      </Sheet>
+
+      <NavSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        links={flatLinks}
+      />
+    </>
   );
 
   if (user.role === "super_admin" && !user.tenantId) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, getUser, type AuthUser } from "@/lib/api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { CompensationApprovalsPanel } from "@/components/compensation/compensation-approvals-panel";
 import { CompensationChangeForm } from "@/components/compensation/compensation-change-form";
 import { CompensationComponentsPanel } from "@/components/compensation/compensation-components-panel";
@@ -22,7 +22,7 @@ import {
 } from "@/components/compensation/compensation-states";
 import { CompensationVariablePanel } from "@/components/compensation/compensation-variable-panel";
 import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { Notice } from "@/components/elevora";
 import {
   getCompensationStore,
   type CompActor,
@@ -81,7 +81,6 @@ function actorFrom(user: AuthUser | null): CompActor {
 
 export function CompensationDashboard() {
   const store = getCompensationStore();
-  const redesign = useUiRedesign();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -259,65 +258,35 @@ export function CompensationDashboard() {
         }}
       />
 
-      {error ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
-          {error}
-        </p>
-      ) : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
       {saveError ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
-          {t("Couldn’t save to server:")}{saveError}
-        </p>
+        <Notice tone="warn">
+          {t("Couldn’t save to server:")} {saveError}
+        </Notice>
       ) : null}
 
       <CompensationOverviewCards summary={summary} />
 
       <Tabs value={tab} onValueChange={setTab}>
-        {redesign ? (
-          <PrimaryTabBar
-            value={tab}
-            onValueChange={setTab}
-            primaryCount={5}
-            tabs={[
-              { value: "overview", label: t("Overview") },
-              { value: "employees", label: t("Employees") },
-              { value: "history", label: t("History") },
-              { value: "components", label: t("Allowances") },
-              {
-                value: "approvals",
-                label: t("Approvals"),
-                badge: summary.pendingApprovals,
-              },
-              { value: "variable", label: t("Bonus / commission") },
-              { value: "payroll", label: t("Payroll inputs") },
-              { value: "reports", label: t("Reports") },
-            ]}
-          />
-        ) : (
-          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-            <TabsTrigger value="overview" className="flex-none px-3">
-              {t("Overview")}</TabsTrigger>
-            <TabsTrigger value="employees" className="flex-none px-3">
-              {t("Employees")}</TabsTrigger>
-            <TabsTrigger value="history" className="flex-none px-3">
-              {t("History")}</TabsTrigger>
-            <TabsTrigger value="components" className="flex-none px-3">
-              {t("Allowances")}</TabsTrigger>
-            <TabsTrigger value="variable" className="flex-none px-3">
-              {t("Bonus / commission")}</TabsTrigger>
-            <TabsTrigger value="approvals" className="flex-none px-3">
-              {t("Approvals")}{summary.pendingApprovals > 0 ? (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
-                  {summary.pendingApprovals}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="payroll" className="flex-none px-3">
-              {t("Payroll inputs")}</TabsTrigger>
-            <TabsTrigger value="reports" className="flex-none px-3">
-              {t("Reports")}</TabsTrigger>
-          </TabsList>
-        )}
+        <PrimaryTabBar
+          value={tab}
+          onValueChange={setTab}
+          primaryCount={5}
+          tabs={[
+            { value: "overview", label: t("Overview") },
+            { value: "employees", label: t("Employees") },
+            { value: "history", label: t("History") },
+            { value: "components", label: t("Allowances") },
+            {
+              value: "approvals",
+              label: t("Approvals"),
+              badge: summary.pendingApprovals,
+            },
+            { value: "variable", label: t("Bonus / commission") },
+            { value: "payroll", label: t("Payroll inputs") },
+            { value: "reports", label: t("Reports") },
+          ]}
+        />
 
         <TabsContent value="overview" className="mt-4">
           <CompensationOverviewPanel
@@ -474,10 +443,10 @@ export function CompensationDashboard() {
                 </p>
                 <p className="text-sm">{selectedRequest.reason}</p>
                 {selectedRequest.justification ? (
-                  <p className="text-sm text-muted-foreground">{selectedRequest.justification}</p>
+                  <p className="text-sm text-ink-muted">{selectedRequest.justification}</p>
                 ) : null}
                 {selectedRequest.decisionNote ? (
-                  <p className="rounded-lg bg-secondary/70 px-3 py-2 text-sm">
+                  <p className="rounded-lg bg-surface-2/70 px-3 py-2 text-sm">
                     {selectedRequest.decisionNote}
                   </p>
                 ) : null}

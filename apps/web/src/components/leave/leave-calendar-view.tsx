@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarMonth, EmptyState, ListRow, Notice, PillSelect } from "@/components/elevora";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { eachDate, isWeekend, monthGrid } from "@/lib/leave/days";
-import { formatDate, parseIsoDate, rangesOverlap, SELECT_CLASS, todayIso, toIsoDate } from "@/lib/leave/format";
+import { eachDate, monthGrid } from "@/lib/leave/days";
+import { formatDate, parseIsoDate, rangesOverlap, statusLabel, todayIso, toIsoDate } from "@/lib/leave/format";
 import { peopleOffOn } from "@/lib/leave/reports";
 import type {
   LeaveBlackout,
@@ -17,6 +17,17 @@ import type {
 } from "@/lib/leave/types";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
+
+type HatchEvTone = "accent" | "warn" | "idle" | "yellow" | "soft";
+
+function leaveHatchTone(name: string): HatchEvTone {
+  const n = name.toLowerCase();
+  if (n.includes("sick")) return "yellow";
+  if (n.includes("wfh") || n.includes("work from home") || n.includes("remote")) return "soft";
+  if (n.includes("annual") || n.includes("vacation")) return "warn";
+  if (n.includes("comp")) return "accent";
+  return "accent";
+}
 
 export function LeaveCalendarView({
   events,
@@ -32,17 +43,26 @@ export function LeaveCalendarView({
   onOpen: (requestId: string) => void;
 }) {
   const [cursor, setCursor] = useState(() => todayIso().slice(0, 7) + "-01");
-  const [department, setDepartment] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [selected, setSelected] = useState(todayIso());
-  const departments = [...new Set(employees.map((e) => e.department))].sort();
+  const branches = [...new Map(employees.map((e) => [e.branchId, e.branchName])).entries()];
   const holidays = policies[0]?.holidays ?? [];
   const blackouts = policies.flatMap((p) => p.blackoutDates);
-  const weekendRule = policies[0]?.weekendRule ?? "sat_sun";
+  const branchName = branches.find(([id]) => id === branchId)?.[1] ?? "";
+  const branchLabel = branchName || t("All branches");
 
   const filteredEvents = useMemo(
-    () => events.filter((e) => !department || e.department === department),
-    [events, department],
+    () => events.filter((e) => !branchId || e.branchName === branchName),
+    [events, branchId, branchName],
   );
+
+  const legend = useMemo(() => {
+    const seen = new Map<string, HatchEvTone>();
+    for (const e of events) {
+      if (!seen.has(e.leaveTypeName)) seen.set(e.leaveTypeName, leaveHatchTone(e.leaveTypeName));
+    }
+    return [...seen.entries()].slice(0, 6);
+  }, [events]);
 
   const days = monthGrid(cursor);
   const monthLabel = parseIsoDate(cursor).toLocaleDateString(undefined, {
@@ -60,23 +80,14 @@ export function LeaveCalendarView({
   return (
     <div className="space-y-4">
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-base">{t("Team calendar")}</CardTitle>
-              <div className="flex items-center gap-2">
-                <select
-                  className={cn(SELECT_CLASS, "w-40")}
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                >
-                  <option value="">{t("All departments")}</option>
-                  {departments.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
-                  ))}
-                </select>
+        <div className="rounded-sm border border-line bg-surface lg:col-span-2">
+          <div className="border-b border-line px-4 py-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h2 className="text-base font-semibold text-ink">{monthLabel}</h2>
+                <p className="text-xs text-ink-muted">{t("Who is out, by day")}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   size="icon"
                   variant="outline"
@@ -85,7 +96,6 @@ export function LeaveCalendarView({
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
-                <p className="min-w-32 text-center text-sm font-medium">{monthLabel}</p>
                 <Button
                   size="icon"
                   variant="outline"
@@ -94,115 +104,147 @@ export function LeaveCalendarView({
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
+                <PillSelect label={branchLabel} className="w-full sm:w-auto">
+                  <select
+                    aria-label={t("Branch")}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    value={branchId}
+                    onChange={(e) => setBranchId(e.target.value)}
+                  >
+                    <option value="">{t("All branches")}</option>
+                    {branches.map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </PillSelect>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-muted-foreground">
-              {[t("Sun"), t("Mon"), t("Tue"), t("Wed"), t("Thu"), t("Fri"), t("Sat")].map((d) => (
-                <div key={d} className="py-1">
-                  {d}
-                </div>
-              ))}
-            </div>
-            <div className="mt-1 grid grid-cols-7 gap-1">
-              {days.map((iso) => {
+          </div>
+          <div className="p-4">
+            {legend.length > 0 ? (
+              <div className="mb-3 flex flex-wrap gap-3">
+                {legend.map(([name, tone]) => (
+                  <span key={name} className="inline-flex items-center gap-1.5 text-2xs text-ink-muted">
+                    <i
+                      className={cn(
+                        "inline-block h-2.5 w-4 rounded-[2px]",
+                        tone === "warn" && "hatch-warn",
+                        tone === "yellow" && "hatch-yellow",
+                        tone === "soft" && "hatch-soft",
+                        tone === "accent" && "hatch",
+                        tone === "idle" && "hatch-idle",
+                      )}
+                    />
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <CalendarMonth
+              weekdayLabels={[t("Sun"), t("Mon"), t("Tue"), t("Wed"), t("Thu"), t("Fri"), t("Sat")]}
+              days={days.map((iso) => {
                 const inMonth = iso.slice(0, 7) === cursor.slice(0, 7);
                 const off = peopleOffOn(filteredEvents, iso);
-                const holiday = holidays.find((h) => h.date === iso);
-                const blackout = blackouts.find((b) => rangesOverlap(iso, iso, b.startDate, b.endDate));
-                const weekend = isWeekend(iso, weekendRule);
+                return {
+                  date: parseIsoDate(iso).getDate(),
+                  isToday: iso === todayIso(),
+                  isOutside: !inMonth,
+                  events: off.slice(0, 2).map((e) => ({
+                    id: e.id,
+                    label: `${e.employeeName.split(" ")[0] ?? e.employeeName} · ${e.leaveTypeName.split(" ")[0] ?? e.leaveTypeName}`,
+                    tone: leaveHatchTone(e.leaveTypeName),
+                  })),
+                };
+              })}
+            />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {days.map((iso) => {
+                const inMonth = iso.slice(0, 7) === cursor.slice(0, 7);
+                if (!inMonth) return null;
                 return (
                   <button
                     key={iso}
                     type="button"
                     onClick={() => setSelected(iso)}
                     className={cn(
-                      "min-h-[72px] rounded-lg border p-1.5 text-left transition",
-                      inMonth ? "bg-card" : "bg-secondary/40 text-muted-foreground",
-                      selected === iso && "ring-2 ring-ring",
-                      iso === todayIso() && "border-primary/40",
-                      weekend && "bg-slate-50 dark:bg-slate-900/40",
-                      holiday && "bg-amber-50 dark:bg-amber-950/40",
-                      blackout && "bg-rose-50 dark:bg-rose-950/40",
+                      "min-h-10 min-w-10 rounded-[8px] px-2 py-1 text-2xs tabular-nums transition",
+                      selected === iso
+                        ? "bg-surface-3 font-semibold text-ink ring-1 ring-ink"
+                        : "text-ink-muted hover:bg-surface-2 hover:text-ink",
                     )}
                   >
-                    <span className="text-xs font-medium">{parseIsoDate(iso).getDate()}</span>
-                    <div className="mt-1 flex flex-wrap gap-0.5">
-                      {off.slice(0, 3).map((e) => (
-                        <span
-                          key={e.id}
-                          className="h-1.5 w-1.5 rounded-full"
-                          style={{ background: e.color }}
-                          title={e.employeeName}
-                        />
-                      ))}
-                      {off.length > 3 ? (
-                        <span className="text-[10px] text-muted-foreground">+{off.length - 3}</span>
-                      ) : null}
-                    </div>
-                    {holiday ? (
-                      <p className="mt-1 truncate text-[10px] text-amber-800">{holiday.name}</p>
-                    ) : null}
+                    {parseIsoDate(iso).getDate()}
                   </button>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         <div className="space-y-3">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("Off today")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {offToday.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("Nobody is off today.")}</p>
-              ) : (
-                offToday.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{formatDate(selected)}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {holidayOn(selected, holidays) ? (
-                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-900 dark:bg-amber-950/60 dark:text-amber-200">
-                  {t("Public holiday:")}{holidayOn(selected, holidays)}
-                </p>
-              ) : null}
-              {blackoutOn(selected, blackouts) ? (
-                <p className="rounded-md bg-rose-50 px-2 py-1 text-xs text-rose-900 dark:bg-rose-950/60 dark:text-rose-200">
-                  {t("Restricted:")}{blackoutOn(selected, blackouts)}
-                </p>
-              ) : null}
-              {staffing ? (
-                <p className="rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-950 dark:bg-amber-950/60 dark:text-amber-200">{staffing}</p>
-              ) : null}
-              {selectedOff.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("No approved leave on this day.")}</p>
-              ) : (
-                selectedOff.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("Upcoming")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {upcoming.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("No upcoming approved leave.")}</p>
-              ) : (
-                upcoming.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} extra />)
-              )}
-            </CardContent>
-          </Card>
+          <SidePanel title={t("Off today")}>
+            {offToday.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays className="h-5 w-5" />}
+                title={t("Nobody is off today.")}
+                className="py-6"
+              />
+            ) : (
+              offToday.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
+            )}
+          </SidePanel>
+          <SidePanel title={formatDate(selected)}>
+            {holidayOn(selected, holidays) ? (
+              <Notice tone="warn" className="mb-2">
+                {t("Public holiday:")} {holidayOn(selected, holidays)}
+              </Notice>
+            ) : null}
+            {blackoutOn(selected, blackouts) ? (
+              <Notice tone="warn" className="mb-2">
+                {t("Restricted:")} {blackoutOn(selected, blackouts)}
+              </Notice>
+            ) : null}
+            {staffing ? (
+              <Notice tone="warn" className="mb-2">
+                {staffing}
+              </Notice>
+            ) : null}
+            {selectedOff.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays className="h-5 w-5" />}
+                title={t("No approved leave on this day.")}
+                className="py-6"
+              />
+            ) : (
+              selectedOff.map((e) => <PersonRow key={e.id} event={e} onOpen={onOpen} />)
+            )}
+          </SidePanel>
+          <SidePanel title={t("Upcoming")}>
+            {upcoming.length === 0 ? (
+              <EmptyState
+                icon={<CalendarDays className="h-5 w-5" />}
+                title={t("No upcoming approved leave.")}
+                className="py-6"
+              />
+            ) : (
+              upcoming.map((e) => (
+                <PersonRow key={e.id} event={e} onOpen={onOpen} extra />
+              ))
+            )}
+          </SidePanel>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SidePanel({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="rounded-sm border border-line bg-surface">
+      <h3 className="border-b border-line px-4 py-2.5 text-sm font-semibold text-ink">{title}</h3>
+      <div className="px-4 py-2">{children}</div>
     </div>
   );
 }
@@ -220,17 +262,14 @@ function PersonRow({
     <button
       type="button"
       onClick={() => onOpen(event.requestId)}
-      className="flex w-full items-start justify-between gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-secondary/40"
+      className="block w-full text-left"
     >
-      <span>
-        <span className="font-medium">{event.employeeName}</span>
-        <span className="block text-xs text-muted-foreground">
-          {event.leaveTypeName} · {event.department}
-        </span>
-      </span>
-      {extra ? (
-        <span className="text-xs tabular-nums text-muted-foreground">{formatDate(event.startDate)}</span>
-      ) : null}
+      <ListRow
+        title={event.employeeName}
+        subtitle={`${event.leaveTypeName} · ${event.department}`}
+        value={extra ? formatDate(event.startDate) : undefined}
+        status={statusLabel(event.status)}
+      />
     </button>
   );
 }

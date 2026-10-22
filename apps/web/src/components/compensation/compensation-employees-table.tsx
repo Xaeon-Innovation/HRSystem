@@ -52,12 +52,12 @@ export function CompensationEmployeesTable({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <CardTitle className="text-base">{t("Employee compensation")}</CardTitle>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("Date-effective records, pay structure, and band position")}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <div className="relative">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
               <Input
                 className="h-9 w-44 pl-8"
                 placeholder={t("Name, ID, role")}
@@ -140,7 +140,7 @@ export function CompensationEmployeesTable({
           </div>
         ) : (
           <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
+            <thead className="border-y bg-surface-2 text-xs text-ink-muted">
               <tr>
                 <th className="px-4 py-2 font-medium">{t("Employee")}</th>
                 <th className="px-3 py-2 font-medium">{t("Structure")}</th>
@@ -164,20 +164,20 @@ export function CompensationEmployeesTable({
                   >
                     <td className="px-4 py-3">
                       <p className="font-medium">{emp.name}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-ink-muted">
                         {emp.employeeCode} · {emp.role} · {emp.department}
                       </p>
                     </td>
                     <td className="px-3 py-3 text-xs">
                       {payStructureLabel(rec.payStructure)}
                       {rec.payStructure === "hourly" ? (
-                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <p className="mt-0.5 text-[11px] text-ink-muted">
                           {formatHours(store.cycleHours(emp.id)?.workedHours ?? 0)} {t("this cycle")}</p>
                       ) : null}
                     </td>
                     <td className="px-3 py-3 tabular-nums">
                       {formatMoney(rec.baseAmount, rec.currency)}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-ink-muted">
                         {rateUnit(rec.payStructure)}
                       </span>
                     </td>
@@ -187,7 +187,7 @@ export function CompensationEmployeesTable({
                     <td className="px-3 py-3">
                       <div className="flex flex-col gap-1">
                         <BandBadge position={band.position} />
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-[11px] text-ink-muted">
                           {band.band ? `${band.band.grade} · ${formatCompa(band.compaRatio)}` : "-"}
                         </span>
                       </div>

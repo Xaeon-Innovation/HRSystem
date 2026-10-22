@@ -1,122 +1,112 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Gauge, MapPin, Radio } from "lucide-react";
-import { motion, useReducedMotion } from "motion/react";
+import { ArrowRight, Check, Languages, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ProductStage } from "@/components/marketing/product-stage";
-import { MarketingSection } from "@/components/marketing/section";
+import { HeroMark, HeroOrbit, HeroOrbitRow } from "@/components/marketing/hero-orbit";
 import { useLocale, useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
 
-const CLAIMS = [
-  { label: "GPS-backed clock-in", icon: MapPin },
-  { label: "Live field presence", icon: Radio },
-  { label: "KPIs & people ops", icon: Gauge },
-] as const;
-
-const enter = (reduce: boolean | null, delay = 0) =>
-  reduce
-    ? ({ initial: false as const })
-    : ({
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.28, delay, ease: [0.21, 0.47, 0.32, 0.98] as const },
-      });
+const REPLACED = ["Spreadsheets", "WhatsApp groups", "Paper timesheets"];
 
 export function MarketingHero() {
   const t = useT();
   const locale = useLocale();
   const isAr = locale === "ar";
-  const reduce = useReducedMotion();
 
   return (
-    <MarketingSection
-      className="relative overflow-hidden !min-h-[calc(100svh-3.5rem)]"
-      contained={false}
-    >
-      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-2 lg:items-center lg:gap-12">
-        <div className="min-w-0" dir={isAr ? "rtl" : undefined}>
-          <motion.div
-            {...enter(reduce)}
-            className="mb-4 inline-flex items-center gap-2 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary"
-          >
-            <span className="relative flex h-2 w-2">
-              {!reduce ? (
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/60" />
-              ) : null}
-              <span className="relative h-2 w-2 rounded-full bg-emerald-500" />
+    <section className="relative mt-6 overflow-hidden rounded-[28px] border border-line bg-surface/60 px-5 py-12 sm:mt-8 sm:py-16 lg:flex lg:min-h-[700px] lg:items-center lg:py-20">
+      {/* Dot grid that fades out toward the edges, like a desk the cards sit on. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(hsl(var(--line-strong)) 1px, transparent 1px)",
+          backgroundSize: "18px 18px",
+          maskImage:
+            "radial-gradient(ellipse 80% 70% at 50% 45%, black 40%, transparent 100%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 80% 70% at 50% 45%, black 40%, transparent 100%)",
+        }}
+      />
+
+      <HeroOrbit />
+
+      <div
+        className="relative z-10 mx-auto w-full max-w-[520px] text-center xl:max-w-[600px]"
+        dir={isAr ? "rtl" : undefined}
+      >
+        <HeroMark />
+
+        <span className="mt-5 inline-flex items-center gap-2 rounded-full border border-line bg-surface py-1.5 pe-2.5 ps-1.5 text-xs font-medium text-ink">
+          <span className="inline-flex h-5 items-center rounded-full bg-ink px-2 text-[10.5px] font-semibold text-primary-foreground">
+            {t("New")}
+          </span>
+          {t("Integrations: CMS Goals and HubSpot")}
+          <ArrowRight
+            className={cn("h-3.5 w-3.5 text-ink-muted", isAr && "-scale-x-100")}
+          />
+        </span>
+
+        <h1 className="mt-5 text-[clamp(38px,4.4vw,64px)] font-semibold leading-[1.04] tracking-[-0.035em] text-ink">
+          {t("Every operation.")}
+          <span className="block text-ink-muted">
+            {t("All in")}{" "}
+            <em className="not-italic rounded-[0.18em] bg-accent px-[0.18em] text-accent-ink">
+              {t("one place.")}
+            </em>
+          </span>
+        </h1>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
+          {REPLACED.map((label) => (
+            <span
+              key={label}
+              className="rounded-full border border-line bg-surface px-3 py-1 text-xs text-ink-muted line-through decoration-ink-muted/70"
+            >
+              {t(label)}
             </span>
-            {t("Live field presence")}
-          </motion.div>
-
-          <motion.h1
-            {...enter(reduce, 0.04)}
-            className="max-w-xl font-display text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]"
-          >
-            {t("See every field team. Run people ops from one place.")}
-          </motion.h1>
-          <motion.p
-            {...enter(reduce, 0.06)}
-            className="mt-4 max-w-lg text-base text-muted-foreground sm:text-lg"
-          >
-            {t(
-              "GPS clock-in, live location, KPIs, leave, hiring, and compensation, built for outdoor and ops teams.",
-            )}
-          </motion.p>
-
-          <motion.ul
-            {...enter(reduce, 0.08)}
-            className="mt-5 flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:gap-x-5 sm:gap-y-2"
-          >
-            {CLAIMS.map(({ label, icon: Icon }) => (
-              <li
-                key={label}
-                className="flex items-center gap-2 text-sm font-medium tracking-tight text-foreground/80"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
-                  <Icon className="h-3.5 w-3.5" aria-hidden />
-                </span>
-                {t(label)}
-              </li>
-            ))}
-          </motion.ul>
-
-          <motion.div
-            {...enter(reduce, 0.1)}
-            className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap"
-          >
-            <Button
-              asChild
-              size="lg"
-              className="h-12 w-full px-7 text-base shadow-lg shadow-primary/35 hover:shadow-primary/50 sm:w-auto"
-            >
-              <Link href="/signup">
-                {t("Start free trial")}
-                <ArrowRight
-                  className={cn("ms-2 h-4 w-4", isAr && "-scale-x-100")}
-                />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto"
-            >
-              <Link href="/pricing">{t("See pricing")}</Link>
-            </Button>
-          </motion.div>
-          <motion.p
-            {...enter(reduce, 0.14)}
-            className="mt-3 text-sm text-muted-foreground"
-          >
-            {t("14-day free trial · No credit card required")}
-          </motion.p>
+          ))}
         </div>
 
-        <ProductStage />
+        <p className="mx-auto mt-4 max-w-[34rem] text-[15px] leading-relaxed text-ink-2 sm:text-base">
+          {t(
+            "Still juggling spreadsheets, WhatsApp groups and paper timesheets? Elevora replaces all of them: clock-in, live maps, shifts, tasks, leave, KPIs, hiring and payroll.",
+          )}
+        </p>
+
+        <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+          <Button asChild size="lg" className="h-12 w-full px-7 text-base sm:w-auto">
+            <Link href="/signup">{t("Start 14-day free trial")}</Link>
+          </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="lg"
+            className="h-12 w-full px-7 text-base sm:w-auto"
+          >
+            <Link href="/demo">{t("Book a demo")}</Link>
+          </Button>
+        </div>
+
+        <div className="mt-5 flex flex-col items-center gap-2.5 text-sm text-ink-muted sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-4">
+          <span className="inline-flex items-center gap-1.5">
+            <Check className="h-3.5 w-3.5 text-accent-strong" strokeWidth={2.5} />
+            {t("No card needed")}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <Languages className="h-3.5 w-3.5 text-accent-strong" />
+            {t("English and Arabic")}
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <WifiOff className="h-3.5 w-3.5 text-accent-strong" />
+            {t("Works offline")}
+          </span>
+        </div>
+
+        <HeroOrbitRow />
       </div>
-    </MarketingSection>
+    </section>
   );
 }

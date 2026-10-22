@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  AccentCard,
+  Chip,
+  Notice,
+  PageHeader,
+} from "@/components/elevora";
+import { ExternalLink } from "lucide-react";
 import { t } from "@/i18n";
 import {
   derivePackFlags,
@@ -293,7 +300,9 @@ export default function BillingPage() {
     }
   }
 
-  if (error && !data) return <p className="text-destructive">{error}</p>;
+  if (error && !data) {
+    return <Notice tone="warn">{error}</Notice>;
+  }
   if (!data) return <PageSkeleton />;
 
   const currentPacks = packSummary(data.plan?.features);
@@ -302,124 +311,137 @@ export default function BillingPage() {
       ? quotes[data.plan.code]
       : null;
 
+  const monthlyPrice =
+    data.plan && isSeatQuoteCode(data.plan.code) && data.purchasedSeats != null
+      ? formatMoney(
+          quoteForSeats(data.plan.code as SeatQuoteCode, data.purchasedSeats),
+          data.plan.currency,
+        )
+      : data.plan
+        ? formatMoney(data.plan.amountCents, data.plan.currency)
+        : "—";
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold">{t("Billing")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("Manage your organization subscription")}
-          </p>
-        </div>
-        {data.subscription?.polarCustomerId ? (
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={busy || !data.polarConfigured}
-            onClick={() => void openPortal()}
-          >
-            {t("Billing portal")}
-          </Button>
-        ) : null}
-      </div>
-      {message ? <p className="text-sm text-primary">{message}</p> : null}
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-
-      <div className="grid gap-3 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("Current plan")}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            <p>
-              {data.plan?.name ?? t("None")}{" "}
-              <span className="text-muted-foreground">
-                ({data.subscription?.status ?? "n/a"})
-              </span>
-            </p>
-            {currentPacks ? (
-              <p className="mt-1 text-xs text-muted-foreground">{currentPacks}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("Seats")}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            {data.seatsUsed}
-            {data.seatLimit != null ? ` / ${data.seatLimit}` : t(" / unlimited")}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("Renews / ends")}</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            {data.subscription?.currentPeriodEnd
-              ? new Date(data.subscription.currentPeriodEnd).toLocaleDateString()
-              : "-"}
-          </CardContent>
-        </Card>
-      </div>
-
-      {canChangeSeats && currentQuote && seatDraft != null ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{t("Change seats")}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0 flex-1">
-              <SeatSlider
-                seats={seatDraft}
-                quote={currentQuote}
-                currency={data.plan!.currency}
-                planCode={data.plan!.code as SeatQuoteCode}
-                onChange={setSeatDraft}
-              />
-            </div>
+      <PageHeader
+        title={t("Billing")}
+        subtitle={t("Plan, seats and renewal.")}
+        actions={
+          data.subscription?.polarCustomerId ? (
             <Button
+              variant="outline"
               className="w-full sm:w-auto"
-              disabled={
-                busy ||
-                seatDraft === data.purchasedSeats ||
-                seatDraft < data.seatsUsed
-              }
-              onClick={() => setSeatConfirmOpen(true)}
+              disabled={busy || !data.polarConfigured}
+              onClick={() => void openPortal()}
             >
-              {t("Update seats")}
+              <ExternalLink className="h-4 w-4" aria-hidden />
+              {t("Billing portal")}
             </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {data.subscription && !data.subscription.cancelAtPeriodEnd ? (
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto"
-          disabled={busy}
-          onClick={() => setCancelOpen(true)}
-        >
-          {t("Cancel at period end")}
-        </Button>
-      ) : null}
+          ) : null
+        }
+      />
+      {message ? <Notice tone="accent">{message}</Notice> : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
 
       {!data.polarConfigured ? (
-        <p className="text-sm text-muted-foreground">
+        <Notice tone="warn">
           {t(
             "Online checkout is not configured yet. Contact platform support to upgrade.",
           )}
-        </p>
+        </Notice>
       ) : null}
 
-      <div>
-        <h2 className="mb-2 text-lg font-medium">{t("Available plans")}</h2>
-        <p className="mb-3 text-sm text-muted-foreground">
-          {t(
-            "Field and People packs can be bought alone. Ops and Scale bundle both with larger seat bands.",
-          )}
-        </p>
-        <div className="space-y-2">
+      <div className="grid gap-3.5 lg:grid-cols-12">
+        <Card className="min-w-0 overflow-hidden lg:col-span-5">
+          <AccentCard className="rounded-none border-0 shadow-none">
+            <div className="relative z-[1] flex items-start justify-between gap-2">
+              <b className="text-sm">{t("Current plan")}</b>
+              {data.subscription?.status ? (
+                <Chip tone="ink">{data.subscription.status}</Chip>
+              ) : null}
+            </div>
+            <div className="relative z-[1] mt-3 text-stat-lg font-semibold tracking-tight">
+              {data.plan?.name ?? t("None")}
+            </div>
+            {currentPacks ? (
+              <p className="relative z-[1] mt-1 text-sm opacity-80">
+                {currentPacks}
+              </p>
+            ) : null}
+            <div className="relative z-[1] mt-4 flex flex-wrap gap-4">
+              <div>
+                <div className="text-2xs opacity-75">{t("Seats")}</div>
+                <b className="tabular">
+                  {data.seatsUsed}
+                  {data.seatLimit != null ? ` / ${data.seatLimit}` : ""}
+                </b>
+              </div>
+              <div>
+                <div className="text-2xs opacity-75">{t("Renews")}</div>
+                <b className="tabular">
+                  {data.subscription?.currentPeriodEnd
+                    ? new Date(
+                        data.subscription.currentPeriodEnd,
+                      ).toLocaleDateString()
+                    : "—"}
+                </b>
+              </div>
+              <div>
+                <div className="text-2xs opacity-75">{t("Monthly")}</div>
+                <b className="tabular">{monthlyPrice}</b>
+              </div>
+            </div>
+          </AccentCard>
+          <CardContent className="space-y-3">
+            {canChangeSeats && currentQuote && seatDraft != null ? (
+              <>
+                <SeatSlider
+                  seats={seatDraft}
+                  quote={currentQuote}
+                  currency={data.plan!.currency}
+                  planCode={data.plan!.code as SeatQuoteCode}
+                  onChange={setSeatDraft}
+                />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    className="w-full flex-1"
+                    disabled={
+                      busy ||
+                      seatDraft === data.purchasedSeats ||
+                      seatDraft < data.seatsUsed
+                    }
+                    onClick={() => setSeatConfirmOpen(true)}
+                  >
+                    {t("Update seats")}
+                  </Button>
+                  {data.subscription && !data.subscription.cancelAtPeriodEnd ? (
+                    <Button
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      disabled={busy}
+                      onClick={() => setCancelOpen(true)}
+                    >
+                      {t("Cancel at period end")}
+                    </Button>
+                  ) : null}
+                </div>
+              </>
+            ) : data.subscription && !data.subscription.cancelAtPeriodEnd ? (
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={busy}
+                onClick={() => setCancelOpen(true)}
+              >
+                {t("Cancel at period end")}
+              </Button>
+            ) : data.subscription?.cancelAtPeriodEnd ? (
+              <Notice tone="warn">{t("Cancels at period end")}</Notice>
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <div className="grid min-w-0 gap-3.5 sm:grid-cols-2 lg:col-span-7">
           {data.availablePlans.map((p) => {
             const packs = packSummary(p.features);
             const quote = isSeatQuoteCode(p.code) ? quotes[p.code] : null;
@@ -430,62 +452,81 @@ export default function BillingPage() {
               quote && seats != null
                 ? quoteForSeats(p.code as SeatQuoteCode, seats)
                 : p.amountCents;
+            const isCurrent = data.plan?.id === p.id;
+            const isEnterprise = p.code === "enterprise";
             return (
-              <Card key={p.id}>
-                <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatMoney(displayCents, p.currency)}
-                      {t("/mo · seats")}{" "}
-                      {seats != null ? seats : (p.seatLimit ?? "∞")}
-                      {p.description ? ` · ${p.description}` : ""}
-                    </p>
-                    {packs ? (
-                      <p className="mt-1 text-xs text-muted-foreground">{packs}</p>
-                    ) : null}
-                    {quote ? (
-                      <SeatSlider
-                        seats={seats!}
-                        quote={quote}
-                        currency={p.currency}
-                        planCode={p.code as SeatQuoteCode}
-                        onChange={(n) =>
-                          setCheckoutSeats((prev) => ({
-                            ...prev,
-                            [p.code]: n,
-                          }))
-                        }
-                      />
+              <Card key={p.id} className="flex min-w-0 flex-col">
+                <CardContent className="flex flex-1 flex-col gap-2 pt-5">
+                  <div className="flex items-start justify-between gap-2">
+                    <b className="text-sm text-ink">{p.name}</b>
+                    {isCurrent ? <Chip tone="ok">{t("Current")}</Chip> : null}
+                  </div>
+                  <div className="text-lg font-semibold tabular text-ink">
+                    {isEnterprise && p.amountCents === 0
+                      ? t("Custom")
+                      : formatMoney(displayCents, p.currency)}
+                    {!isEnterprise || p.amountCents > 0 ? (
+                      <span className="text-2xs font-normal text-ink-muted">
+                        {" "}
+                        /{t("seat")}/{t("mo")}
+                      </span>
                     ) : null}
                   </div>
-                  <Button
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    disabled={
-                      busy ||
-                      !data.polarConfigured ||
-                      !p.polarProductId ||
-                      data.plan?.id === p.id
-                    }
-                    onClick={() => void checkout(p.id, p.code)}
-                  >
-                    {data.plan?.id === p.id ? t("Current") : t("Subscribe")}
-                  </Button>
+                  {packs ? (
+                    <p className="text-xs text-ink-muted">{packs}</p>
+                  ) : p.description ? (
+                    <p className="text-xs text-ink-muted">{p.description}</p>
+                  ) : null}
+                  {quote ? (
+                    <SeatSlider
+                      seats={seats!}
+                      quote={quote}
+                      currency={p.currency}
+                      planCode={p.code as SeatQuoteCode}
+                      onChange={(n) =>
+                        setCheckoutSeats((prev) => ({
+                          ...prev,
+                          [p.code]: n,
+                        }))
+                      }
+                    />
+                  ) : null}
+                  <div className="mt-auto pt-2">
+                    {isEnterprise ? (
+                      <Button asChild variant="outline" className="w-full">
+                        <a href="/demo">{t("Talk to sales")}</a>
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        disabled={
+                          busy ||
+                          !data.polarConfigured ||
+                          !p.polarProductId ||
+                          isCurrent
+                        }
+                        onClick={() => void checkout(p.id, p.code)}
+                      >
+                        {isCurrent ? t("Current") : t("Switch plan")}
+                      </Button>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );
           })}
         </div>
-        <p className="mt-4 text-sm text-muted-foreground">
-          {t("Need more than 150 seats?")}{" "}
-          <a
-            href="/demo"
-            className="text-primary underline-offset-2 hover:underline"
-          >
-            {t("Request an Enterprise demo")}
-          </a>
-        </p>
+
+        <Card className="min-w-0 lg:col-span-12">
+          <CardHeader>
+            <CardTitle className="text-base">{t("Invoices")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-ink-muted">
+              {t("Open the billing portal for invoices and receipts.")}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <ConfirmDialog

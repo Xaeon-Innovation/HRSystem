@@ -22,7 +22,7 @@ const ACTION_LABEL: Record<LeaveAuditEvent["action"], string> = {
 export function LeaveAuditTimeline({ events }: { events: LeaveAuditEvent[] }) {
   const rows = [...events].sort((a, b) => b.at.localeCompare(a.at));
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">{t("No activity yet.")}</p>;
+    return <p className="text-sm text-ink-muted">{t("No activity yet.")}</p>;
   }
   return (
     <ol className="space-y-3">
@@ -32,8 +32,8 @@ export function LeaveAuditTimeline({ events }: { events: LeaveAuditEvent[] }) {
           <p className="font-medium">
             {t(ACTION_LABEL[e.action])} · {e.actorName}
           </p>
-          <p className="text-xs text-muted-foreground">{formatDateTime(e.at)}</p>
-          {e.note ? <p className="mt-0.5 text-muted-foreground">{e.note}</p> : null}
+          <p className="text-xs text-ink-muted">{formatDateTime(e.at)}</p>
+          {e.note ? <p className="mt-0.5 text-ink-muted">{e.note}</p> : null}
         </li>
       ))}
     </ol>

@@ -1,3 +1,4 @@
+import { StatusText } from "@/components/elevora";
 import { cn } from "@/lib/utils";
 import {
   candidateStatusLabel,
@@ -116,15 +117,15 @@ const INTERVIEW: Record<InterviewStatus, string> = {
 };
 
 export function JobStatusBadge({ status }: { status: JobStatus }) {
-  return <span className={cn(PILL, JOB_STATUS[status])}>{jobStatusLabel(status)}</span>;
+  return <StatusText status={jobStatusLabel(status)} />;
 }
 
 export function StageBadge({ stage }: { stage: CandidateStage }) {
-  return <span className={cn(PILL, STAGE[stage])}>{stageLabel(stage)}</span>;
+  return <StatusText status={stageLabel(stage)} />;
 }
 
 export function CandidateStatusBadge({ status }: { status: CandidateStatus }) {
-  return <span className={cn(PILL, CAND_STATUS[status])}>{candidateStatusLabel(status)}</span>;
+  return <StatusText status={candidateStatusLabel(status)} />;
 }
 
 export function PriorityBadge({ priority }: { priority: JobPriority }) {
@@ -132,16 +133,16 @@ export function PriorityBadge({ priority }: { priority: JobPriority }) {
 }
 
 export function OfferStatusBadge({ status }: { status: OfferStatus }) {
-  return <span className={cn(PILL, OFFER[status])}>{offerStatusLabel(status)}</span>;
+  return <StatusText status={offerStatusLabel(status)} />;
 }
 
 export function InterviewStatusBadge({ status }: { status: InterviewStatus }) {
-  return <span className={cn(PILL, INTERVIEW[status])}>{interviewStatusLabel(status)}</span>;
+  return <StatusText status={interviewStatusLabel(status)} />;
 }
 
 export function SourceChip({ source }: { source: CandidateSource }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium">
+    <span className="inline-flex items-center rounded-full bg-surface-2 px-2 py-0.5 text-[11px] font-medium text-ink-muted">
       {sourceLabel(source)}
     </span>
   );
@@ -189,7 +190,7 @@ export function RecommendationBadge({ value }: { value: Recommendation }) {
 
 export function TagChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary">
+    <span className="inline-flex items-center rounded-full bg-accent-tint px-2 py-0.5 text-[11px] font-medium text-accent-ink">
       {label}
     </span>
   );

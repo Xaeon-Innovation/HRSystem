@@ -1,13 +1,13 @@
 import type { FastifyInstance } from "fastify";
 import { and, eq, isNull } from "drizzle-orm";
-import {
-  attendanceRecords,
-  employeeLiveLocations,
-  locationPings,
-} from "@hr/db";
+import { attendanceRecords } from "@hr/db";
 import { locationPingSchema, type JwtPayload } from "@hr/shared";
 import { tenantHasFeature } from "./lib/features.js";
-import { addClient, broadcastToTenant, removeClient } from "./ws-hub.js";
+import {
+  broadcastLocationUpdate,
+  recordClockedInLocation,
+} from "./services/location.js";
+import { addClient, removeClient } from "./ws-hub.js";
 
 const AUTH_TIMEOUT_MS = 5_000;
 
@@ -69,7 +69,7 @@ export async function registerWs(app: FastifyInstance) {
             ? new Date(parsed.data.recordedAt)
             : new Date();
 
-          await app.db.insert(locationPings).values({
+          await recordClockedInLocation(app, {
             tenantId: user.tenantId,
             employeeId: user.employeeId,
             lat: parsed.data.lat,
@@ -77,27 +77,6 @@ export async function registerWs(app: FastifyInstance) {
             recordedAt,
             clientPingId: parsed.data.clientPingId ?? null,
           });
-
-          await app.db
-            .insert(employeeLiveLocations)
-            .values({
-              employeeId: user.employeeId,
-              tenantId: user.tenantId,
-              lat: parsed.data.lat,
-              lng: parsed.data.lng,
-              updatedAt: recordedAt,
-              isClockedIn: true,
-            })
-            .onConflictDoUpdate({
-              target: employeeLiveLocations.employeeId,
-              set: {
-                lat: parsed.data.lat,
-                lng: parsed.data.lng,
-                updatedAt: recordedAt,
-                isClockedIn: true,
-                tenantId: user.tenantId,
-              },
-            });
 
           const { handleComplianceLocationPing } = await import(
             "./services/shifts.js"
@@ -110,15 +89,12 @@ export async function registerWs(app: FastifyInstance) {
           });
 
           if (user.role === "employee") {
-            broadcastToTenant(user.tenantId, {
-              type: "location.update",
-              payload: {
-                employeeId: user.employeeId,
-                lat: parsed.data.lat,
-                lng: parsed.data.lng,
-                updatedAt: recordedAt.toISOString(),
-                isClockedIn: !compliance.autoClockedOut,
-              },
+            broadcastLocationUpdate(user.tenantId, {
+              employeeId: user.employeeId,
+              lat: parsed.data.lat,
+              lng: parsed.data.lng,
+              updatedAt: recordedAt.toISOString(),
+              isClockedIn: !compliance.autoClockedOut,
             });
           }
 

@@ -56,10 +56,10 @@ export function ConvertToEmployeeModal({
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
-        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] max-h-[min(90dvh,40rem)] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-card p-5 shadow-2xl">
+        <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] max-h-[min(90dvh,40rem)] w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border bg-surface p-5 shadow-2xl">
           <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
             {t("Convert to employee")}</DialogPrimitive.Title>
-          <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
+          <DialogPrimitive.Description className="mt-2 text-sm text-ink-muted">
             {candidate
               ? `Prefill ${candidate.fullName} into the employee roster. Required HR fields that were not on the candidate file still need to be completed.`
               : t("Create an employee record from this hire.")}
@@ -114,7 +114,7 @@ export function ConvertToEmployeeModal({
               <Input value={form.address} onChange={(e) => patch({ address: e.target.value })} />
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
+          <p className="mt-3 text-xs text-ink-muted">
             {t("Resume attachments stay on the candidate file. Link them from the employee profile after the record exists.")}</p>
           <div className="mt-5 flex justify-end gap-2">
             <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>

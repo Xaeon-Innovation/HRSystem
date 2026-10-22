@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CompensationPayslipPreview } from "@/components/compensation/compensation-payslip-preview";
 import { CompEmptyState } from "@/components/compensation/compensation-states";
+import { StatBlock } from "@/components/elevora";
 import { API_URL, getTokens } from "@/lib/api";
 import { formatDate, formatHours, formatMoney } from "@/lib/compensation/format";
 import type { PayrollInputRow, PayrollPeriod } from "@/lib/compensation/types";
@@ -76,14 +77,18 @@ export function CompensationPayrollPanel({
 
   return (
     <div className="space-y-3">
-      <Card className="border-primary/10 bg-gradient-to-br from-white to-accent/20">
+      <Card className="border-line bg-surface">
         <CardHeader className="pb-2">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
-              <CardTitle className="text-base">{period.label} {t("payroll inputs")}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {t("Period")}{formatDate(period.start)} – {formatDate(period.end)} {t("· Cutoff")}{" "}
-                {formatDate(period.cutoff)}{t(". Ready for a payroll engine, no country tax calc yet.")}</p>
+              <CardTitle className="text-base text-ink">
+                {period.label} {t("payroll inputs")}
+              </CardTitle>
+              <p className="text-xs text-ink-muted">
+                {t("Period")} {formatDate(period.start)} – {formatDate(period.end)} {t("· Cutoff")}{" "}
+                {formatDate(period.cutoff)}
+                {t(". Ready for a payroll engine, no country tax calc yet.")}
+              </p>
             </div>
             {isAdmin ? (
               <Button
@@ -98,14 +103,26 @@ export function CompensationPayrollPanel({
             ) : null}
           </div>
           {exportError ? (
-            <p className="text-xs text-destructive">{exportError}</p>
+            <p className="text-xs text-danger">{exportError}</p>
           ) : null}
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Stat label="Gross" value={formatMoney(totals.gross, currency)} />
-          <Stat label="Incentives" value={formatMoney(totals.incentives, currency)} />
-          <Stat label="Deductions" value={formatMoney(totals.deductions, currency)} />
-          <Stat label="Net payable" value={formatMoney(totals.net, currency)} />
+        <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatBlock label={t("Gross")} value={formatMoney(totals.gross, currency)} size="sm" />
+          <StatBlock
+            label={t("Incentives")}
+            value={formatMoney(totals.incentives, currency)}
+            size="sm"
+          />
+          <StatBlock
+            label={t("Deductions")}
+            value={formatMoney(totals.deductions, currency)}
+            size="sm"
+          />
+          <StatBlock
+            label={t("Net payable")}
+            value={formatMoney(totals.net, currency)}
+            size="sm"
+          />
         </CardContent>
       </Card>
 
@@ -116,13 +133,13 @@ export function CompensationPayrollPanel({
         />
       ) : (
         <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
-          <Card>
+          <Card className="border-line bg-surface">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">{t("By employee")}</CardTitle>
+              <CardTitle className="text-base text-ink">{t("By employee")}</CardTitle>
             </CardHeader>
             <CardContent className="overflow-x-auto px-0 pb-0">
               <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
+                <thead className="border-y border-line bg-surface-2 text-xs text-ink-muted">
                   <tr>
                     <th className="px-4 py-2 font-medium">{t("Employee")}</th>
                     <th className="px-3 py-2 font-medium">{t("Hours")}</th>
@@ -138,29 +155,33 @@ export function CompensationPayrollPanel({
                     <tr
                       key={r.employeeId}
                       className={cn(
-                        "cursor-pointer border-b last:border-0 hover:bg-accent/30",
-                        selectedId === r.employeeId && "bg-accent/40",
+                        "cursor-pointer border-b border-line last:border-0 hover:bg-surface-2/60",
+                        selectedId === r.employeeId && "bg-accent-tint",
                       )}
                       onClick={() => setSelectedId(r.employeeId)}
                     >
                       <td className="px-4 py-3">
-                        <p className="font-medium">{r.employeeName}</p>
-                        <p className="text-xs text-muted-foreground">{r.leaveImpactNote}</p>
+                        <p className="font-medium text-ink">{r.employeeName}</p>
+                        <p className="text-xs text-ink-muted">{r.leaveImpactNote}</p>
                       </td>
-                      <td className="px-3 py-3 tabular-nums text-xs">
+                      <td className="px-3 py-3 tabular-nums text-xs text-ink-2">
                         {r.payStructure === "hourly" || r.workedHours > 0
                           ? formatHours(r.workedHours)
                           : "-"}
                       </td>
-                      <td className="px-3 py-3 tabular-nums">{formatMoney(r.baseSalary, r.currency)}</td>
-                      <td className="px-3 py-3 tabular-nums">{formatMoney(r.allowances, r.currency)}</td>
-                      <td className="px-3 py-3 tabular-nums">
+                      <td className="px-3 py-3 tabular-nums text-ink">
+                        {formatMoney(r.baseSalary, r.currency)}
+                      </td>
+                      <td className="px-3 py-3 tabular-nums text-ink">
+                        {formatMoney(r.allowances, r.currency)}
+                      </td>
+                      <td className="px-3 py-3 tabular-nums text-ink">
                         {formatMoney(r.overtime + r.incentives, r.currency)}
                       </td>
-                      <td className="px-3 py-3 tabular-nums text-rose-700">
+                      <td className="px-3 py-3 tabular-nums text-danger">
                         {formatMoney(r.totalDeductions, r.currency)}
                       </td>
-                      <td className="px-4 py-3 tabular-nums font-semibold">
+                      <td className="px-4 py-3 tabular-nums font-semibold text-ink">
                         {formatMoney(r.net, r.currency)}
                       </td>
                     </tr>
@@ -174,32 +195,50 @@ export function CompensationPayrollPanel({
             {selected ? (
               <>
                 <CompensationPayslipPreview breakdown={selected.breakdown} />
-                <Card>
+                <Card className="border-line bg-surface">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">{selected.employeeName}</CardTitle>
-                    <p className="text-xs text-muted-foreground">
-                      {t("Leave, attendance, overtime, and manual adjustments for this cycle")}</p>
+                    <CardTitle className="text-base text-ink">
+                      {selected.employeeName}
+                    </CardTitle>
+                    <p className="text-xs text-ink-muted">
+                      {t("Leave, attendance, overtime, and manual adjustments for this cycle")}
+                    </p>
                   </CardHeader>
-                  <CardContent className="space-y-2 text-sm">
+                  <CardContent className="space-y-2 text-sm text-ink">
                     {selected.hourlyRate != null ? (
                       <p>
-                        {t("Hourly")}{formatMoney(selected.hourlyRate ?? 0, selected.currency)}{t("/hr ·")}{" "}
-                        {formatHours(selected.regularHours)} {t("regular ·")}{" "}
-                        {formatHours(selected.overtimeHoursWorked)} {t("OT")}</p>
+                        {t("Hourly")} {formatMoney(selected.hourlyRate ?? 0, selected.currency)}
+                        {t("/hr ·")} {formatHours(selected.regularHours)} {t("regular ·")}{" "}
+                        {formatHours(selected.overtimeHoursWorked)} {t("OT")}
+                      </p>
                     ) : null}
-                    <p>{t("Overtime pay")}{formatMoney(selected.overtime, selected.currency)}</p>
-                    <p>{t("Unpaid leave")}{formatMoney(selected.unpaidLeaveDeduction, selected.currency)}</p>
-                    <p>{t("Absence")}{formatMoney(selected.absenceDeduction, selected.currency)}</p>
-                    <p>{t("Attendance impact")}{formatMoney(selected.attendanceImpact, selected.currency)}</p>
-                    <p>{t("Manual")}{formatMoney(selected.manualAdjustments, selected.currency)}</p>
+                    <p>
+                      {t("Overtime pay")} {formatMoney(selected.overtime, selected.currency)}
+                    </p>
+                    <p>
+                      {t("Unpaid leave")}{" "}
+                      {formatMoney(selected.unpaidLeaveDeduction, selected.currency)}
+                    </p>
+                    <p>
+                      {t("Absence")} {formatMoney(selected.absenceDeduction, selected.currency)}
+                    </p>
+                    <p>
+                      {t("Attendance impact")}{" "}
+                      {formatMoney(selected.attendanceImpact, selected.currency)}
+                    </p>
+                    <p>
+                      {t("Manual")} {formatMoney(selected.manualAdjustments, selected.currency)}
+                    </p>
                     <Button
                       size="sm"
                       variant="ghost"
+                      className="w-full sm:w-auto"
                       onClick={() => onOpenEmployee(selected.employeeId)}
                     >
-                      {t("Open profile")}</Button>
+                      {t("Open profile")}
+                    </Button>
                     {isAdmin ? (
-                      <div className="space-y-2 border-t pt-3">
+                      <div className="space-y-2 border-t border-line pt-3">
                         <Input
                           type="number"
                           placeholder={t("Manual adjustment")}
@@ -213,6 +252,7 @@ export function CompensationPayrollPanel({
                         />
                         <Button
                           size="sm"
+                          className="w-full sm:w-auto"
                           disabled={!amount || !note.trim()}
                           onClick={() => {
                             onManualAdjust(selected.employeeId, Number(amount), note.trim());
@@ -220,7 +260,8 @@ export function CompensationPayrollPanel({
                             setNote("");
                           }}
                         >
-                          {t("Post adjustment")}</Button>
+                          {t("Post adjustment")}
+                        </Button>
                       </div>
                     ) : null}
                   </CardContent>
@@ -230,15 +271,6 @@ export function CompensationPayrollPanel({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-card px-3 py-2">
-      <p className="text-[11px] text-muted-foreground">{label}</p>
-      <p className="text-lg font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

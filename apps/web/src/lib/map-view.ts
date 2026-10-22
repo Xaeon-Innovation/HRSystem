@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 export function estimateMapZoom(positions: Array<[number, number]>): number {
   if (positions.length <= 1) return 15;
   let minLat = 90;
@@ -33,4 +35,16 @@ export function filterLiveLocations<
       (l.jobTitle ?? "").toLowerCase().includes(needle) ||
       l.role.toLowerCase().includes(needle),
   );
+}
+
+/** Human-readable age from live-map `secondsSinceUpdate`. */
+export function formatSecondsAgo(seconds: number): string {
+  const secs = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  if (secs < 60) return t("Just now");
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return t("{n}m ago", { n: mins });
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return t("{n}h ago", { n: hours });
+  const days = Math.round(hours / 24);
+  return t("{n}d ago", { n: days });
 }

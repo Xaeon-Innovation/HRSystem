@@ -63,10 +63,10 @@ export function OfferDetailDrawer({
                 <p className="text-sm">{offer.benefitsNotes}</p>
               ) : null}
               {offer.notes ? (
-                <p className="rounded-lg bg-secondary/70 px-3 py-2 text-sm">{offer.notes}</p>
+                <p className="rounded-lg bg-surface-2/70 px-3 py-2 text-sm">{offer.notes}</p>
               ) : null}
               {offer.negotiationNotes ? (
-                <p className="text-sm text-muted-foreground">{t("Negotiation:")}{offer.negotiationNotes}</p>
+                <p className="text-sm text-ink-muted">{t("Negotiation:")}{offer.negotiationNotes}</p>
               ) : null}
               {canManage && (offer.status === "sent" || offer.status === "draft") ? (
                 <textarea
@@ -113,7 +113,7 @@ export function OfferDetailDrawer({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-xs text-ink-muted">{label}</dt>
       <dd>{value}</dd>
     </div>
   );

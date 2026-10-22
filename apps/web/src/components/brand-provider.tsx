@@ -9,7 +9,6 @@ import {
   loadTenantBrand,
   type TenantBrand,
 } from "@/lib/branding";
-import { isUiRedesignEnabled } from "@/lib/ui-redesign";
 
 const BrandContext = createContext<TenantBrand>(DEFAULT_BRAND);
 
@@ -19,48 +18,35 @@ export function BrandProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    const paint = (next: TenantBrand, on: boolean) => {
+    const paint = (next: TenantBrand) => {
       if (cancelled) return;
-      applyBrandToDocument(on ? next : DEFAULT_BRAND, on);
-      setBrand(on ? next : DEFAULT_BRAND);
+      applyBrandToDocument(next);
+      setBrand(next);
     };
 
-    /** Local cache only, used after save / cache write (avoids refetch loops). */
     const applyLocal = () => {
       const user = getUser();
-      const on = isUiRedesignEnabled(user);
-      if (!on) {
-        paint(DEFAULT_BRAND, false);
-        return;
-      }
-      paint(loadTenantBrand(user?.tenantId), true);
+      paint(loadTenantBrand(user?.tenantId));
     };
 
-    /** Local first, then server when logged in. */
     const syncFromServer = () => {
       const user = getUser();
-      const on = isUiRedesignEnabled(user);
-      if (!on) {
-        paint(DEFAULT_BRAND, false);
-        return;
-      }
-      paint(loadTenantBrand(user?.tenantId), true);
+      paint(loadTenantBrand(user?.tenantId));
       const { access } = getTokens();
       if (!access || !user?.tenantId) return;
       void fetchTenantBrand(user.tenantId).then((next) => {
         if (cancelled) return;
-        paint(next, isUiRedesignEnabled(getUser()));
+        paint(next);
       });
     };
 
     syncFromServer();
     window.addEventListener("hr-tenant-brand", applyLocal);
-    window.addEventListener("hr-ui-redesign", syncFromServer);
     window.addEventListener("hr-session-user", syncFromServer);
+
     return () => {
       cancelled = true;
       window.removeEventListener("hr-tenant-brand", applyLocal);
-      window.removeEventListener("hr-ui-redesign", syncFromServer);
       window.removeEventListener("hr-session-user", syncFromServer);
     };
   }, []);

@@ -1,49 +1,46 @@
 "use client";
 
 import {
-  CalendarDays,
-  Clock,
-  Gauge,
-  MapPin,
-  UserPlus,
+  Briefcase,
+  Fingerprint,
+  MapPinned,
+  Palmtree,
+  Target,
   Wallet,
+  type LucideIcon,
 } from "lucide-react";
-import { MarketingSection } from "@/components/marketing/section";
-import { Reveal } from "@/components/marketing/reveal";
 import { useT } from "@/i18n/provider";
 
-const MODULES = [
-  { label: "Clock-in", icon: Clock },
-  { label: "Live map", icon: MapPin },
-  { label: "KPIs", icon: Gauge },
-  { label: "Leave", icon: CalendarDays },
-  { label: "Hiring", icon: UserPlus },
-  { label: "Compensation", icon: Wallet },
-] as const;
+const MODULES: { icon: LucideIcon; label: string; sub: string }[] = [
+  { icon: Fingerprint, label: "Clock-in", sub: "Geofenced, one tap" },
+  { icon: MapPinned, label: "Live map", sub: "Realtime positions" },
+  { icon: Target, label: "KPIs", sub: "Weighted scorecards" },
+  { icon: Palmtree, label: "Leave", sub: "Balances and ledger" },
+  { icon: Briefcase, label: "Hiring", sub: "Pipeline to roster" },
+  { icon: Wallet, label: "Compensation", sub: "Approvals and payroll" },
+];
 
 export function ModuleStrip() {
   const t = useT();
 
   return (
-    <MarketingSection compact>
-      <Reveal>
-        <p className="text-center text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-          {t("From the field to people ops")}
-        </p>
-        <ul className="mt-5 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-          {MODULES.map(({ label, icon: Icon }) => (
-            <li
-              key={label}
-              className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border/70 bg-card px-3.5 py-2 text-sm font-medium text-foreground shadow-sm dark:border-white/10"
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-              </span>
+    <section id="features" className="scroll-mt-24 py-5 sm:py-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-6">
+        {MODULES.map(({ icon: Icon, label, sub }) => (
+          <div
+            key={label}
+            className="rounded-lg border border-line bg-surface p-4"
+          >
+            <span className="grid h-8 w-8 place-items-center rounded-[9px] bg-surface-2 text-ink">
+              <Icon className="h-[18px] w-[18px]" strokeWidth={1.7} />
+            </span>
+            <p className="mt-[18px] text-[13.5px] font-semibold text-ink">
               {t(label)}
-            </li>
-          ))}
-        </ul>
-      </Reveal>
-    </MarketingSection>
+            </p>
+            <p className="mt-0.5 text-[11.5px] text-ink-muted">{t(sub)}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

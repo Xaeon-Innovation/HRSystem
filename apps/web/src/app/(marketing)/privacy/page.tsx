@@ -2,97 +2,80 @@
 
 import { useT } from "@/i18n/provider";
 
+const SECTIONS = [
+  {
+    id: "collect",
+    title: "What we collect",
+    body: "Account details, roster data your organization adds, clock events, task and leave attachments, device identifiers for signed-in sessions, and location points while an employee is on shift in Elevora Field.",
+  },
+  {
+    id: "location",
+    title: "How location works",
+    body: "When In Use: Elevora checks GPS at clock-in against the employee’s work zone. Always / all-the-time (Elevora Field): for mobile-presence field staff only, location may update while the app is in the background during an active shift. Tracking stops on clock-out or sign-out. Fixed-zone employees are checked against their geofence at clock-in.",
+  },
+  {
+    id: "background",
+    title: "Background location (Elevora Field)",
+    body: "If the employee grants background location, Elevora Field may collect precise location even when the app is not open — only while clocked in. Android shows a persistent notification (“On shift · tracking location”). Continued use of GPS in the background can dramatically decrease battery life. Employees see an in-app disclosure before the system permission prompt.",
+  },
+  {
+    id: "access",
+    title: "Who can see data",
+    body: "Your tenant admins and the module roles they grant. Xaeon staff access data only for support with your permission.",
+  },
+  {
+    id: "accounts",
+    title: "Accounts and deletion",
+    body: "Elevora Field does not offer self-service account creation; employers invite employees. To delete an account or personal data, contact your organization’s HR or admin, or email privacy@xaeons.com. Tenant deletion follows the retention process below.",
+  },
+  {
+    id: "retention",
+    title: "Retention",
+    body: "You control retention per tenant. Deleted tenants are soft-deleted, then purged after 30 days.",
+  },
+  {
+    id: "contact",
+    title: "Contact",
+    body: "privacy@xaeons.com",
+  },
+] as const;
+
 export default function PrivacyPage() {
   const t = useT();
+
   return (
-    <article className="mx-auto max-w-3xl px-4 py-12 sm:px-6 sm:py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">
-        {t("Privacy Policy")}
-      </h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        {t("Last updated:")} 13 September 2026
+    <div className="mx-auto w-full max-w-[1180px] flex-1 px-4 py-10 sm:px-8 sm:py-14">
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.09em] text-ink-muted">
+        {t("Legal")}
       </p>
-      <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted-foreground">
-        <p>
-          {t(
-            "This Privacy Policy explains how Elevora (a Xaeon product) processes information when you visit our marketing site or use the Elevora platform.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("Information we process")}
-        </h2>
-        <ul className="list-disc space-y-2 ps-5">
-          <li>
-            {t(
-              "Account data: organization name, admin name, email, and authentication credentials.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Workforce data your organization enters: employee profiles, attendance, leave, KPIs, hiring, and compensation records.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Location data when enabled: clock-in/out coordinates and periodic location pings while an employee is clocked in, used for attendance and live field presence.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Demo and support messages you send to us (for example via the Request demo form).",
-            )}
-          </li>
-        </ul>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("How we use information")}
-        </h2>
-        <p>
-          {t(
-            "We use data to provide and secure the service, operate multi-tenant isolation, bill subscriptions, send transactional email, improve reliability, and respond to demos or support requests.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("Retention")}
-        </h2>
-        <p>
-          {t(
-            "Raw location pings are retained per tenant setting (default 60 days, typically 30–90). Attendance snapshots and business records are kept as needed for the organization’s use of Elevora. Audit logs of sensitive admin actions are retained for accountability.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("Sharing")}
-        </h2>
-        <p>
-          {t(
-            "We do not sell personal data. We may use subprocessors (hosting, email, payments) under contract. Tenant data is not shared with other customers.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("Your responsibilities")}
-        </h2>
-        <p>
-          {t(
-            "Employers using Elevora should disclose continuous or GPS-based tracking in employment policies, obtain required consent, and configure retention appropriately for their jurisdiction.",
-          )}
-        </p>
-        <h2 className="text-lg font-semibold text-foreground">
-          {t("Contact")}
-        </h2>
-        <p>
-          {t("Privacy questions:")}{" "}
-          <a
-            className="text-foreground underline"
-            href="mailto:info@xaeons.com"
-          >
-            info@xaeons.com
-          </a>
-        </p>
-        <p className="text-xs">
-          {t(
-            "This document is a general SaaS draft and is not legal advice.",
-          )}
-        </p>
+      <h1 className="mt-2.5 text-[clamp(32px,4vw,40px)] font-semibold tracking-[-0.035em] text-ink">
+        {t("Privacy policy")}
+      </h1>
+      <p className="mt-1.5 text-sm text-ink-muted">
+        {t("Last updated")} 16 October 2026
+      </p>
+
+      <div className="mt-10 grid gap-10 lg:grid-cols-[200px_minmax(0,720px)]">
+        <nav className="hidden space-y-2 text-sm lg:sticky lg:top-24 lg:block lg:self-start">
+          {SECTIONS.map((s) => (
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              className="block text-ink-muted hover:text-ink"
+            >
+              {t(s.title)}
+            </a>
+          ))}
+        </nav>
+        <div className="max-w-[720px] space-y-8 text-[15px] leading-relaxed text-ink-2">
+          {SECTIONS.map((s) => (
+            <section key={s.id} id={s.id} className="scroll-mt-28">
+              <h2 className="text-lg font-semibold text-ink">{t(s.title)}</h2>
+              <p className="mt-2">{t(s.body)}</p>
+            </section>
+          ))}
+        </div>
       </div>
-    </article>
+    </div>
   );
 }

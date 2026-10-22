@@ -40,7 +40,16 @@ for i in {1..30}; do
 done
 
 echo "==> refresh plan features and metric definitions (idempotent)"
-"${COMPOSE[@]}" exec -T api node packages/db/dist/seed.js
+# Pass SEED_* explicitly so platform admin email/password match .env.production
+# (compose also wires them into the api service env for future deploys).
+set -a
+# shellcheck disable=SC1091
+source <(grep -E '^(SEED_SUPER_ADMIN_EMAIL|SEED_SUPER_ADMIN_PASSWORD)=' "$ENV_FILE" | sed 's/\r$//')
+set +a
+"${COMPOSE[@]}" exec -T \
+  -e SEED_SUPER_ADMIN_EMAIL \
+  -e SEED_SUPER_ADMIN_PASSWORD \
+  api node packages/db/dist/seed.js
 
 echo "==> status"
 "${COMPOSE[@]}" ps

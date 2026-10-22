@@ -1,156 +1,109 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { FileSpreadsheet, Users } from "lucide-react";
 import { api, getUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { Card } from "@/components/ui/card";
+import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { AttendanceDayStrip } from "@/components/attendance/day-strip";
+import { AttendancePersonCard } from "@/components/attendance/person-card";
+import {
+  toIsoDate,
+  type AttendancePerson,
+} from "@/components/attendance/format";
 import { t } from "@/i18n";
-
-type RecordRow = {
-  id: string;
-  clockInAt: string;
-  clockOutAt: string | null;
-  anomalyFlags: string[];
-};
-
-type EmployeeOption = {
-  id: string;
-  name: string;
-};
-
-const selectClass =
-  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:max-w-xs";
+import { EmptyState, PageHeader } from "@/components/elevora";
 
 export default function AttendancePage() {
-  const redesign = useUiRedesign();
-  const [records, setRecords] = useState<RecordRow[]>([]);
-  const [note, setNote] = useState("");
-  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-  const [employeeId, setEmployeeId] = useState("");
+  const [day, setDay] = useState(() => toIsoDate(new Date()));
+  const [people, setPeople] = useState<AttendancePerson[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const user = typeof window !== "undefined" ? getUser() : null;
   const isAdmin = user?.role === "tenant_admin";
 
-  async function load(forEmployeeId?: string) {
+  const load = useCallback(async (forDay: string) => {
     setError(null);
-    const q =
-      isAdmin && forEmployeeId
-        ? `?employeeId=${encodeURIComponent(forEmployeeId)}`
-        : "";
-    const data = await api<{ records: RecordRow[] }>(
-      `/v1/attendance/history${q}`,
+    const data = await api<{ day: string; people: AttendancePerson[] }>(
+      `/v1/attendance/day?date=${encodeURIComponent(forDay)}`,
     );
-    setRecords(data.records);
-  }
-
-  useEffect(() => {
-    void load(employeeId || undefined).catch((e) =>
-      setError(e instanceof Error ? e.message : "Failed to load"),
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setDay(data.day);
+    setPeople(data.people ?? []);
   }, []);
 
   useEffect(() => {
-    if (!isAdmin || !redesign) return;
-    void api<{ employees: EmployeeOption[] }>("/v1/employees")
-      .then((res) => setEmployees(res.employees ?? []))
-      .catch(() => setEmployees([]));
-  }, [isAdmin, redesign]);
+    setPeople(null);
+    void load(day).catch((e) => {
+      setError(e instanceof Error ? e.message : t("Failed"));
+      setPeople([]);
+    });
+    // Only reload when day changes; load is stable
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day]);
+
+  async function correct(sessionId: string, note: string) {
+    await api(`/v1/attendance/${sessionId}/correct`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        note,
+        clockOutAt: new Date().toISOString(),
+      }),
+    });
+    await load(day);
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("Attendance")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("Clock history and corrections")}</p>
-        </div>
-        {redesign && isAdmin ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-            <select
-              className={selectClass}
-              value={employeeId}
-              onChange={(e) => setEmployeeId(e.target.value)}
-            >
-              <option value="">{t("All / recent (tenant)")}</option>
-              {employees.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              className="w-full sm:w-auto"
-              variant="outline"
-              onClick={() =>
-                void load(employeeId || undefined).catch((err) =>
-                  setError(err instanceof Error ? err.message : t("Failed")),
-                )
-              }
-            >
-              {t("Load history")}</Button>
-          </div>
-        ) : null}
-      </div>
+      <PageHeader
+        title={isAdmin ? t("Attendance") : t("History")}
+        subtitle={
+          isAdmin
+            ? t("Who worked, session by session.")
+            : t("Your sessions, day by day.")
+        }
+        actions={
+          isAdmin ? (
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/app/attendance/hours">
+                <FileSpreadsheet className="h-4 w-4" />
+                {t("Hours report")}
+              </Link>
+            </Button>
+          ) : undefined
+        }
+      />
+
+      <Card className="overflow-hidden p-3 sm:p-4">
+        <AttendanceDayStrip day={day} onChange={setDay} />
+      </Card>
 
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="space-y-2">
-        {records.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No attendance records.")}</p>
-        ) : null}
-        {records.map((r) => {
-          const durationMs = r.clockOutAt
-            ? new Date(r.clockOutAt).getTime() - new Date(r.clockInAt).getTime()
-            : null;
-          const hours =
-            durationMs != null ? (durationMs / 36e5).toFixed(2) : "open";
-          return (
-            <Card key={r.id}>
-              <CardContent className="space-y-2 py-3">
-                <p className="text-sm font-medium">
-                  {t("In")} {new Date(r.clockInAt).toLocaleString()}
-                  {r.clockOutAt
-                    ? ` · Out ${new Date(r.clockOutAt).toLocaleString()}`
-                    : t(" · still open")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t("Duration:")}{hours}h
-                  {r.anomalyFlags?.length
-                    ? ` · flags: ${r.anomalyFlags.join(", ")}`
-                    : ""}
-                </p>
-                {isAdmin ? (
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Input
-                      placeholder={t("Correction note")}
-                      value={note}
-                      onChange={(e) => setNote(e.target.value)}
-                    />
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() =>
-                        api(`/v1/attendance/${r.id}/correct`, {
-                          method: "PATCH",
-                          body: JSON.stringify({
-                            note: note || t("Admin correction"),
-                            clockOutAt: new Date().toISOString(),
-                          }),
-                        }).then(() => load(employeeId || undefined))
-                      }
-                    >
-                      {t("Close / correct")}</Button>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {people === null ? (
+        <PageSkeleton dense />
+      ) : people.length === 0 ? (
+        <Card className="overflow-hidden p-0">
+          <EmptyState
+            icon={<Users className="h-5 w-5" />}
+            title={t("No one on this day.")}
+            subtitle={t("Try another date or check who is scheduled.")}
+          />
+        </Card>
+      ) : (
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(320px,1fr))]">
+          {people.map((p) => (
+            <li key={p.employeeId} className="min-w-0">
+              <AttendancePersonCard
+                person={p}
+                day={day}
+                isAdmin={isAdmin}
+                onCorrect={correct}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

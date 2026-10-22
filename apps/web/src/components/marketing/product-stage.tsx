@@ -59,7 +59,7 @@ function FloatCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay, ease: [0.21, 0.47, 0.32, 0.98] }}
       className={cn(
-        "rounded-xl border border-border/70 bg-card p-3 shadow-md dark:border-white/10",
+        "rounded-lg border border-line bg-surface p-3 shadow-sm",
         !reduce && floatClass,
         className,
       )}
@@ -70,7 +70,14 @@ function FloatCard({
 }
 
 /** Product-frame preview for the hero with floating live cards. */
-export function ProductStage({ className }: { className?: string }) {
+export function ProductStage({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  /** Auth side panel: main mock only, no float overlays. */
+  compact?: boolean;
+}) {
   const t = useT();
   const reduce = useReducedMotion();
 
@@ -89,7 +96,7 @@ export function ProductStage({ className }: { className?: string }) {
           delay: 0.08,
           ease: [0.21, 0.47, 0.32, 0.98],
         }}
-        className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-sm dark:border-white/10"
+        className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm"
       >
         <div className="flex items-center gap-2 border-b border-border/60 bg-muted/30 px-3 py-2">
           <span className="h-2 w-2 rounded-full bg-border" />
@@ -162,7 +169,8 @@ export function ProductStage({ className }: { className?: string }) {
         </ul>
       </motion.div>
 
-      {/* Desktop floating overlays — CSS float, one ping only */}
+      {!compact ? (
+      /* Desktop floating overlays — CSS float, one ping only */
       <div className="pointer-events-none absolute inset-0 hidden lg:block">
         <FloatCard
           reduce={reduce}
@@ -223,8 +231,10 @@ export function ProductStage({ className }: { className?: string }) {
           </p>
         </FloatCard>
       </div>
+      ) : null}
 
-      {/* Mobile: chips under the mock, no overlap */}
+      {!compact ? (
+      /* Mobile: chips under the mock, no overlap */
       <div className="mt-3 flex flex-wrap gap-2 lg:hidden">
         <div className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-card px-2.5 py-1.5 text-[11px] font-medium text-foreground shadow-sm dark:border-white/10">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -237,6 +247,7 @@ export function ProductStage({ className }: { className?: string }) {
           {t("Leave · pending")}
         </div>
       </div>
+      ) : null}
     </div>
   );
 }

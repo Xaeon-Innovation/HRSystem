@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { GripVertical } from "lucide-react";
+import { Kanban, KanbanCard, KanbanColumn } from "@/components/elevora";
 import { UserAvatar } from "@/components/user-avatar";
 import { HiringEmptyState } from "@/components/hiring/hiring-states";
 import { SourceChip, TagChip } from "@/components/hiring/hiring-status-badge";
@@ -36,16 +37,18 @@ export function CandidatePipelineBoard({
   const stages = CANDIDATE_STAGES;
 
   return (
-    <div className="-mx-1 overflow-x-auto pb-2">
-      <div className="flex min-w-max gap-3 px-1">
+    <div className="min-w-0">
+      <Kanban>
         {stages.map((stage) => {
           const col = candidates.filter((c) => c.currentStage === stage);
           return (
-            <section
+            <KanbanColumn
               key={stage}
+              title={stageLabel(stage)}
+              count={col.length}
               className={cn(
-                "flex w-[17.5rem] shrink-0 flex-col rounded-xl border bg-card",
-                over === stage && "ring-2 ring-primary/40",
+                "min-h-[380px]",
+                over === stage && "ring-2 ring-accent/40",
               )}
               onDragOver={(e) => {
                 if (!canMove) return;
@@ -63,24 +66,25 @@ export function CandidatePipelineBoard({
                 if (id && canMove) onMove(id, stage);
               }}
             >
-              <header className="flex items-center justify-between gap-2 border-b px-3 py-2">
-                <h3 className="text-sm font-semibold">{stageLabel(stage)}</h3>
-                <span className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-semibold tabular-nums">
-                  {col.length}
-                </span>
-              </header>
-              <div className="flex min-h-[12rem] flex-col gap-2 p-2">
-                {col.length === 0 ? (
-                  <p className="px-1 py-6 text-center text-xs text-muted-foreground">
-                    {t("Drop a candidate here")}</p>
-                ) : (
-                  col.map((c) => {
-                    const days = daysInStageNow(currentStageEnteredAt(c));
-                    const aging = days >= AGING_STAGE_DAYS;
-                    const stuck = days >= STUCK_STAGE_DAYS;
-                    return (
+              {col.length === 0 ? (
+                <p className="px-1 py-6 text-center text-2xs text-ink-muted">
+                  {t("Drop a candidate here")}
+                </p>
+              ) : (
+                col.map((c) => {
+                  const days = daysInStageNow(currentStageEnteredAt(c));
+                  const aging = days >= AGING_STAGE_DAYS;
+                  const stuck = days >= STUCK_STAGE_DAYS;
+                  return (
+                    <KanbanCard
+                      key={c.id}
+                      className={cn(
+                        dragging === c.id && "opacity-60",
+                        stuck && "border-danger/40",
+                        aging && !stuck && "border-warn/40",
+                      )}
+                    >
                       <article
-                        key={c.id}
                         draggable={canMove}
                         onDragStart={(e) => {
                           e.dataTransfer.setData("text/candidate-id", c.id);
@@ -91,30 +95,26 @@ export function CandidatePipelineBoard({
                           setDragging(null);
                           setOver(null);
                         }}
-                        className={cn(
-                          "rounded-lg border bg-card p-2.5 shadow-sm transition hover:border-primary/30 hover:shadow-md",
-                          dragging === c.id && "opacity-60",
-                          stuck && "border-rose-200",
-                          aging && !stuck && "border-amber-200",
-                        )}
                       >
                         <div className="flex items-start gap-2">
                           {canMove ? (
                             <GripVertical
-                              className="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                              className="mt-1 h-3.5 w-3.5 shrink-0 text-ink-muted"
                               aria-hidden
                             />
                           ) : null}
                           <button
                             type="button"
-                            className="min-w-0 flex-1 text-left"
+                            className="min-w-0 flex-1 text-start"
                             onClick={() => onOpen(c.id)}
                           >
                             <div className="flex items-center gap-2">
                               <UserAvatar name={c.fullName} size="sm" />
                               <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold">{c.fullName}</p>
-                                <p className="truncate text-[11px] text-muted-foreground">
+                                <p className="truncate text-sm font-semibold text-ink">
+                                  {c.fullName}
+                                </p>
+                                <p className="truncate text-[11px] text-ink-muted">
                                   {c.appliedJobTitle}
                                 </p>
                               </div>
@@ -134,39 +134,45 @@ export function CandidatePipelineBoard({
                                 }
                               />
                               <SourceChip source={c.source} />
-                              {c.tags.slice(0, 2).map((t) => (
-                                <TagChip key={t} label={t} />
+                              {c.tags.slice(0, 2).map((tag) => (
+                                <TagChip key={tag} label={tag} />
                               ))}
                             </div>
                             <p
                               className={cn(
                                 "mt-2 text-[11px] tabular-nums",
                                 stuck
-                                  ? "font-medium text-rose-700"
+                                  ? "font-medium text-danger"
                                   : aging
-                                    ? "text-amber-800"
-                                    : "text-muted-foreground",
+                                    ? "text-warn"
+                                    : "text-ink-muted",
                               )}
                             >
-                              {formatDays(days)} {t("in stage")}{c.rating ? ` · ${c.rating}/5` : ""}
+                              {formatDays(days)} {t("in stage")}
+                              {c.rating ? ` · ${c.rating}/5` : ""}
                             </p>
                           </button>
                         </div>
                         {canManage ? (
                           <button
                             type="button"
-                            className="mt-2 text-[11px] font-medium text-primary hover:underline"
+                            className="mt-2 text-[11px] font-medium text-accent hover:underline"
                             onClick={() => onSaveBestFit(c.id)}
                           >
-                            {t("Save as best fit")}</button>
+                            {t("Save as best fit")}
+                          </button>
                         ) : null}
                         {canMove ? (
                           <label className="mt-2 block">
-                            <span className="sr-only">{t("Move")}{c.fullName} {t("to stage")}</span>
+                            <span className="sr-only">
+                              {t("Move")} {c.fullName} {t("to stage")}
+                            </span>
                             <select
-                              className="h-7 w-full rounded-md border border-input bg-background px-1.5 text-[11px]"
+                              className="h-9 w-full rounded-sm border border-line bg-surface px-1.5 text-[11px] text-ink"
                               value={c.currentStage}
-                              onChange={(e) => onMove(c.id, e.target.value as CandidateStage)}
+                              onChange={(e) =>
+                                onMove(c.id, e.target.value as CandidateStage)
+                              }
                             >
                               {stages.map((s) => (
                                 <option key={s} value={s}>
@@ -177,14 +183,14 @@ export function CandidatePipelineBoard({
                           </label>
                         ) : null}
                       </article>
-                    );
-                  })
-                )}
-              </div>
-            </section>
+                    </KanbanCard>
+                  );
+                })
+              )}
+            </KanbanColumn>
           );
         })}
-      </div>
+      </Kanban>
       {candidates.length === 0 ? (
         <div className="mt-3">
           <HiringEmptyState
@@ -194,8 +200,9 @@ export function CandidatePipelineBoard({
         </div>
       ) : null}
       {canMove ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t("Drag cards between columns, or use the stage menu on each card for keyboard access.")}</p>
+        <p className="mt-2 text-xs text-ink-muted">
+          {t("Drag cards between columns, or use the stage menu on each card for keyboard access.")}
+        </p>
       ) : null}
     </div>
   );

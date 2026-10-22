@@ -158,7 +158,7 @@ export function InterviewScheduleForm({
                   <label
                     key={t.id}
                     className={`inline-flex cursor-pointer items-center rounded-full border px-2.5 py-1 text-xs ${
-                      on ? "border-primary bg-primary/10" : "border-input text-muted-foreground"
+                      on ? "border-primary bg-primary/10" : "border-input text-ink-muted"
                     }`}
                   >
                     <input

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { UserAvatar } from "@/components/user-avatar";
 import type { HistoryPoint, LiveLoc, MapAppearance } from "@/components/live-map";
 import { MapPaneFallback } from "@/components/map-pane-fallback";
-import { estimateMapZoom, filterLiveLocations } from "@/lib/map-view";
+import { estimateMapZoom, filterLiveLocations, formatSecondsAgo } from "@/lib/map-view";
 import "leaflet/dist/leaflet.css";
 import {
   DEFAULT_GEOFENCE_RADIUS_METERS,
@@ -22,16 +22,35 @@ import {
   MIN_GEOFENCE_RADIUS_METERS,
   type MapThemeId,
 } from "@hr/shared";
-import { Building2, MapPin, Palette, RotateCcw, Search, Settings2 } from "lucide-react";
+import {
+  Building2,
+  MapPin,
+  Palette,
+  PenLine,
+  RefreshCw,
+  RotateCcw,
+  Search,
+  Users,
+  X,
+} from "lucide-react";
 import {
   Sheet,
   SheetBody,
   SheetContent,
   SheetDescription,
+  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { useTheme } from "next-themes";
+import {
+  EmptyState,
+  ListRow,
+  Notice,
+  PageHeader,
+  Segmented,
+  Timeline,
+} from "@/components/elevora";
 import { t } from "@/i18n";
 
 const LiveMap = dynamic(() => import("@/components/live-map"), {
@@ -45,6 +64,7 @@ type EmployeeOpt = {
   id: string;
   name: string;
   jobTitle: string | null;
+  presenceMode?: "fixed_zone" | "mobile";
 };
 
 type Session = {
@@ -126,7 +146,9 @@ function localRangeToIso(date: string, startTime: string, endTime: string) {
 }
 
 export default function MapPage() {
-  const redesign = useUiRedesign();
+  const { resolvedTheme } = useTheme();
+  const mapThemeClass =
+    resolvedTheme === "dark" ? "elevora-map-dark" : "elevora-map-light";
   const [tab, setTab] = useState<"live" | "history">("live");
   const [locations, setLocations] = useState<LiveLoc[]>([]);
   const [q, setQ] = useState("");
@@ -159,6 +181,9 @@ export default function MapPage() {
 
   // History state
   const [employees, setEmployees] = useState<EmployeeOpt[]>([]);
+  const [presenceByEmployee, setPresenceByEmployee] = useState<
+    Record<string, "fixed_zone" | "mobile">
+  >({});
   const [employeeId, setEmployeeId] = useState("");
   const [date, setDate] = useState(toLocalDateInput());
   const [startTime, setStartTime] = useState("09:00");
@@ -322,10 +347,28 @@ export default function MapPage() {
   }, [tab, presence, poll]);
 
   useEffect(() => {
+    void api<{
+      employees: Array<
+        EmployeeOpt & { role?: string; presenceMode?: "fixed_zone" | "mobile" }
+      >;
+    }>("/v1/employees")
+      .then((data) => {
+        const map: Record<string, "fixed_zone" | "mobile"> = {};
+        for (const e of data.employees) {
+          map[e.id] = e.presenceMode ?? "fixed_zone";
+        }
+        setPresenceByEmployee(map);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (tab !== "history") return;
-    void api<{ employees: Array<EmployeeOpt & { role?: string }> }>(
-      "/v1/employees",
-    )
+    void api<{
+      employees: Array<
+        EmployeeOpt & { role?: string; presenceMode?: "fixed_zone" | "mobile" }
+      >;
+    }>("/v1/employees")
       .then((data) => {
         const fieldStaff = data.employees.filter(
           (e) => !e.role || e.role === "employee",
@@ -335,6 +378,7 @@ export default function MapPage() {
             id: e.id,
             name: e.name,
             jobTitle: e.jobTitle,
+            presenceMode: e.presenceMode ?? "fixed_zone",
           })),
         );
         if (!employeeId && fieldStaff[0]) {
@@ -572,6 +616,9 @@ export default function MapPage() {
     () => locations.find((l) => l.employeeId === selectedLiveId) ?? null,
     [locations, selectedLiveId],
   );
+  const selectedIsMobile =
+    selectedLiveId != null &&
+    presenceByEmployee[selectedLiveId] === "mobile";
 
   const draftGeofence =
     selectedLiveId && zoneLat != null && zoneLng != null
@@ -585,6 +632,10 @@ export default function MapPage() {
 
   async function saveZone() {
     if (!selectedLiveId || zoneLat == null || zoneLng == null) return;
+    if (presenceByEmployee[selectedLiveId] === "mobile") {
+      setError(t("Mobile employees have no work zone. They can clock in from anywhere."));
+      return;
+    }
     if (zoneLat === 0 && zoneLng === 0) {
       setError("Set a real center (use live position), 0, 0 is not valid");
       return;
@@ -733,60 +784,97 @@ export default function MapPage() {
     ? new Date(focusPoint.recordedAt).getTime()
     : scrubMin;
 
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold tracking-tight">{t("Live map")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {tab === "live"
-              ? `Mode: ${mode === "ws" ? "realtime" : t("REST polling fallback")}`
-              : t("Review saved locations by employee and time")}
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
-          <Button
+  const onShiftCount = useMemo(
+    () => searchedLocations.filter((l) => l.isClockedIn !== false).length,
+    [searchedLocations],
+  );
+  const lastSeenCount = searchedLocations.length - onShiftCount;
+
+  const trailItems = useMemo(() => {
+    if (!historyPoints.length) return [];
+    const max = 48;
+    const step = Math.max(1, Math.ceil(historyPoints.length / max));
+    const sampled = historyPoints.filter((_, i) => i % step === 0);
+    if (sampled[sampled.length - 1] !== historyPoints[historyPoints.length - 1]) {
+      sampled.push(historyPoints[historyPoints.length - 1]!);
+    }
+    return sampled.map((pt, i) => {
+      const focused =
+        focusPoint != null && focusPoint.recordedAt === pt.recordedAt;
+      const time = toLocalTimeInput(new Date(pt.recordedAt));
+      return {
+        id: `${pt.recordedAt}-${i}`,
+        title: (
+          <button
             type="button"
-            variant={customizeOpen ? "default" : "outline"}
-            size="sm"
-            className="w-full sm:w-auto"
+            className={cn(
+              "text-start tabular",
+              focused ? "text-accent-strong" : "text-ink",
+            )}
             onClick={() => {
-              setDraftAppearance(appearance);
-              setCustomizeOpen((o) => !o);
+              const idx = historyPoints.findIndex(
+                (p) => p.recordedAt === pt.recordedAt,
+              );
+              if (idx >= 0) setScrubIndex(idx);
             }}
           >
-            <Palette className="h-4 w-4" />
-            {t("Customize")}</Button>
-          <div className="inline-flex w-full rounded-md border bg-card p-1 sm:w-auto">
-            <button
-              type="button"
-              className={cn(
-                "flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1.5",
-                tab === "live" ? "bg-primary text-primary-foreground" : "",
-              )}
-              onClick={() => {
-                setSelectedLiveId(null);
-                setTab("live");
-              }}
-            >
-              {t("Live")}</button>
-            <button
-              type="button"
-              className={cn(
-                "flex-1 rounded px-3 py-2 text-sm sm:flex-none sm:py-1.5",
-                tab === "history" ? "bg-primary text-primary-foreground" : "",
-              )}
-              onClick={() => {
-                setSelectedLiveId(null);
-                setTab("history");
-              }}
-            >
-              {t("History")}</button>
-          </div>
-        </div>
-      </div>
+            {time}
+          </button>
+        ),
+        meta: `${pt.lat.toFixed(4)}, ${pt.lng.toFixed(4)}`,
+        tone: focused ? ("accent" as const) : undefined,
+      };
+    });
+  }, [historyPoints, focusPoint]);
 
-      {customizeOpen && redesign ? (
+  const historyEmployeeName = useMemo(
+    () => employees.find((e) => e.id === employeeId)?.name ?? null,
+    [employees, employeeId],
+  );
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title={t("Live map")}
+        subtitle={
+          tab === "live"
+            ? mode === "ws"
+              ? t("Realtime · WebSocket connected")
+              : t("REST polling fallback")
+            : t("Saved locations drawn as trails.")
+        }
+        actions={
+          <>
+            <Button
+              type="button"
+              variant={customizeOpen ? "default" : "outline"}
+              size="sm"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                setDraftAppearance(appearance);
+                setCustomizeOpen(true);
+              }}
+            >
+              <Palette className="h-4 w-4" />
+              {t("Appearance")}
+            </Button>
+            <Segmented
+              value={tab}
+              onChange={(v) => {
+                setSelectedLiveId(null);
+                setTab(v as "live" | "history");
+              }}
+              options={[
+                { value: "live", label: t("Live") },
+                { value: "history", label: t("History") },
+              ]}
+              aria-label={t("Map mode")}
+            />
+          </>
+        }
+      />
+
+      {customizeOpen ? (
         <Sheet
           open={customizeOpen}
           onOpenChange={(open) => {
@@ -812,20 +900,20 @@ export default function MapPage() {
                       type="button"
                       onClick={() => applyTheme(theme.id)}
                       className={cn(
-                        "rounded-xl border p-3 text-left transition-all",
+                        "rounded-lg border p-3 text-start transition-all",
                         selected
-                          ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                          : "border-border bg-card hover:border-primary/40",
+                          ? "border-accent bg-accent-tint/40 ring-2 ring-accent/25"
+                          : "border-line bg-surface hover:border-line-strong",
                       )}
                     >
                       <div
-                        className="mb-2 h-12 overflow-hidden rounded-lg border border-black/5"
+                        className="mb-2 h-12 overflow-hidden rounded-[10px] border border-line"
                         style={{
                           background: TILE_SWATCH[theme.appearance.tileStyle],
                         }}
                       />
                       <p className="text-sm font-semibold">{theme.name}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-xs text-ink-muted">
                         {theme.description}
                       </p>
                     </button>
@@ -833,17 +921,17 @@ export default function MapPage() {
                 })}
               </div>
               {draftAppearance.themeId === "custom" ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-ink-muted">
                   {t("Custom theme, advanced options below override the presets.")}</p>
               ) : null}
-              <details className="rounded-lg border bg-card p-3">
+              <details className="rounded-lg border border-line bg-surface-2 p-3">
                 <summary className="cursor-pointer text-sm font-medium">
                   {t("Advanced options")}</summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
-                    <Label className="text-xs">{t("Map style")}</Label>
+                    <Label className="text-xs text-ink-muted">{t("Map style")}</Label>
                     <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      className="flex h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-sm text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
                       value={draftAppearance.tileStyle}
                       onChange={(e) =>
                         patchAppearance({
@@ -860,9 +948,9 @@ export default function MapPage() {
                     </select>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">{t("Marker style")}</Label>
+                    <Label className="text-xs text-ink-muted">{t("Marker style")}</Label>
                     <select
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                      className="flex h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-sm text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
                       value={draftAppearance.markerStyle}
                       onChange={(e) =>
                         patchAppearance({
@@ -882,7 +970,7 @@ export default function MapPage() {
                     <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-input"
+                        className="h-4 w-4 rounded border-line-strong accent-[hsl(var(--accent))]"
                         checked={draftAppearance.showInitials}
                         onChange={(e) =>
                           patchAppearance({ showInitials: e.target.checked })
@@ -891,11 +979,11 @@ export default function MapPage() {
                       {t("Show initials on markers")}</label>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">{t("On-shift color")}</Label>
+                    <Label className="text-xs text-ink-muted">{t("On-shift color")}</Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
-                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        className="h-10 w-12 cursor-pointer rounded-[10px] border border-line-strong bg-surface p-1"
                         value={draftAppearance.onShiftColor}
                         onChange={(e) =>
                           patchAppearance({ onShiftColor: e.target.value })
@@ -911,11 +999,11 @@ export default function MapPage() {
                     </div>
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">{t("Last-seen color")}</Label>
+                    <Label className="text-xs text-ink-muted">{t("Last-seen color")}</Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
-                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        className="h-10 w-12 cursor-pointer rounded-[10px] border border-line-strong bg-surface p-1"
                         value={draftAppearance.lastSeenColor}
                         onChange={(e) =>
                           patchAppearance({ lastSeenColor: e.target.value })
@@ -931,11 +1019,11 @@ export default function MapPage() {
                     </div>
                   </div>
                   <div className="space-y-1 sm:col-span-2">
-                    <Label className="text-xs">{t("History trail color")}</Label>
+                    <Label className="text-xs text-ink-muted">{t("History trail color")}</Label>
                     <div className="flex items-center gap-2">
                       <input
                         type="color"
-                        className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
+                        className="h-10 w-12 cursor-pointer rounded-[10px] border border-line-strong bg-surface p-1"
                         value={draftAppearance.trailColor}
                         onChange={(e) =>
                           patchAppearance({ trailColor: e.target.value })
@@ -952,283 +1040,46 @@ export default function MapPage() {
                   </div>
                 </div>
               </details>
-              <div className="flex flex-col gap-2">
+            </SheetBody>
+            <SheetFooter className="flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+              {settingsSaved ? (
+                <p className="text-sm text-accent-strong">{t("Saved")}</p>
+              ) : (
+                <span />
+              )}
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   type="button"
-                  className="w-full"
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={resetAppearanceDraft}
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  {t("Reset defaults")}
+                </Button>
+                <Button
+                  type="button"
+                  className="w-full sm:w-auto"
                   disabled={settingsBusy}
                   onClick={() => void saveAppearance()}
                 >
                   {settingsBusy ? t("Saving…") : t("Save for organization")}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={resetAppearanceDraft}
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  {t("Reset defaults")}</Button>
-                {settingsSaved ? (
-                  <p className="text-center text-sm text-teal-700 dark:text-teal-400">
-                    {t("Saved")}</p>
-                ) : null}
               </div>
-            </SheetBody>
+            </SheetFooter>
           </SheetContent>
         </Sheet>
       ) : null}
 
-      {customizeOpen && !redesign ? (
-        <div className="space-y-4 rounded-xl border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-2 text-sm font-medium">
-            <Settings2 className="h-4 w-4 text-primary" />
-            {t("Map themes")}<span className="font-normal text-muted-foreground">
-              {t("· pick a theme to preview · save to keep for your organization")}</span>
-          </div>
+      {error ? <Notice tone="warn">{error}</Notice> : null}
 
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            {MAP_THEMES.map((theme) => {
-              const selected = draftAppearance.themeId === theme.id;
-              return (
-                <button
-                  key={theme.id}
-                  type="button"
-                  onClick={() => applyTheme(theme.id)}
-                  className={cn(
-                    "rounded-xl border p-3 text-left transition-all",
-                    selected
-                      ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                      : "border-border bg-card hover:border-primary/40 hover:bg-secondary/40",
-                  )}
-                >
-                  <div
-                    className="mb-2 h-14 overflow-hidden rounded-lg border border-black/5"
-                    style={{ background: TILE_SWATCH[theme.appearance.tileStyle] }}
-                  >
-                    <div className="flex h-full items-end justify-center gap-2 pb-2">
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border-2 border-white shadow"
-                        style={{ background: theme.appearance.onShiftColor }}
-                      />
-                      <span
-                        className="h-3.5 w-3.5 rounded-full border-2 border-white shadow"
-                        style={{ background: theme.appearance.lastSeenColor }}
-                      />
-                      <span
-                        className="mb-0.5 h-1 w-8 rounded-full opacity-80"
-                        style={{ background: theme.appearance.trailColor }}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-sm font-semibold">{theme.name}</p>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    {theme.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-
-          {draftAppearance.themeId === "custom" ? (
-            <p className="text-xs text-muted-foreground">
-              {t("Custom theme, advanced options below override the presets.")}</p>
-          ) : null}
-
-          <details className="rounded-lg border bg-card p-3">
-            <summary className="cursor-pointer text-sm font-medium">
-              {t("Advanced options")}</summary>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">{t("Map style")}</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={draftAppearance.tileStyle}
-                  onChange={(e) =>
-                    patchAppearance({
-                      tileStyle: e.target
-                        .value as MapAppearance["tileStyle"],
-                    })
-                  }
-                >
-                  {MAP_TILE_STYLES.map((style) => (
-                    <option key={style} value={style}>
-                      {TILE_LABELS[style]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("Marker style")}</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={draftAppearance.markerStyle}
-                  onChange={(e) =>
-                    patchAppearance({
-                      markerStyle: e.target
-                        .value as MapAppearance["markerStyle"],
-                    })
-                  }
-                >
-                  {MAP_MARKER_STYLES.map((style) => (
-                    <option key={style} value={style}>
-                      {MARKER_LABELS[style]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end gap-2 pb-1">
-                <label className="inline-flex cursor-pointer items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-input"
-                    checked={draftAppearance.showInitials}
-                    onChange={(e) =>
-                      patchAppearance({ showInitials: e.target.checked })
-                    }
-                  />
-                  {t("Show initials on markers")}</label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("On-shift color")}</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
-                    value={draftAppearance.onShiftColor}
-                    onChange={(e) =>
-                      patchAppearance({ onShiftColor: e.target.value })
-                    }
-                  />
-                  <Input
-                    value={draftAppearance.onShiftColor}
-                    onChange={(e) =>
-                      patchAppearance({ onShiftColor: e.target.value })
-                    }
-                    className="font-mono text-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("Last-seen color")}</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
-                    value={draftAppearance.lastSeenColor}
-                    onChange={(e) =>
-                      patchAppearance({ lastSeenColor: e.target.value })
-                    }
-                  />
-                  <Input
-                    value={draftAppearance.lastSeenColor}
-                    onChange={(e) =>
-                      patchAppearance({ lastSeenColor: e.target.value })
-                    }
-                    className="font-mono text-sm"
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("History trail color")}</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="color"
-                    className="h-10 w-12 cursor-pointer rounded border bg-background p-1"
-                    value={draftAppearance.trailColor}
-                    onChange={(e) =>
-                      patchAppearance({ trailColor: e.target.value })
-                    }
-                  />
-                  <Input
-                    value={draftAppearance.trailColor}
-                    onChange={(e) =>
-                      patchAppearance({ trailColor: e.target.value })
-                    }
-                    className="font-mono text-sm"
-                  />
-                </div>
-              </div>
-            </div>
-          </details>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              disabled={settingsBusy}
-              onClick={() => void saveAppearance()}
-            >
-              {settingsBusy ? t("Saving…") : t("Save for organization")}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={resetAppearanceDraft}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {t("Reset defaults")}</Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => {
-                setDraftAppearance(appearance);
-                setCustomizeOpen(false);
-              }}
-            >
-              {t("Close")}</Button>
-            {settingsSaved ? (
-              <span className="self-center text-sm text-teal-700">
-                {t("Saved")}</span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      {tab === "live" ? (
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-          <div className="min-w-0 w-full sm:w-auto">
-            <Label className="text-xs">{t("Filter")}</Label>
-            <Input
-              placeholder={t("Name or title…")}
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="w-full sm:w-40"
-            />
-          </div>
-          <div className="min-w-0 w-full sm:w-auto">
-            <Label className="text-xs">{t("Presence")}</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm sm:w-36"
-              value={presence}
-              onChange={(e) => setPresence(e.target.value as Presence)}
-            >
-              <option value="all">{t("All")}</option>
-              <option value="on_shift">{t("On shift")}</option>
-              <option value="last_seen">{t("Last seen")}</option>
-            </select>
-          </div>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => void poll()}
-          >
-            {t("Refresh")}</Button>
-          {selectedLiveId ? (
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto"
-              onClick={() => setSelectedLiveId(null)}
-            >
-              {t("Show all")}</Button>
-          ) : null}
-        </div>
-      ) : (
-        <div className="space-y-3 rounded-lg border bg-card p-3">
+      {tab === "history" ? (
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-3 shadow-sm sm:p-4">
           <div className="flex flex-wrap items-end gap-2">
-            <div className="min-w-[12rem] flex-1">
-              <Label className="text-xs">{t("Employee")}</Label>
+            <div className="w-full min-w-0 sm:w-auto sm:min-w-[12rem] sm:flex-1">
+              <Label className="text-xs text-ink-muted">{t("Employee")}</Label>
               <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                className="flex h-10 w-full rounded-[10px] border border-line-strong bg-surface px-3 text-sm text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
                 value={employeeId}
                 onChange={(e) => setEmployeeId(e.target.value)}
               >
@@ -1241,34 +1092,35 @@ export default function MapPage() {
                 ))}
               </select>
             </div>
-            <div>
-              <Label className="text-xs">{t("Day")}</Label>
+            <div className="min-w-0 flex-1 sm:flex-none">
+              <Label className="text-xs text-ink-muted">{t("Day")}</Label>
               <Input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                className="w-40"
+                className="w-full sm:w-40"
               />
             </div>
-            <div>
-              <Label className="text-xs">{t("From")}</Label>
+            <div className="min-w-0 flex-1 sm:flex-none">
+              <Label className="text-xs text-ink-muted">{t("From")}</Label>
               <Input
                 type="time"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                className="w-32"
+                className="w-full sm:w-32"
               />
             </div>
-            <div>
-              <Label className="text-xs">{t("To")}</Label>
+            <div className="min-w-0 flex-1 sm:flex-none">
+              <Label className="text-xs text-ink-muted">{t("To")}</Label>
               <Input
                 type="time"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
-                className="w-32"
+                className="w-full sm:w-32"
               />
             </div>
             <Button
+              className="w-full sm:w-auto"
               disabled={historyBusy}
               onClick={() => void loadHistory()}
             >
@@ -1277,7 +1129,7 @@ export default function MapPage() {
           </div>
           {sessions.length > 0 ? (
             <div className="flex flex-wrap gap-2">
-              <span className="text-xs text-muted-foreground self-center">
+              <span className="text-xs text-ink-muted self-center">
                 {t("Shifts:")}</span>
               {sessions.map((s) => {
                 const label = `${toLocalTimeInput(new Date(s.clockInAt))}–${
@@ -1298,15 +1150,15 @@ export default function MapPage() {
               })}
             </div>
           ) : employeeId ? (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("No clock sessions on this day, use a custom time range.")}</p>
           ) : null}
           {historyMeta ? (
-            <p className="text-sm text-muted-foreground">{historyMeta}</p>
+            <p className="text-sm text-ink-muted">{historyMeta}</p>
           ) : null}
           {historyPoints.length > 0 ? (
             <div className="space-y-1">
-              <Label className="text-xs">
+              <Label className="text-xs text-ink-muted">
                 {t("Scrub time · recorded")}{" "}
                 {focusPoint
                   ? new Date(focusPoint.recordedAt).toLocaleString()
@@ -1324,11 +1176,82 @@ export default function MapPage() {
             </div>
           ) : null}
         </div>
-      )}
+      ) : null}
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-      <div className="relative h-[60vh] overflow-hidden rounded-2xl border shadow-sm ring-1 ring-black/5">
+      <div className="grid min-w-0 gap-3.5 xl:grid-cols-[minmax(0,1fr)_minmax(240px,300px)] xl:items-start">
+        <div className="min-w-0 space-y-3.5">
+      <div
+        className={cn(
+          "relative h-[min(68vh,720px)] min-h-[280px] overflow-hidden rounded-[18px] border border-line bg-surface shadow-sm sm:min-h-[420px]",
+          mapThemeClass,
+        )}
+      >
+        {tab === "live" ? (
+          <div className="pointer-events-none absolute inset-x-3 top-3 z-[500] flex flex-wrap items-center gap-2">
+            <div className="pointer-events-auto relative min-w-0 flex-1 basis-full sm:max-w-[16rem] sm:basis-auto">
+              <Search
+                className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted"
+                aria-hidden
+              />
+              <Input
+                aria-label={t("Filter")}
+                placeholder={t("Name or title…")}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="h-10 w-full rounded-full border-line bg-surface/95 ps-9 shadow-md backdrop-blur-sm"
+              />
+            </div>
+            <Segmented<Presence>
+              aria-label={t("Presence")}
+              value={presence}
+              onChange={setPresence}
+              options={[
+                { value: "all", label: t("All") },
+                { value: "on_shift", label: t("On shift") },
+                { value: "last_seen", label: t("Last seen") },
+              ]}
+              className="pointer-events-auto max-w-full overflow-x-auto rounded-full bg-surface/95 shadow-md backdrop-blur-sm [&>button]:min-h-9 [&>button]:whitespace-nowrap [&>button]:rounded-full"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="pointer-events-auto h-10 w-10 rounded-full bg-surface/95 shadow-md backdrop-blur-sm"
+              aria-label={t("Refresh")}
+              title={t("Refresh")}
+              onClick={() => void poll()}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            {selectedLiveId ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="pointer-events-auto h-10 rounded-full bg-surface/95 shadow-md backdrop-blur-sm"
+                onClick={() => setSelectedLiveId(null)}
+              >
+                <X className="h-4 w-4" />
+                {t("Show all")}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+        {tab === "live" && selectedLive && !selectedIsMobile ? (
+          <div className="pointer-events-none absolute bottom-3 start-3 z-[500]">
+            <Button
+              type="button"
+              variant="default"
+              className="pointer-events-auto h-10 rounded-full shadow-pop"
+              aria-pressed={pickOnMap}
+              onClick={() => setPickOnMap((v) => !v)}
+            >
+              <PenLine className="h-4 w-4" />
+              {pickOnMap ? t("Click map…") : t("Draw work zone")}
+            </Button>
+          </div>
+        ) : null}
         {mapBooted ? (
           <LiveMap
             center={center}
@@ -1340,8 +1263,15 @@ export default function MapPage() {
             focusKey={mapFocusKey}
             appearance={liveAppearance}
             selectedId={selectedLiveId}
-            draftGeofence={tab === "live" ? draftGeofence : null}
-            pickCenterEnabled={tab === "live" && !!selectedLiveId && pickOnMap}
+            draftGeofence={
+              tab === "live" && !selectedIsMobile ? draftGeofence : null
+            }
+            pickCenterEnabled={
+              tab === "live" &&
+              !!selectedLiveId &&
+              pickOnMap &&
+              !selectedIsMobile
+            }
             onPickCenter={onPickCenter}
           />
         ) : (
@@ -1350,28 +1280,40 @@ export default function MapPage() {
       </div>
 
       {tab === "live" && selectedLive ? (
-        <div className="space-y-3 rounded-xl border bg-card p-4 shadow-sm">
+        selectedIsMobile ? (
+          <div className="space-y-2 rounded-lg border border-line bg-surface p-4 shadow-sm">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <MapPin className="h-4 w-4 text-accent-strong" />
+              {t("Work zone ·")}
+              {selectedLive.name}
+            </div>
+            <p className="text-sm text-ink-muted">
+              {t("Mobile employees have no work zone. They can clock in from anywhere.")}
+            </p>
+          </div>
+        ) : (
+        <div className="space-y-3 rounded-lg border border-line bg-surface p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2 text-sm font-medium">
-              <MapPin className="h-4 w-4 text-primary" />
+              <MapPin className="h-4 w-4 text-accent-strong" />
               {t("Work zone ·")}{selectedLive.name}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("Search a place, click the map, or use live position")}</p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs">{t("Find a place")}</Label>
+            <Label className="text-xs text-ink-muted">{t("Find a place")}</Label>
             <div className="flex flex-wrap gap-2">
-              <div className="relative min-w-[14rem] flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="relative min-w-0 flex-1 basis-full sm:basis-auto sm:min-w-[14rem]">
+                <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
                 <Input
-                  className="pl-9"
+                  className="ps-9"
                   placeholder={t("Hospital, school, building name…")}
                   value={placeQuery}
                   onChange={(e) => setPlaceQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === t("Enter")) {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       void searchPlaces();
                     }
@@ -1400,7 +1342,7 @@ export default function MapPage() {
                 <button
                   key={term}
                   type="button"
-                  className="rounded-full border bg-card px-2.5 py-1 text-xs capitalize text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                  className="min-h-9 rounded-full border border-line bg-surface px-3 py-1 text-xs capitalize text-ink-muted hover:border-line-strong hover:text-ink"
                   onClick={() => {
                     setPlaceQuery(term);
                     void searchPlaces(term);
@@ -1411,19 +1353,19 @@ export default function MapPage() {
               ))}
             </div>
             {placeError ? (
-              <p className="text-xs text-destructive">{placeError}</p>
+              <p className="text-xs text-danger">{placeError}</p>
             ) : null}
             {placeHits.length > 0 ? (
-              <ul className="max-h-44 overflow-auto rounded-lg border bg-card">
+              <ul className="max-h-44 overflow-auto rounded-lg border border-line bg-surface">
                 {placeHits.map((place) => (
                   <li key={place.id}>
                     <button
                       type="button"
-                      className="w-full border-b px-3 py-2 text-left last:border-b-0 hover:bg-secondary/50"
+                      className="w-full border-b border-line px-3 py-2 text-start last:border-b-0 hover:bg-surface-2"
                       onClick={() => applyPlace(place)}
                     >
                       <p className="text-sm font-medium">{place.name}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
+                      <p className="text-xs text-ink-muted line-clamp-2">
                         {place.label}
                       </p>
                     </button>
@@ -1432,22 +1374,22 @@ export default function MapPage() {
               </ul>
             ) : null}
             {zoneLabel ? (
-              <p className="text-xs text-muted-foreground">
-                {t("Center ·")}<span className="font-medium text-foreground">{zoneLabel}</span>
+              <p className="text-xs text-ink-muted">
+                {t("Center ·")}<span className="font-medium text-ink">{zoneLabel}</span>
                 {zoneLat != null && zoneLng != null
                   ? ` · ${zoneLat.toFixed(5)}, ${zoneLng.toFixed(5)}`
                   : null}
               </p>
             ) : null}
             {pickOnMap ? (
-              <p className="text-xs text-amber-700">
+              <p className="text-xs text-warn">
                 {t("Click anywhere on the map to set the zone center.")}</p>
             ) : null}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="space-y-1 sm:col-span-2">
-              <Label className="text-xs">
+              <Label className="text-xs text-ink-muted">
                 {t("Radius ·")}{zoneRadius}{t("m (")}{(zoneRadius / 1000).toFixed(zoneRadius >= 1000 ? 2 : 3)} {t("km)")}</Label>
               <input
                 type="range"
@@ -1468,7 +1410,7 @@ export default function MapPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">{t("Center lat")}</Label>
+              <Label className="text-xs text-ink-muted">{t("Center lat")}</Label>
               <Input
                 type="number"
                 step="0.0001"
@@ -1482,7 +1424,7 @@ export default function MapPage() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">{t("Center lng")}</Label>
+              <Label className="text-xs text-ink-muted">{t("Center lng")}</Label>
               <Input
                 type="number"
                 step="0.0001"
@@ -1496,7 +1438,7 @@ export default function MapPage() {
               />
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button
               type="button"
               disabled={zoneBusy || zoneLat == null || zoneLng == null}
@@ -1522,64 +1464,119 @@ export default function MapPage() {
             ) : null}
           </div>
         </div>
+        )
       ) : null}
+        </div>
 
-      {tab === "live" ? (
-        <ul className="space-y-2 text-sm">
-          {searchedLocations.map((l) => {
-            const selected = selectedLiveId === l.employeeId;
-            return (
-              <li key={l.employeeId}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedLiveId((prev) =>
-                      prev === l.employeeId ? null : l.employeeId,
-                    )
-                  }
-                  className={cn(
-                    "w-full rounded-xl border px-3 py-2.5 text-left transition-all",
-                    selected
-                      ? "border-primary bg-primary/10 shadow-sm"
-                      : "bg-card hover:bg-secondary/60",
-                  )}
-                >
-                  <span className="inline-flex items-center gap-2">
-                    <UserAvatar name={l.name} avatarUrl={l.avatarUrl} size="sm" />
-                    <span
-                      className="inline-block h-2.5 w-2.5 rounded-full"
-                      style={{
-                        background:
-                          l.isClockedIn === false
-                            ? liveAppearance.lastSeenColor
-                            : liveAppearance.onShiftColor,
-                      }}
-                    />
-                    <span className="font-medium">{l.name}</span>
-                  </span>{" "}
-                  · {l.jobTitle ?? l.role} ·{" "}
-                  {l.isClockedIn === false ? (
-                    <span className="text-muted-foreground">{t("Last seen")}</span>
-                  ) : (
-                    <span className="text-teal-800">{t("On shift")}</span>
-                  )}{" "}
-                  {t("· updated")}{l.secondsSinceUpdate ?? 0}{t("s ago")}{l.geofenceRadiusMeters != null ? (
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {t("· zone")}{l.geofenceRadiusMeters}m
-                    </span>
-                  ) : null}
-                  {selected ? (
-                    <span className="ml-2 text-xs text-primary">{t("· focused")}</span>
-                  ) : null}
-                </button>
-              </li>
-            );
-          })}
-          {!searchedLocations.length ? (
-            <li className="text-muted-foreground">{t("No locations to show.")}</li>
-          ) : null}
-        </ul>
-      ) : null}
+        <aside className="min-w-0 rounded-lg border border-line bg-surface shadow-sm">
+          <div className="border-b border-line px-4 py-3">
+            <p className="text-sm font-semibold text-ink">
+              {tab === "history" ? t("Trail") : t("People")}
+            </p>
+            <p className="mt-0.5 text-xs text-ink-muted">
+              {tab === "history"
+                ? historyEmployeeName
+                  ? historyEmployeeName
+                  : t("Pick an employee and time range")
+                : searchedLocations.length
+                  ? t("{on} on shift · {off} last seen", {
+                      on: onShiftCount,
+                      off: lastSeenCount,
+                    })
+                  : t("Sorted by last update")}
+            </p>
+          </div>
+          <div className="max-h-[min(68vh,720px)] overflow-y-auto overscroll-contain px-4">
+            {tab === "live" ? (
+              searchedLocations.length ? (
+                <div>
+                  {searchedLocations.map((l) => {
+                    const selected = selectedLiveId === l.employeeId;
+                    const onShift = l.isClockedIn !== false;
+                    const updatedLabel = formatSecondsAgo(
+                      l.secondsSinceUpdate ?? 0,
+                    );
+                    return (
+                      <button
+                        key={l.employeeId}
+                        type="button"
+                        onClick={() =>
+                          setSelectedLiveId((prev) =>
+                            prev === l.employeeId ? null : l.employeeId,
+                          )
+                        }
+                        className={cn(
+                          "w-full text-start transition-colors",
+                          selected && "-mx-2 rounded-sm bg-surface-2 px-2",
+                        )}
+                      >
+                        <ListRow
+                          leading={
+                            <span className="relative inline-flex">
+                              <UserAvatar
+                                name={l.name}
+                                avatarUrl={l.avatarUrl}
+                                size="sm"
+                              />
+                              <span
+                                className="absolute -end-0.5 -top-0.5 h-2.5 w-2.5 rounded-full border-2 border-surface"
+                                style={{
+                                  background: onShift
+                                    ? liveAppearance.onShiftColor
+                                    : liveAppearance.lastSeenColor,
+                                }}
+                                aria-hidden
+                              />
+                            </span>
+                          }
+                          title={l.name}
+                          subtitle={
+                            <>
+                              {l.jobTitle ?? l.role}
+                              {l.geofenceRadiusMeters != null
+                                ? ` · ${t("Zone ·")}${l.geofenceRadiusMeters}m`
+                                : null}
+                            </>
+                          }
+                          value={updatedLabel}
+                          status={
+                            selected
+                              ? t("Focused")
+                              : onShift
+                                ? t("On shift")
+                                : t("Last seen")
+                          }
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={<Users className="h-5 w-5" />}
+                  title={t("No locations to show.")}
+                  className="py-10"
+                />
+              )
+            ) : trailItems.length ? (
+              <div className="py-3">
+                <Timeline items={trailItems} />
+              </div>
+            ) : (
+              <EmptyState
+                icon={<MapPin className="h-5 w-5" />}
+                title={
+                  employeeId
+                    ? t("No trail points in this range.")
+                    : t("Pick an employee and time range")
+                }
+                className="py-10"
+              />
+            )}
+          </div>
+        </aside>
+      </div>
+
     </div>
   );
 }

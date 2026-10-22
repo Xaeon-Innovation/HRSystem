@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { api, getUser, type AuthUser } from "@/lib/api";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -33,7 +33,7 @@ import { OfferForm } from "@/components/hiring/offer-form";
 import { OffersTable } from "@/components/hiring/offers-table";
 import { UserAvatar } from "@/components/user-avatar";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { daysInStageNow, sameDay, SELECT_CLASS, sourceLabel, stageLabel, todayIso } from "@/lib/hiring/format";
+import { daysInStageNow, sameDay, sourceLabel, stageLabel, todayIso } from "@/lib/hiring/format";
 import { currentStageEnteredAt } from "@/lib/hiring/reports";
 import { STUCK_STAGE_DAYS, canManageCandidates, canManageJobs, canManageOffers, canMoveCandidates, canScheduleInterviews, canConvertToEmployee } from "@/lib/hiring/workflow";
 import {
@@ -47,9 +47,8 @@ import {
   type JobStatus,
 } from "@/lib/hiring/types";
 import { getHiringStore, type HiringSnapshot } from "@/lib/hiring";
-import { StageBadge } from "@/components/hiring/hiring-status-badge";
+import { ListRow, Notice } from "@/components/elevora";
 import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
 import { t } from "@/i18n";
 
 type EmployeeOption = {
@@ -91,7 +90,6 @@ function isUuid(value: string) {
 
 export function HiringDashboard() {
   const store = getHiringStore();
-  const redesign = useUiRedesign();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -321,106 +319,65 @@ export function HiringDashboard() {
         onAddCandidate={() => setCandidateFormOpen(true)}
       />
 
-      {error ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">{error}</p>
-      ) : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
       {saveError ? (
-        <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-950 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-200">
-          {t("Couldn’t save to server:")}{saveError}
-        </p>
+        <Notice tone="warn">
+          {t("Couldn’t save to server:")} {saveError}
+        </Notice>
       ) : null}
       {createdEmployee ? (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
+        <Notice tone="accent">
           {createdEmployee} {t("is on the employee roster.")}{" "}
           <a href="/app/employees" className="font-medium underline">
-            {t("Open employees")}</a>
-        </p>
+            {t("Open employees")}
+          </a>
+        </Notice>
       ) : null}
       {alerts.filter((a) => a.severity === "urgent").length > 0 ? (
-        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-          {alerts.filter((a) => a.severity === "urgent").length} {t("urgent hiring alert")}{alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"} {t("stuck stages or hire dates.")}</p>
+        <Notice tone="warn">
+          {alerts.filter((a) => a.severity === "urgent").length}{" "}
+          {t("urgent hiring alert")}
+          {alerts.filter((a) => a.severity === "urgent").length === 1 ? "" : "s"}{" "}
+          {t("stuck stages or hire dates.")}
+        </Notice>
       ) : null}
 
-      <HiringOverviewCards summary={summary} />
-
       <Tabs value={tab} onValueChange={setTab}>
-        {redesign ? (
-          <PrimaryTabBar
-            value={tab}
-            onValueChange={setTab}
-            primaryCount={5}
-            tabs={[
-              { value: "dashboard", label: t("Dashboard") },
-              { value: "jobs", label: t("Job openings") },
-              { value: "pipeline", label: t("Pipeline") },
-              { value: "candidates", label: t("Candidates") },
-              {
-                value: "interviews",
-                label: t("Interviews"),
-                badge: summary.interviewsToday,
-              },
-              {
-                value: "offers",
-                label: t("Offers"),
-                badge: summary.offersPending,
-              },
-              {
-                value: "hired",
-                label: t("Hired"),
-                badge: convertible.length,
-              },
-              {
-                value: "best-fit",
-                label: t("Best fit"),
-                badge: bestFitDrafts.length,
-              },
-              { value: "reports", label: t("Reports") },
-            ]}
-          />
-        ) : (
-          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-            <TabsTrigger value="dashboard" className="flex-none px-3">
-              {t("Dashboard")}</TabsTrigger>
-            <TabsTrigger value="jobs" className="flex-none px-3">
-              {t("Job openings")}</TabsTrigger>
-            <TabsTrigger value="pipeline" className="flex-none px-3">
-              {t("Pipeline")}</TabsTrigger>
-            <TabsTrigger value="candidates" className="flex-none px-3">
-              {t("Candidates")}</TabsTrigger>
-            <TabsTrigger value="interviews" className="flex-none px-3">
-              {t("Interviews")}{summary.interviewsToday > 0 ? (
-                <span className="ml-1.5 rounded-full bg-sky-100 px-1.5 text-[10px] font-semibold text-sky-900">
-                  {summary.interviewsToday}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="offers" className="flex-none px-3">
-              {t("Offers")}{summary.offersPending > 0 ? (
-                <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 text-[10px] font-semibold text-amber-900">
-                  {summary.offersPending}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="hired" className="flex-none px-3">
-              {t("Hired")}{convertible.length > 0 ? (
-                <span className="ml-1.5 rounded-full bg-emerald-100 px-1.5 text-[10px] font-semibold text-emerald-900">
-                  {convertible.length}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="best-fit" className="flex-none px-3">
-              {t("Best fit")}{bestFitDrafts.length > 0 ? (
-                <span className="ml-1.5 rounded-full bg-violet-100 px-1.5 text-[10px] font-semibold text-violet-900">
-                  {bestFitDrafts.length}
-                </span>
-              ) : null}
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex-none px-3">
-              {t("Reports")}</TabsTrigger>
-          </TabsList>
-        )}
+        <PrimaryTabBar
+          value={tab}
+          onValueChange={setTab}
+          primaryCount={5}
+          tabs={[
+            { value: "dashboard", label: t("Dashboard") },
+            { value: "jobs", label: t("Job openings") },
+            { value: "pipeline", label: t("Pipeline") },
+            { value: "candidates", label: t("Candidates") },
+            {
+              value: "interviews",
+              label: t("Interviews"),
+              badge: summary.interviewsToday,
+            },
+            {
+              value: "offers",
+              label: t("Offers"),
+              badge: summary.offersPending,
+            },
+            {
+              value: "hired",
+              label: t("Hired"),
+              badge: convertible.length,
+            },
+            {
+              value: "best-fit",
+              label: t("Best fit"),
+              badge: bestFitDrafts.length,
+            },
+            { value: "reports", label: t("Reports") },
+          ]}
+        />
 
-        <TabsContent value="dashboard" className="mt-4">
+        <TabsContent value="dashboard" className="mt-4 space-y-4">
+          <HiringOverviewCards summary={summary} />
           <HiringHomePanel
             summary={summary}
             alerts={alerts}
@@ -533,7 +490,7 @@ export function HiringDashboard() {
         <TabsContent value="hired" className="mt-4 space-y-4">
           <div>
             <h2 className="text-sm font-semibold">{t("Ready to convert")}</h2>
-            <p className="mb-3 text-xs text-muted-foreground">
+            <p className="mb-3 text-xs text-ink-muted">
               {t("Offer accepted or marked hired, with no employee record yet.")}</p>
             {convertible.length === 0 ? (
               <HiringEmptyState
@@ -541,26 +498,35 @@ export function HiringDashboard() {
                 description={t("When an offer is accepted or a candidate is marked hired, convert them here so they appear on the employee roster.")}
               />
             ) : (
-              <div className="space-y-2">
+              <div className="overflow-hidden rounded-sm border border-line bg-surface px-4">
                 {convertible.map((c) => (
                   <div
                     key={c.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3"
+                    className="flex flex-col gap-3 border-b border-line py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                   >
-                    <div className="flex items-center gap-3">
-                      <UserAvatar name={c.fullName} size="md" />
-                      <div>
-                        <p className="font-semibold">{c.fullName}</p>
-                        <p className="text-xs text-muted-foreground">{c.appliedJobTitle}</p>
-                      </div>
-                      <StageBadge stage={c.currentStage} />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setSelectedCandidateId(c.id)}>
-                        {t("Profile")}</Button>
+                    <ListRow
+                      leading={<UserAvatar name={c.fullName} size="md" />}
+                      title={c.fullName}
+                      subtitle={c.appliedJobTitle}
+                      className="flex-1 border-b-0 py-0"
+                    />
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto"
+                        onClick={() => setSelectedCandidateId(c.id)}
+                      >
+                        {t("Profile")}
+                      </Button>
                       {canConvertToEmployee(actor) ? (
-                        <Button size="sm" onClick={() => setConvertId(c.id)}>
-                          {t("Convert to employee")}</Button>
+                        <Button
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => setConvertId(c.id)}
+                        >
+                          {t("Add to roster")}
+                        </Button>
                       ) : null}
                     </div>
                   </div>
@@ -569,31 +535,36 @@ export function HiringDashboard() {
             )}
           </div>
           <div>
-            <h2 className="text-sm font-semibold">{t("Already on the roster")}</h2>
-            <p className="mb-3 text-xs text-muted-foreground">{t("Hires linked to an employee record.")}</p>
+            <h2 className="text-sm font-semibold text-ink">{t("Already on the roster")}</h2>
+            <p className="mb-3 text-xs text-ink-muted">
+              {t("Hires linked to an employee record.")}
+            </p>
             {allVisible.filter((c) => c.convertedEmployeeId).length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("None converted yet.")}</p>
+              <p className="text-sm text-ink-muted">{t("None converted yet.")}</p>
             ) : (
-              <ul className="space-y-2">
+              <div className="overflow-hidden rounded-sm border border-line bg-surface px-4">
                 {allVisible
                   .filter((c) => c.convertedEmployeeId)
                   .map((c) => (
-                    <li
+                    <div
                       key={c.id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card px-4 py-3"
+                      className="flex flex-col gap-2 border-b border-line py-3 last:border-0 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      <div className="flex items-center gap-3">
-                        <UserAvatar name={c.fullName} size="sm" />
-                        <div>
-                          <p className="font-medium">{c.fullName}</p>
-                          <p className="text-xs text-muted-foreground">{c.appliedJobTitle}</p>
-                        </div>
-                      </div>
-                      <a href="/app/employees" className="text-sm text-primary hover:underline">
-                        {t("Open employees")}</a>
-                    </li>
+                      <ListRow
+                        leading={<UserAvatar name={c.fullName} size="sm" />}
+                        title={c.fullName}
+                        subtitle={c.appliedJobTitle}
+                        className="flex-1 border-b-0 py-0"
+                      />
+                      <a
+                        href="/app/employees"
+                        className="text-sm text-accent-strong hover:underline"
+                      >
+                        {t("Open employees")}
+                      </a>
+                    </div>
                   ))}
-              </ul>
+              </div>
             )}
           </div>
         </TabsContent>
@@ -766,10 +737,10 @@ export function HiringDashboard() {
       >
         <DialogPrimitive.Portal>
           <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
-          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-card p-5 shadow-2xl">
+          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-[61] w-[min(28rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 rounded-xl border bg-surface p-5 shadow-2xl">
             <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
               {t("Reschedule interview")}</DialogPrimitive.Title>
-            <DialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
+            <DialogPrimitive.Description className="mt-2 text-sm text-ink-muted">
               {t("Pick a new date and time. Candidate confirmation resets to pending.")}</DialogPrimitive.Description>
             <Input
               type="datetime-local"
@@ -850,6 +821,9 @@ export function HiringDashboard() {
   );
 }
 
+const PIPELINE_FILTER_SELECT =
+  "h-9 w-auto max-w-[11rem] shrink-0 rounded-[8px] border border-line bg-surface px-2.5 text-[11.5px] font-semibold text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25";
+
 function PipelineFilters({
   filters,
   jobs,
@@ -864,17 +838,18 @@ function PipelineFilters({
   onChange: (patch: Partial<CandidateFilters>) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex min-w-0 flex-row flex-wrap items-center gap-2">
       <Input
         placeholder={t("Filter pipeline…")}
         value={filters.search}
         onChange={(e) => onChange({ search: e.target.value })}
-        className="max-w-xs"
+        className="h-9 w-full min-w-[10rem] max-w-xs shrink-0 sm:w-auto"
       />
       <select
-        className={`${SELECT_CLASS} w-auto`}
+        className={PIPELINE_FILTER_SELECT}
         value={filters.jobId}
         onChange={(e) => onChange({ jobId: e.target.value })}
+        aria-label={t("All roles")}
       >
         <option value="">{t("All roles")}</option>
         {jobs.map((j) => (
@@ -884,9 +859,10 @@ function PipelineFilters({
         ))}
       </select>
       <select
-        className={`${SELECT_CLASS} w-auto`}
+        className={PIPELINE_FILTER_SELECT}
         value={filters.department}
         onChange={(e) => onChange({ department: e.target.value })}
+        aria-label={t("All departments")}
       >
         <option value="">{t("All departments")}</option>
         {departments.map((d) => (
@@ -896,9 +872,10 @@ function PipelineFilters({
         ))}
       </select>
       <select
-        className={`${SELECT_CLASS} w-auto`}
+        className={PIPELINE_FILTER_SELECT}
         value={filters.source}
         onChange={(e) => onChange({ source: e.target.value as CandidateSource | "" })}
+        aria-label={t("All sources")}
       >
         <option value="">{t("All sources")}</option>
         {CANDIDATE_SOURCES.map((s) => (
@@ -908,9 +885,10 @@ function PipelineFilters({
         ))}
       </select>
       <select
-        className={`${SELECT_CLASS} w-auto`}
+        className={PIPELINE_FILTER_SELECT}
         value={filters.recruiterId}
         onChange={(e) => onChange({ recruiterId: e.target.value })}
+        aria-label={t("All recruiters")}
       >
         <option value="">{t("All recruiters")}</option>
         {recruiters.map((r) => (
@@ -920,9 +898,10 @@ function PipelineFilters({
         ))}
       </select>
       <select
-        className={`${SELECT_CLASS} w-auto`}
+        className={PIPELINE_FILTER_SELECT}
         value={filters.stage}
         onChange={(e) => onChange({ stage: e.target.value as CandidateStage | "" })}
+        aria-label={t("All stages")}
       >
         <option value="">{t("All stages")}</option>
         {CANDIDATE_STAGES.map((s) => (

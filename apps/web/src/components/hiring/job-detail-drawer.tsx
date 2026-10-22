@@ -69,31 +69,31 @@ export function JobDetailDrawer({
               </div>
               <dl className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Hiring manager")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Hiring manager")}</dt>
                   <dd>{job.hiringManagerName}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Recruiter")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Recruiter")}</dt>
                   <dd>{job.recruiterOwnerName}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Openings")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Openings")}</dt>
                   <dd>
                     {job.filledCount}/{job.openingsCount}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Salary range")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Salary range")}</dt>
                   <dd>
                     {formatMoney(job.salaryRangeMin, job.currency)}–{formatMoney(job.salaryRangeMax, job.currency)}
                   </dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Opened")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Opened")}</dt>
                   <dd>{formatDate(job.openedAt)}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-muted-foreground">{t("Target hire")}</dt>
+                  <dt className="text-xs text-ink-muted">{t("Target hire")}</dt>
                   <dd>{formatDate(job.targetHireDate)}</dd>
                 </div>
               </dl>
@@ -101,19 +101,19 @@ export function JobDetailDrawer({
               {job.requirements ? (
                 <section>
                   <h3 className="text-sm font-semibold">{t("Requirements")}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{job.requirements}</p>
+                  <p className="mt-1 text-sm text-ink-muted">{job.requirements}</p>
                 </section>
               ) : null}
               {job.responsibilities ? (
                 <section>
                   <h3 className="text-sm font-semibold">{t("Responsibilities")}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{job.responsibilities}</p>
+                  <p className="mt-1 text-sm text-ink-muted">{job.responsibilities}</p>
                 </section>
               ) : null}
               {job.screeningQuestions.length > 0 ? (
                 <section>
                   <h3 className="text-sm font-semibold">{t("Screening questions")}</h3>
-                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                  <ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-ink-muted">
                     {job.screeningQuestions.map((q) => (
                       <li key={q.id}>
                         {q.prompt}
@@ -147,7 +147,7 @@ export function JobDetailDrawer({
               <section>
                 <h3 className="mb-2 text-sm font-semibold">{t("Candidates on this role")}</h3>
                 {ranked.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("None yet.")}</p>
+                  <p className="text-sm text-ink-muted">{t("None yet.")}</p>
                 ) : (
                   <ul className="space-y-2">
                     {ranked.map((c) => (
@@ -160,7 +160,7 @@ export function JobDetailDrawer({
                           <UserAvatar name={c.fullName} size="sm" />
                           <span className="min-w-0 flex-1">
                             <span className="block text-sm font-medium">{c.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{c.currentStage.replaceAll("_", " ")}</span>
+                            <span className="text-xs text-ink-muted">{c.currentStage.replaceAll("_", " ")}</span>
                           </span>
                           <FitScoreBadge
                             compact

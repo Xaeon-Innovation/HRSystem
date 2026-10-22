@@ -137,7 +137,7 @@ export function CandidateProfileDrawer({
 
           {canMove ? (
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-muted-foreground">{t("Move stage")}</span>
+              <span className="mb-1 block text-xs font-medium text-ink-muted">{t("Move stage")}</span>
               <select
                 className={SELECT_CLASS}
                 value={candidate.currentStage}
@@ -185,7 +185,7 @@ export function CandidateProfileDrawer({
           {canManage ? (
             <div className="space-y-2 rounded-lg border p-3">
               <p className="text-xs font-medium">{t("Save as best fit")}</p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-ink-muted">
                 {t("Keeps this contact on the Best fit bench for a later opening.")}</p>
               <textarea
                 className={TEXTAREA_CLASS}
@@ -283,7 +283,7 @@ export function CandidateProfileDrawer({
                   <p>
                     {offer.offeredTitle} · {formatMoney(offer.offeredSalary, offer.currency)}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-ink-muted">
                     {t("Join")}{formatDate(offer.expectedJoinDate)} {t("· expires")}{formatDate(offer.expiryDate)}
                   </p>
                 </div>
@@ -303,14 +303,14 @@ export function CandidateProfileDrawer({
 
             <TabsContent value="interviews" className="mt-4 space-y-3">
               {interviews.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("No interviews scheduled.")}</p>
+                <p className="text-sm text-ink-muted">{t("No interviews scheduled.")}</p>
               ) : (
                 interviews.map((i) => (
                   <div key={i.id} className="rounded-lg border p-3 text-sm">
                     <p className="font-medium">
                       {interviewTypeLabel(i.type)} · {formatDateTime(i.scheduledAt)}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-ink-muted">
                       {i.interviewerNames.join(", ")} · {i.status} · {i.outcome}
                     </p>
                     <Button size="sm" className="mt-2" variant="outline" onClick={() => onScore(i.id)}>
@@ -319,17 +319,17 @@ export function CandidateProfileDrawer({
                 ))
               )}
               {scorecards.map((s) => (
-                <div key={s.id} className="rounded-lg border bg-secondary/40 p-3 text-sm">
+                <div key={s.id} className="rounded-lg border bg-surface-2/40 p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <p className="font-medium">{s.interviewerName}</p>
                     <RecommendationBadge value={s.recommendation} />
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-ink-muted">
                     {t("Tech")}{s.technicalScore} {t("· Comm")}{s.communicationScore} {t("· Fit")}{s.cultureFitScore}
                   </p>
                   {s.comments ? <p className="mt-2">{s.comments}</p> : null}
                   {s.hiringManagerNote ? (
-                    <p className="mt-1 text-muted-foreground">{t("HM:")}{s.hiringManagerNote}</p>
+                    <p className="mt-1 text-ink-muted">{t("HM:")}{s.hiringManagerNote}</p>
                   ) : null}
                 </div>
               ))}
@@ -370,13 +370,13 @@ export function CandidateProfileDrawer({
                 </div>
               ) : null}
               {candidate.notes.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("No notes yet.")}</p>
+                <p className="text-sm text-ink-muted">{t("No notes yet.")}</p>
               ) : (
                 [...candidate.notes]
                   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
                   .map((n) => (
                     <div key={n.id} className="rounded-lg border p-3 text-sm">
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-ink-muted">
                         {n.authorName} · {noteVisibilityLabel(n.visibility)} · {formatDateTime(n.createdAt)}
                         {n.mentionPlaceholder ? t(" · @mention") : ""}
                       </p>
@@ -387,7 +387,7 @@ export function CandidateProfileDrawer({
 
               <div className="border-t pt-3">
                 <p className="mb-2 text-sm font-medium">{t("Communication")}</p>
-                <p className="mb-2 text-xs text-muted-foreground">
+                <p className="mb-2 text-xs text-ink-muted">
                   {t("Templates are logged. Sending is mocked until email is connected.")}</p>
                 {canManage ? (
                   <div className="mb-3 flex gap-2">
@@ -433,10 +433,10 @@ export function CandidateProfileDrawer({
                 {comms.map((c) => (
                   <div key={c.id} className="mb-2 rounded-lg border p-3 text-sm">
                     <p className="font-medium">{c.subject}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-xs text-ink-muted">
                       {commEventLabel(c.event)} · {c.status.replace("_", " ")} · {formatDateTime(c.sentAt)}
                     </p>
-                    <p className="mt-1 text-muted-foreground">{c.body}</p>
+                    <p className="mt-1 text-ink-muted">{c.body}</p>
                   </div>
                 ))}
               </div>
@@ -444,7 +444,7 @@ export function CandidateProfileDrawer({
 
             <TabsContent value="activity" className="mt-4">
               {activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("No activity yet.")}</p>
+                <p className="text-sm text-ink-muted">{t("No activity yet.")}</p>
               ) : (
                 <ol className="space-y-3">
                   {activity.map((e) => (
@@ -453,8 +453,8 @@ export function CandidateProfileDrawer({
                       <p className="font-medium">
                         {e.kind.replace("_", " ")} · {e.actorName}
                       </p>
-                      <p className="text-xs text-muted-foreground">{formatDateTime(e.at)}</p>
-                      {e.note ? <p className="mt-0.5 text-muted-foreground">{e.note}</p> : null}
+                      <p className="text-xs text-ink-muted">{formatDateTime(e.at)}</p>
+                      {e.note ? <p className="mt-0.5 text-ink-muted">{e.note}</p> : null}
                     </li>
                   ))}
                 </ol>
@@ -463,7 +463,7 @@ export function CandidateProfileDrawer({
                 <p className="mb-2 text-sm font-medium">{t("Stage history")}</p>
                 <ul className="space-y-1 text-sm">
                   {candidate.stageHistory.map((h, i) => (
-                    <li key={`${h.stage}-${i}`} className="text-muted-foreground">
+                    <li key={`${h.stage}-${i}`} className="text-ink-muted">
                       {stageLabel(h.stage)} · {formatDateTime(h.enteredAt)}
                       {h.leftAt ? ` → ${formatDateTime(h.leftAt)}` : t(" · current")}
                     </li>
@@ -542,7 +542,7 @@ export function CandidateProfileDrawer({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dt className="text-xs text-ink-muted">{label}</dt>
       <dd className="break-all">{value}</dd>
     </div>
   );

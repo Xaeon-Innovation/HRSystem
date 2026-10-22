@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { and, asc, desc, eq, gte, inArray, isNotNull } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
 import {
   employeeJobRoles,
   employees,
@@ -33,6 +33,9 @@ const OPEN_STATUSES: TaskStatus[] = [
   "submitted",
   "changes_requested",
 ];
+
+/** Bump optimistic-concurrency version on every task mutation. */
+const bumpVersion = { version: sql`${tasks.version} + 1` };
 
 function isAdmin(actor: JwtPayload) {
   return (
@@ -459,6 +462,7 @@ function serializeTask(row: typeof tasks.$inferSelect) {
     reviewNote: row.reviewNote,
     completedAt: row.completedAt?.toISOString() ?? null,
     completedByUserId: row.completedByUserId,
+    version: row.version,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
@@ -627,6 +631,7 @@ export async function updateTaskMeta(
         ? { dueAt: input.dueAt ? new Date(input.dueAt) : null }
         : {}),
       ...(input.tags !== undefined ? { tags: input.tags } : {}),
+      ...bumpVersion,
       updatedAt: new Date(),
     })
     .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)))
@@ -786,7 +791,7 @@ export async function startTask(
   }
   await app.db
     .update(tasks)
-    .set({ status: "in_progress", updatedAt: new Date() })
+    .set({ status: "in_progress", ...bumpVersion, updatedAt: new Date() })
     .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)));
   await writeActivity(app, {
     tenantId,
@@ -836,6 +841,7 @@ export async function completeTask(
       status: "completed",
       completedAt: new Date(),
       completedByUserId: actor.sub,
+      ...bumpVersion,
       updatedAt: new Date(),
     })
     .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)));
@@ -893,7 +899,12 @@ export async function submitTaskForReview(
   }
   await app.db
     .update(tasks)
-    .set({ status: "submitted", updatedAt: new Date(), reviewNote: null })
+    .set({
+      status: "submitted",
+      reviewNote: null,
+      ...bumpVersion,
+      updatedAt: new Date(),
+    })
     .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)));
   await writeActivity(app, {
     tenantId,
@@ -943,6 +954,7 @@ export async function reviewTask(
         completedAt: new Date(),
         completedByUserId: actor.sub,
         reviewNote: input.note || null,
+        ...bumpVersion,
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)));
@@ -961,6 +973,7 @@ export async function reviewTask(
       .set({
         status: "changes_requested",
         reviewNote: input.note || null,
+        ...bumpVersion,
         updatedAt: new Date(),
       })
       .where(and(eq(tasks.id, taskId), eq(tasks.tenantId, tenantId)));
@@ -1026,7 +1039,7 @@ export async function cancelTask(
 
   await app.db
     .update(tasks)
-    .set({ status: "cancelled", updatedAt: new Date() })
+    .set({ status: "cancelled", ...bumpVersion, updatedAt: new Date() })
     .where(and(eq(tasks.tenantId, tenantId), inArray(tasks.id, ids)));
 
   for (const id of ids) {

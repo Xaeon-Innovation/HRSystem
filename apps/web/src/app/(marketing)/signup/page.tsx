@@ -8,10 +8,12 @@ import { api, setSession, type AuthUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MarketingAuthShell } from "@/components/marketing/auth-shell";
+import { Notice, Segmented } from "@/components/elevora";
 import { useT } from "@/i18n/provider";
 
 const BILLABLE_PLANS = new Set(["field", "people", "ops", "scale"]);
+const TEAM_SIZES = ["1–25", "26–100", "101–500", "500+"] as const;
 
 function slugify(name: string) {
   return name
@@ -42,6 +44,7 @@ function SignupForm() {
   const [adminName, setAdminName] = useState("");
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
+  const [teamSize, setTeamSize] = useState<string>("26–100");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,32 +112,38 @@ function SignupForm() {
   }
 
   return (
-    <Card className="w-full">
-      <CardHeader className="space-y-2">
-        <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          Elevora
+    <div>
+      <h1 className="text-[28px] font-semibold tracking-[-0.03em] text-ink">
+        {isPaidIntent ? t("Start your plan") : t("Start your free trial")}
+      </h1>
+      <p className="mt-1.5 text-sm text-ink-muted">
+        {isPaidIntent
+          ? t(
+              "Create your organization, then complete checkout to activate your plan.",
+            )
+          : t("14 days, every module. No card needed.")}
+      </p>
+      {isPaidIntent && planCode ? (
+        <p className="mt-2 text-2xs text-ink-muted">
+          {t("Selected plan")}: {planCode}
+          {seats != null ? ` · ${seats} ${t("seats")}` : ""}
         </p>
-        <CardTitle>
-          {isPaidIntent ? t("Start your plan") : t("Start your free trial")}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          {isPaidIntent
-            ? t(
-                "Create your organization, then complete checkout to activate your plan.",
-              )
-            : t("Create your organization and get 14 days of full access.")}
-        </p>
-        {isPaidIntent && planCode ? (
-          <p className="text-xs text-muted-foreground">
-            {t("Selected plan")}: {planCode}
-            {seats != null ? ` · ${seats} ${t("seats")}` : ""}
-          </p>
-        ) : null}
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div className="space-y-2">
-            <Label htmlFor="org">{t("Organization name")}</Label>
+      ) : null}
+
+      <form className="mt-6 space-y-3.5" onSubmit={onSubmit}>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="adminName">{t("Your name")}</Label>
+            <Input
+              id="adminName"
+              value={adminName}
+              onChange={(e) => setAdminName(e.target.value)}
+              required
+              minLength={2}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="org">{t("Company")}</Label>
             <Input
               id="org"
               value={name}
@@ -146,115 +155,109 @@ function SignupForm() {
               minLength={2}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="slug">{t("Organization slug")}</Label>
-            <Input
-              id="slug"
-              value={slug}
-              onChange={(e) => {
-                setSlugTouched(true);
-                setSlug(
-                  e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                );
-              }}
-              required
-              minLength={2}
-              pattern="[a-z0-9-]+"
-              placeholder="acme-field"
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("Used at sign-in. Lowercase letters, numbers, and hyphens.")}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="adminName">{t("Your name")}</Label>
-            <Input
-              id="adminName"
-              value={adminName}
-              onChange={(e) => setAdminName(e.target.value)}
-              required
-              minLength={2}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="email">{t("Work email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              autoComplete="username"
-              value={adminEmail}
-              onChange={(e) => setAdminEmail(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">{t("Password")}</Label>
-            <Input
-              id="password"
-              type="password"
-              autoComplete="new-password"
-              value={adminPassword}
-              onChange={(e) => setAdminPassword(e.target.value)}
-              required
-              minLength={8}
-            />
-            <p className="text-xs text-muted-foreground">
-              {t("At least 8 characters.")}
-            </p>
-          </div>
-          <label className="flex items-start gap-3 text-sm">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 rounded border-border"
-              checked={acceptTerms}
-              onChange={(e) => setAcceptTerms(e.target.checked)}
-            />
-            <span className="text-muted-foreground">
-              {t("I agree to the")}{" "}
-              <Link href="/terms" className="text-foreground underline">
-                {t("Terms of Service")}
-              </Link>{" "}
-              {t("and")}{" "}
-              <Link href="/privacy" className="text-foreground underline">
-                {t("Privacy Policy")}
-              </Link>
-              .
-            </span>
-          </label>
-          {error ? (
-            <p className="text-sm text-destructive" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <Button className="w-full" size="lg" disabled={loading}>
-            {loading
-              ? t("Creating workspace…")
-              : isPaidIntent
-                ? t("Continue to checkout")
-                : t("Start free trial")}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-muted-foreground">
-          {t("Already have an account?")}{" "}
-          <Link href="/login" className="text-foreground underline">
-            {t("Sign in")}
-          </Link>
-        </p>
-      </CardContent>
-    </Card>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="slug">{t("Organization slug")}</Label>
+          <Input
+            id="slug"
+            value={slug}
+            onChange={(e) => {
+              setSlugTouched(true);
+              setSlug(
+                e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+              );
+            }}
+            required
+            minLength={2}
+            pattern="[a-z0-9-]+"
+            placeholder="acme-field"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="email">{t("Work email")}</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="username"
+            value={adminEmail}
+            onChange={(e) => setAdminEmail(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="password">{t("Password")}</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            value={adminPassword}
+            onChange={(e) => setAdminPassword(e.target.value)}
+            required
+            minLength={8}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("Team size")}</Label>
+          <Segmented
+            className="w-full"
+            value={teamSize}
+            onChange={setTeamSize}
+            options={TEAM_SIZES.map((s) => ({ value: s, label: s }))}
+          />
+        </div>
+        <label className="flex items-start gap-3 text-xs text-ink-muted">
+          <input
+            type="checkbox"
+            className="mt-0.5 h-4 w-4 rounded border-line-strong"
+            checked={acceptTerms}
+            onChange={(e) => setAcceptTerms(e.target.checked)}
+          />
+          <span>
+            {t("By continuing you agree to the")}{" "}
+            <Link href="/terms" className="underline">
+              {t("Terms")}
+            </Link>{" "}
+            {t("and")}{" "}
+            <Link href="/privacy" className="underline">
+              {t("Privacy policy")}
+            </Link>
+            .
+          </span>
+        </label>
+        {error ? <Notice tone="warn">{error}</Notice> : null}
+        <Button className="w-full" size="lg" disabled={loading}>
+          {loading
+            ? t("Creating workspace…")
+            : isPaidIntent
+              ? t("Continue to checkout")
+              : t("Create workspace")}
+        </Button>
+      </form>
+
+      <p className="mt-5 text-sm text-ink-muted">
+        {t("Already have an account?")}{" "}
+        <Link href="/login" className="font-semibold text-ink">
+          {t("Log in")}
+        </Link>
+      </p>
+    </div>
   );
 }
 
 export default function SignupPage() {
+  const t = useT();
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-1 items-center justify-center px-4 py-10 sm:py-14">
+    <MarketingAuthShell
+      claimTitle={t("Live in an afternoon.")}
+      claimSub={t("Branches, roster and shifts. Then your team clocks in.")}
+    >
       <Suspense
         fallback={
-          <div className="h-64 w-full animate-pulse rounded-xl bg-muted/40" />
+          <div className="h-64 w-full animate-pulse rounded-lg bg-surface-2" />
         }
       >
         <SignupForm />
       </Suspense>
-    </div>
+    </MarketingAuthShell>
   );
 }

@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import { Bell, CheckCheck, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   ALERT_CATEGORIES,
@@ -13,13 +13,13 @@ import {
 import type { AlertCategory, AlertUrgency } from "@hr/shared";
 import { formatRelativeTime, resolveCategory, resolveUrgency } from "@/lib/alerts/format";
 import type { InboxNotification } from "@/lib/alerts/types";
+import { CATEGORY_ICON } from "@/components/alerts/alert-badges";
 import {
-  CATEGORY_ICON,
-  CATEGORY_TONE,
-  CategoryBadge,
-  URGENCY_BAR,
-  UrgencyBadge,
-} from "@/components/alerts/alert-badges";
+  Chip,
+  EmptyState,
+  IconTile,
+  Segmented,
+} from "@/components/elevora";
 import { t } from "@/i18n";
 
 export function AlertsInbox({
@@ -47,125 +47,182 @@ export function AlertsInbox({
   onMarkAll: () => void;
   onAnnounce: () => void;
 }) {
+  const urgencySegment =
+    urgency === ""
+      ? "all"
+      : urgency === "info"
+        ? "info"
+        : urgency === "warning"
+          ? "warning"
+          : "critical";
+
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap gap-1.5">
-          <FilterChip
-            active={!unreadOnly && !category && !urgency}
-            onClick={() => {
-              onUnreadOnly(false);
-              onCategory("");
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <Segmented
+          className="w-full sm:w-auto"
+          value={unreadOnly ? "unread" : urgencySegment}
+          onChange={(v) => {
+            if (v === "unread") {
+              onUnreadOnly(true);
               onUrgency("");
-            }}
-          >
-            {t("All")}</FilterChip>
-          <FilterChip active={unreadOnly} onClick={() => onUnreadOnly(!unreadOnly)}>
-            {t("Unread")}</FilterChip>
-          {ALERT_URGENCIES.map((u) => (
-            <FilterChip
-              key={u}
-              active={urgency === u}
-              onClick={() => onUrgency(urgency === u ? "" : u)}
-            >
-              {u === "info" ? t("Info") : u === "warning" ? t("Warning") : t("Critical")}
-            </FilterChip>
-          ))}
-        </div>
-        <div className="flex gap-2">
+              return;
+            }
+            onUnreadOnly(false);
+            if (v === "all") {
+              onUrgency("");
+              return;
+            }
+            onUrgency(v as AlertUrgency);
+          }}
+          options={[
+            { value: "all", label: t("All") },
+            { value: "unread", label: t("Unread") },
+            ...ALERT_URGENCIES.map((u) => ({
+              value: u,
+              label:
+                u === "info"
+                  ? t("Info")
+                  : u === "warning"
+                    ? t("Warning")
+                    : t("Critical"),
+            })),
+          ]}
+          aria-label={t("Inbox filters")}
+        />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <label className="flex min-h-10 items-center gap-2 rounded-sm border border-line bg-surface px-3 text-sm text-ink-2">
+            <Switch
+              checked={unreadOnly}
+              onCheckedChange={(on) => {
+                onUnreadOnly(on);
+                if (on) onUrgency("");
+              }}
+            />
+            <span>{t("Unread only")}</span>
+          </label>
           {isAdmin ? (
-            <Button size="sm" variant="outline" onClick={onAnnounce}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={onAnnounce}
+            >
               <Megaphone className="h-4 w-4" />
-              {t("Announce")}</Button>
+              {t("Announce")}
+            </Button>
           ) : null}
-          <Button size="sm" variant="outline" onClick={onMarkAll}>
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={onMarkAll}
+          >
             <CheckCheck className="h-4 w-4" />
-            {t("Mark all read")}</Button>
+            {t("Mark all read")}
+          </Button>
         </div>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex min-w-0 gap-1.5 overflow-x-auto pb-1">
+        <CategoryChip
+          active={!category}
+          onClick={() => onCategory("")}
+        >
+          {t("All categories")}
+        </CategoryChip>
         {ALERT_CATEGORIES.filter((c) => c !== "custom").map((c) => (
-          <FilterChip
+          <CategoryChip
             key={c}
             active={category === c}
             onClick={() => onCategory(category === c ? "" : c)}
           >
             {ALERT_CATEGORY_META[c].label}
-          </FilterChip>
+          </CategoryChip>
         ))}
       </div>
       {items.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center py-14 text-center">
-            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-              <Bell className="h-6 w-6" />
-            </div>
-            <p className="text-base font-semibold">{t("You’re all caught up")}</p>
-            <p className="mt-1 max-w-md text-sm text-muted-foreground">
-              {t("New leave requests, compliance deadlines, KPI exceptions, and system issues will land here.")}</p>
-          </CardContent>
-        </Card>
+        <div className="rounded-lg border border-line bg-surface">
+          <EmptyState
+            icon={<Bell className="h-5 w-5" />}
+            title={t("You’re all caught up")}
+            subtitle={t(
+              "New leave requests, compliance deadlines, KPI exceptions, and system issues will land here.",
+            )}
+          />
+        </div>
       ) : (
-        <div className="space-y-2">
+        <section className="rounded-lg border border-line bg-surface px-[18px]">
           {items.map((item) => {
             const cat = resolveCategory(item);
             const urg = resolveUrgency(item);
             const Icon = CATEGORY_ICON[cat];
+            const high = urg === "critical" || urg === "warning";
+            const tileTone = high ? "warn" : "neutral";
             return (
-              <Card
+              <div
                 key={item.id}
                 className={cn(
-                  "overflow-hidden transition-opacity",
-                  item.read ? "opacity-75" : "border-primary/15 bg-card",
+                  "flex flex-col gap-2 border-b border-line py-3.5 last:border-b-0 sm:flex-row sm:items-center sm:gap-3",
+                  item.read && "opacity-80",
                 )}
               >
-                <CardContent className="flex gap-0 p-0">
-                  <span className={cn("w-1 shrink-0", URGENCY_BAR[urg])} />
-                  <div className="flex min-w-0 flex-1 items-start gap-3 px-4 py-3">
-                    <span
-                      className={cn(
-                        "mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1",
-                        CATEGORY_TONE[cat],
-                      )}
-                    >
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        {!item.read ? (
-                          <span className="h-2 w-2 rounded-full bg-primary" aria-label={t("Unread")} />
-                        ) : null}
-                        <p className="font-medium leading-tight">{item.title}</p>
-                      </div>
-                      <p className="mt-1 text-sm text-muted-foreground">{item.body}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <CategoryBadge category={cat} />
-                        <UrgencyBadge urgency={urg} />
-                        <span className="text-xs text-muted-foreground">
-                          {formatRelativeTime(item.createdAt)}
-                        </span>
-                      </div>
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <IconTile tone={tileTone} className="mt-0.5 shrink-0">
+                    <Icon className="h-4 w-4" strokeWidth={1.7} />
+                  </IconTile>
+                  <div className="min-w-0 flex-1">
+                    <p className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-ink">
+                      {!item.read ? (
+                        <span
+                          className="inline-block h-[7px] w-[7px] shrink-0 rounded-full bg-accent"
+                          aria-label={t("Unread")}
+                        />
+                      ) : null}
+                      <span className="truncate">{item.title}</span>
+                    </p>
+                    <p className="mt-0.5 text-xs leading-snug text-ink-muted whitespace-normal">
+                      {item.body}
+                    </p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 sm:hidden">
+                      <Chip className="border border-line">
+                        {t(ALERT_CATEGORY_META[cat].label)}
+                      </Chip>
+                      {high ? <Chip tone="warn">{t("High")}</Chip> : null}
                     </div>
-                    {!item.read ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onMarkRead(item.id)}
-                      >
-                        {t("Read")}</Button>
-                    ) : null}
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                <div className="hidden shrink-0 items-center gap-1.5 sm:flex">
+                  <Chip className="border border-line">
+                    {t(ALERT_CATEGORY_META[cat].label)}
+                  </Chip>
+                  {high ? <Chip tone="warn">{t("High")}</Chip> : null}
+                </div>
+
+                <div className="flex shrink-0 flex-row items-center justify-between gap-3 ps-11 sm:min-w-[5.5rem] sm:flex-col sm:items-end sm:justify-center sm:gap-0.5 sm:ps-0">
+                  <span className="text-[11px] text-ink-muted tabular">
+                    {formatRelativeTime(item.createdAt)}
+                  </span>
+                  {!item.read ? (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-ink hover:underline"
+                      onClick={() => onMarkRead(item.id)}
+                    >
+                      {t("Mark read")}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
             );
           })}
-        </div>
+        </section>
       )}
     </div>
   );
 }
 
-function FilterChip({
+function CategoryChip({
   active,
   onClick,
   children,
@@ -179,10 +236,10 @@ function FilterChip({
       type="button"
       onClick={onClick}
       className={cn(
-        "rounded-full px-3 py-1 text-xs font-medium ring-1 transition-colors",
+        "shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
         active
-          ? "bg-primary text-primary-foreground ring-primary"
-          : "bg-card text-muted-foreground ring-border hover:bg-secondary",
+          ? "border-ink bg-ink text-primary-foreground"
+          : "border-line bg-surface text-ink-muted hover:text-ink",
       )}
     >
       {children}

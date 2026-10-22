@@ -1,71 +1,34 @@
 import type { FastifyPluginAsync } from "fastify";
-import { and, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, lte, or } from "drizzle-orm";
 import {
   attendanceCorrections,
   attendanceRecords,
-  employeeLiveLocations,
   employees,
-  locationPings,
+  shiftInstances,
   tenants,
+  users,
 } from "@hr/db";
 import { clockEventSchema, correctAttendanceSchema } from "@hr/shared";
 import type { JwtPayload } from "@hr/shared";
 import { writeAudit } from "../lib/audit.js";
-import { isInsideGeofence } from "../lib/geo.js";
+import { avatarUrlFor } from "../lib/avatar.js";
+import {
+  computeShiftAndOvertimeMinutes,
+  formatLatLng,
+} from "../lib/hours-report.js";
 import {
   getTenantPlanFeatures,
   planFeatureEnabled,
   resolvePingIntervalSec,
 } from "../lib/features.js";
-import type { App } from "../types.js";
+import { todayInZone, zonedDayBounds, formatDayInZone } from "../lib/timezone.js";
 import {
   requireModuleRole,
   requireRoles,
   tenantIdOf,
 } from "../types.js";
 import { requireActiveSubscription } from "../lib/features.js";
-import { createNotification } from "../services/notifications.js";
-import { broadcastToTenant } from "../ws-hub.js";
-import {
-  assertCanClockIn,
-  onClockInLinked,
-  onClockOutLinked,
-} from "../services/shifts.js";
-
-async function assertWithinGeofence(
-  app: App,
-  tenantId: string,
-  employeeId: string,
-  point: { lat: number; lng: number },
-) {
-  const emp = await app.db.query.employees.findFirst({
-    where: and(eq(employees.id, employeeId), eq(employees.tenantId, tenantId)),
-    columns: {
-      geofenceLat: true,
-      geofenceLng: true,
-      geofenceRadiusMeters: true,
-    },
-  });
-  if (
-    !emp ||
-    emp.geofenceLat == null ||
-    emp.geofenceLng == null ||
-    emp.geofenceRadiusMeters == null
-  ) {
-    return null;
-  }
-  const check = isInsideGeofence(point, {
-    lat: emp.geofenceLat,
-    lng: emp.geofenceLng,
-    radiusMeters: emp.geofenceRadiusMeters,
-  });
-  if (check.inside) return null;
-  return {
-    error: "Outside allowed work zone",
-    distanceMeters: Math.round(check.distanceMeters),
-    allowedRadiusMeters: emp.geofenceRadiusMeters,
-  };
-}
+import { clockIn, clockOut } from "../services/attendance.js";
 
 export const attendanceRoutes: FastifyPluginAsync = async (app) => {
   app.addHook("preHandler", requireActiveSubscription());
@@ -77,149 +40,19 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    if (!user.employeeId) {
-      return reply.code(400).send({ error: "No employee profile" });
-    }
 
-    if (parsed.data.clientEventId) {
-      const existing = await app.db.query.attendanceRecords.findFirst({
-        where: and(
-          eq(attendanceRecords.tenantId, tenantId),
-          eq(attendanceRecords.clientEventId, parsed.data.clientEventId),
-        ),
-      });
-      if (existing) return { attendance: existing, deduped: true };
-    }
-
-    const open = await app.db.query.attendanceRecords.findFirst({
-      where: and(
-        eq(attendanceRecords.tenantId, tenantId),
-        eq(attendanceRecords.employeeId, user.employeeId),
-        isNull(attendanceRecords.clockOutAt),
-      ),
-    });
-    if (open) {
-      return reply.code(409).send({ error: "Already clocked in", attendance: open });
-    }
-
-    const outside = await assertWithinGeofence(app, tenantId, user.employeeId, {
-      lat: parsed.data.lat,
-      lng: parsed.data.lng,
-    });
-    if (outside) {
-      return reply.code(403).send(outside);
-    }
-
-    try {
-      await assertCanClockIn(app, tenantId, user.employeeId);
-    } catch (err) {
-      const status =
-        typeof err === "object" &&
-        err &&
-        "statusCode" in err &&
-        typeof (err as { statusCode: unknown }).statusCode === "number"
-          ? (err as { statusCode: number }).statusCode
-          : 403;
-      return reply
-        .code(status)
-        .send({ error: err instanceof Error ? err.message : "Cannot clock in" });
-    }
-
-    const now = new Date();
-    const [record] = await app.db
-      .insert(attendanceRecords)
-      .values({
-        tenantId,
-        employeeId: user.employeeId,
-        clockInAt: now,
-        clockInLat: parsed.data.lat,
-        clockInLng: parsed.data.lng,
-        clientEventId: parsed.data.clientEventId ?? null,
-      })
-      .returning();
-
-    await onClockInLinked(
-      app,
+    const result = await clockIn(app, {
       tenantId,
-      user.employeeId,
-      record.id,
-      now,
-    );
-
-    const features = await getTenantPlanFeatures(app.db, tenantId);
-    const hasLiveMap = planFeatureEnabled(features, "liveMap");
-    const empRow = await app.db.query.employees.findFirst({
-      where: and(
-        eq(employees.id, user.employeeId),
-        eq(employees.tenantId, tenantId),
-      ),
-      columns: {
-        geofenceLat: true,
-        geofenceLng: true,
-        geofenceRadiusMeters: true,
-      },
+      user,
+      event: parsed.data,
     });
-    const hasGeofence =
-      empRow?.geofenceLat != null &&
-      empRow?.geofenceLng != null &&
-      empRow?.geofenceRadiusMeters != null;
-    const complianceTracking = hasGeofence;
-
-    // Live map or compliance: maintain live location for geofence enforcement.
-    if (hasLiveMap || complianceTracking) {
-      await app.db
-        .insert(employeeLiveLocations)
-        .values({
-          employeeId: user.employeeId,
-          tenantId,
-          lat: parsed.data.lat,
-          lng: parsed.data.lng,
-          updatedAt: now,
-          isClockedIn: true,
-        })
-        .onConflictDoUpdate({
-          target: employeeLiveLocations.employeeId,
-          set: {
-            lat: parsed.data.lat,
-            lng: parsed.data.lng,
-            updatedAt: now,
-            isClockedIn: true,
-            tenantId,
-          },
-        });
-
-      await app.db.insert(locationPings).values({
-        tenantId,
-        employeeId: user.employeeId,
-        lat: parsed.data.lat,
-        lng: parsed.data.lng,
-        recordedAt: now,
-        clientPingId: parsed.data.clientEventId ?? null,
-      });
-
-      if (user.role === "employee") {
-        broadcastToTenant(tenantId, {
-          type: "location.update",
-          payload: {
-            employeeId: user.employeeId,
-            lat: parsed.data.lat,
-            lng: parsed.data.lng,
-            updatedAt: now.toISOString(),
-            isClockedIn: true,
-          },
-        });
-      }
+    if (!result.ok) {
+      return reply.code(result.status).send(result.body);
     }
-
-    await createNotification(app, {
-      tenantId,
-      userId: user.sub,
-      type: "clock_in",
-      title: "Clocked in",
-      body: `You clocked in at ${now.toISOString()}`,
-    });
-
-    return reply.code(201).send({ attendance: record });
+    if (result.deduped) {
+      return { attendance: result.attendance, deduped: true };
+    }
+    return reply.code(201).send({ attendance: result.attendance });
   });
 
   app.post("/clock-out", async (request, reply) => {
@@ -229,120 +62,19 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    if (!user.employeeId) {
-      return reply.code(400).send({ error: "No employee profile" });
-    }
 
-    const open = await app.db.query.attendanceRecords.findFirst({
-      where: and(
-        eq(attendanceRecords.tenantId, tenantId),
-        eq(attendanceRecords.employeeId, user.employeeId),
-        isNull(attendanceRecords.clockOutAt),
-      ),
-    });
-    if (!open) {
-      return reply.code(409).send({ error: "Not clocked in" });
-    }
-
-    const outside = await assertWithinGeofence(app, tenantId, user.employeeId, {
-      lat: parsed.data.lat,
-      lng: parsed.data.lng,
-    });
-    if (outside) {
-      return reply.code(403).send(outside);
-    }
-
-    const now = new Date();
-    const [record] = await app.db
-      .update(attendanceRecords)
-      .set({
-        clockOutAt: now,
-        clockOutLat: parsed.data.lat,
-        clockOutLng: parsed.data.lng,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(attendanceRecords.id, open.id),
-          eq(attendanceRecords.tenantId, tenantId),
-        ),
-      )
-      .returning();
-
-    await onClockOutLinked(
-      app,
+    const result = await clockOut(app, {
       tenantId,
-      user.employeeId,
-      record.id,
-      now,
-    );
-
-    const features = await getTenantPlanFeatures(app.db, tenantId);
-    const hasLiveMap = planFeatureEnabled(features, "liveMap");
-    const empOut = await app.db.query.employees.findFirst({
-      where: and(
-        eq(employees.id, user.employeeId),
-        eq(employees.tenantId, tenantId),
-      ),
-      columns: {
-        geofenceLat: true,
-        geofenceLng: true,
-        geofenceRadiusMeters: true,
-      },
+      user,
+      event: parsed.data,
     });
-    const complianceOut =
-      empOut?.geofenceLat != null &&
-      empOut?.geofenceLng != null &&
-      empOut?.geofenceRadiusMeters != null;
-
-    if (hasLiveMap || complianceOut) {
-      await app.db
-        .update(employeeLiveLocations)
-        .set({
-          isClockedIn: false,
-          lat: parsed.data.lat,
-          lng: parsed.data.lng,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(employeeLiveLocations.employeeId, user.employeeId),
-            eq(employeeLiveLocations.tenantId, tenantId),
-          ),
-        );
-
-      await app.db.insert(locationPings).values({
-        tenantId,
-        employeeId: user.employeeId,
-        lat: parsed.data.lat,
-        lng: parsed.data.lng,
-        recordedAt: now,
-        clientPingId: parsed.data.clientEventId ?? null,
-      });
-
-      if (user.role === "employee") {
-        broadcastToTenant(tenantId, {
-          type: "location.update",
-          payload: {
-            employeeId: user.employeeId,
-            lat: parsed.data.lat,
-            lng: parsed.data.lng,
-            updatedAt: now.toISOString(),
-            isClockedIn: false,
-          },
-        });
-      }
+    if (!result.ok) {
+      return reply.code(result.status).send(result.body);
     }
-
-    await createNotification(app, {
-      tenantId,
-      userId: user.sub,
-      type: "clock_out",
-      title: "Clocked out",
-      body: `You clocked out at ${now.toISOString()}`,
-    });
-
-    return { attendance: record };
+    if (result.deduped) {
+      return { attendance: result.attendance, deduped: true };
+    }
+    return { attendance: result.attendance };
   });
 
   app.get("/history", async (request) => {
@@ -366,6 +98,300 @@ export const attendanceRoutes: FastifyPluginAsync = async (app) => {
     });
     return { records: rows };
   });
+
+  app.get("/day", async (request, reply) => {
+    const tenantId = tenantIdOf(request);
+    const user = request.user as JwtPayload;
+    const q = request.query as { date?: string };
+
+    const tenant = await app.db.query.tenants.findFirst({
+      where: eq(tenants.id, tenantId),
+    });
+    const tz = tenant?.settings.timezone ?? "UTC";
+    const dateRaw = q.date?.slice(0, 10) ?? "";
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(dateRaw)
+      ? dateRaw
+      : todayInZone(tz);
+    const { start: dayStart, end: dayEnd } = zonedDayBounds(day, tz);
+
+    const isAdmin = user.role === "tenant_admin";
+    if (!isAdmin && !user.employeeId) {
+      return reply.send({ day, people: [] });
+    }
+
+    const roster = await app.db
+      .select({
+        employeeId: employees.id,
+        name: users.name,
+        userId: users.id,
+        avatarMime: users.avatarMime,
+        userUpdatedAt: users.updatedAt,
+        presenceMode: employees.presenceMode,
+      })
+      .from(employees)
+      .innerJoin(users, eq(users.id, employees.userId))
+      .where(
+        and(
+          eq(employees.tenantId, tenantId),
+          eq(employees.status, "active"),
+          isAdmin ? undefined : eq(employees.id, user.employeeId!),
+        ),
+      );
+
+    if (roster.length === 0) {
+      return { day, people: [] };
+    }
+
+    const ids = roster.map((r) => r.employeeId);
+    const sessionRows = await app.db.query.attendanceRecords.findMany({
+      where: and(
+        eq(attendanceRecords.tenantId, tenantId),
+        inArray(attendanceRecords.employeeId, ids),
+        gte(attendanceRecords.clockInAt, dayStart),
+        lt(attendanceRecords.clockInAt, dayEnd),
+      ),
+      orderBy: [desc(attendanceRecords.clockInAt)],
+    });
+
+    const shiftRows = await app.db.query.shiftInstances.findMany({
+      where: and(
+        eq(shiftInstances.tenantId, tenantId),
+        inArray(shiftInstances.employeeId, ids),
+        eq(shiftInstances.workDate, day),
+        eq(shiftInstances.status, "scheduled"),
+      ),
+    });
+
+    const sessionsByEmployee = new Map<string, typeof sessionRows>();
+    for (const row of sessionRows) {
+      const list = sessionsByEmployee.get(row.employeeId) ?? [];
+      list.push(row);
+      sessionsByEmployee.set(row.employeeId, list);
+    }
+    const shiftsByEmployee = new Map<string, typeof shiftRows>();
+    for (const row of shiftRows) {
+      const list = shiftsByEmployee.get(row.employeeId) ?? [];
+      list.push(row);
+      shiftsByEmployee.set(row.employeeId, list);
+    }
+
+    const people = roster
+      .map((r) => {
+        const presenceMode = r.presenceMode ?? "fixed_zone";
+        const sessions = (sessionsByEmployee.get(r.employeeId) ?? []).map(
+          (s) => {
+            const inLabel =
+              presenceMode === "mobile"
+                ? formatLatLng(s.clockInLat, s.clockInLng)
+                  ? `Mobile · ${formatLatLng(s.clockInLat, s.clockInLng)}`
+                  : "Mobile"
+                : formatLatLng(s.clockInLat, s.clockInLng);
+            const outLabel =
+              s.clockOutAt == null
+                ? null
+                : presenceMode === "mobile"
+                  ? formatLatLng(s.clockOutLat, s.clockOutLng)
+                    ? `Mobile · ${formatLatLng(s.clockOutLat, s.clockOutLng)}`
+                    : "Mobile"
+                  : formatLatLng(s.clockOutLat, s.clockOutLng);
+            return {
+              id: s.id,
+              clockInAt:
+                s.clockInAt instanceof Date
+                  ? s.clockInAt.toISOString()
+                  : String(s.clockInAt),
+              clockOutAt: s.clockOutAt
+                ? s.clockOutAt instanceof Date
+                  ? s.clockOutAt.toISOString()
+                  : String(s.clockOutAt)
+                : null,
+              clockInLat: s.clockInLat,
+              clockInLng: s.clockInLng,
+              clockOutLat: s.clockOutLat,
+              clockOutLng: s.clockOutLng,
+              clockInPlace: inLabel,
+              clockOutPlace: outLabel,
+              anomalyFlags: Array.isArray(s.anomalyFlags) ? s.anomalyFlags : [],
+            };
+          },
+        );
+        const shifts = (shiftsByEmployee.get(r.employeeId) ?? []).map((sh) => ({
+          id: sh.id,
+          startAt:
+            sh.startAt instanceof Date
+              ? sh.startAt.toISOString()
+              : String(sh.startAt),
+          endAt:
+            sh.endAt instanceof Date ? sh.endAt.toISOString() : String(sh.endAt),
+        }));
+        return {
+          employeeId: r.employeeId,
+          name: r.name,
+          avatarUrl: avatarUrlFor(r.userId, r.avatarMime, r.userUpdatedAt),
+          presenceMode,
+          shifts,
+          sessions,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return { day, people };
+  });
+
+  app.get(
+    "/hours-report",
+    { preHandler: requireRoles("tenant_admin") },
+    async (request, reply) => {
+      const tenantId = tenantIdOf(request);
+      const q = request.query as { from?: string; to?: string };
+      if (!q.from || !q.to) {
+        return reply.code(400).send({ error: "from and to dates are required" });
+      }
+      const fromDay = q.from.slice(0, 10);
+      const toDay = q.to.slice(0, 10);
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(fromDay) ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(toDay)
+      ) {
+        return reply.code(400).send({ error: "Invalid date range" });
+      }
+
+      const tenant = await app.db.query.tenants.findFirst({
+        where: eq(tenants.id, tenantId),
+      });
+      const tz = tenant?.settings.timezone ?? "UTC";
+      const { start: rangeStart } = zonedDayBounds(fromDay, tz);
+      const { end: rangeEnd } = zonedDayBounds(toDay, tz);
+
+      const roster = await app.db
+        .select({
+          employeeId: employees.id,
+          name: users.name,
+        })
+        .from(employees)
+        .innerJoin(users, eq(users.id, employees.userId))
+        .where(
+          and(
+            eq(employees.tenantId, tenantId),
+            eq(employees.status, "active"),
+          ),
+        );
+
+      if (roster.length === 0) {
+        return { from: fromDay, to: toDay, rows: [], totals: {
+          shiftMinutes: 0,
+          overtimeMinutes: 0,
+          totalWorkMinutes: 0,
+        } };
+      }
+
+      const ids = roster.map((r) => r.employeeId);
+      const sessionRows = await app.db.query.attendanceRecords.findMany({
+        where: and(
+          eq(attendanceRecords.tenantId, tenantId),
+          inArray(attendanceRecords.employeeId, ids),
+          gte(attendanceRecords.clockInAt, rangeStart),
+          lt(attendanceRecords.clockInAt, rangeEnd),
+        ),
+      });
+      const shiftRows = await app.db.query.shiftInstances.findMany({
+        where: and(
+          eq(shiftInstances.tenantId, tenantId),
+          inArray(shiftInstances.employeeId, ids),
+          gte(shiftInstances.workDate, fromDay),
+          lte(shiftInstances.workDate, toDay),
+          eq(shiftInstances.status, "scheduled"),
+        ),
+      });
+
+      const nameById = new Map(roster.map((r) => [r.employeeId, r.name]));
+
+      type DayKey = string;
+      const dayKeys = new Set<DayKey>();
+      const sessionsByEmpDay = new Map<
+        DayKey,
+        { clockInAt: Date; clockOutAt: Date }[]
+      >();
+      for (const s of sessionRows) {
+        if (!s.clockOutAt) continue;
+        const clockIn =
+          s.clockInAt instanceof Date ? s.clockInAt : new Date(s.clockInAt);
+        const workDay = formatDayInZone(clockIn, tz);
+        const key = `${s.employeeId}|${workDay}`;
+        dayKeys.add(key);
+        const list = sessionsByEmpDay.get(key) ?? [];
+        list.push({
+          clockInAt: clockIn,
+          clockOutAt:
+            s.clockOutAt instanceof Date
+              ? s.clockOutAt
+              : new Date(s.clockOutAt),
+        });
+        sessionsByEmpDay.set(key, list);
+      }
+      const shiftsByEmpDay = new Map<
+        DayKey,
+        { startAt: Date; endAt: Date }[]
+      >();
+      for (const sh of shiftRows) {
+        const key = `${sh.employeeId}|${sh.workDate}`;
+        const list = shiftsByEmpDay.get(key) ?? [];
+        list.push({
+          startAt:
+            sh.startAt instanceof Date ? sh.startAt : new Date(sh.startAt),
+          endAt: sh.endAt instanceof Date ? sh.endAt : new Date(sh.endAt),
+        });
+        shiftsByEmpDay.set(key, list);
+      }
+
+      const rows: {
+        employeeId: string;
+        name: string;
+        day: string;
+        shiftMinutes: number;
+        overtimeMinutes: number;
+        totalWorkMinutes: number;
+      }[] = [];
+
+      let totalShift = 0;
+      let totalOt = 0;
+      let totalWork = 0;
+
+      for (const key of [...dayKeys].sort()) {
+        const [employeeId, day] = key.split("|") as [string, string];
+        const computed = computeShiftAndOvertimeMinutes(
+          sessionsByEmpDay.get(key) ?? [],
+          shiftsByEmpDay.get(key) ?? [],
+        );
+        totalShift += computed.shiftMinutes;
+        totalOt += computed.overtimeMinutes;
+        totalWork += computed.totalWorkMinutes;
+        rows.push({
+          employeeId,
+          name: nameById.get(employeeId) ?? "—",
+          day,
+          ...computed,
+        });
+      }
+
+      rows.sort((a, b) =>
+        a.day === b.day
+          ? a.name.localeCompare(b.name)
+          : a.day.localeCompare(b.day),
+      );
+
+      return {
+        from: fromDay,
+        to: toDay,
+        rows,
+        totals: {
+          shiftMinutes: totalShift,
+          overtimeMinutes: totalOt,
+          totalWorkMinutes: totalWork,
+        },
+      };
+    },
+  );
 
   app.get(
     "/period",

@@ -1,100 +1,43 @@
 "use client";
 
 import Link from "next/link";
-import { useLocale, useT } from "@/i18n/provider";
-import { cn } from "@/lib/utils";
-
-const XAEON_URL = "https://xaeons.com";
-
-function XaeonProductCredit({ compact = false }: { compact?: boolean }) {
-  const t = useT();
-  const locale = useLocale();
-  const logoBox = cn(
-    "relative inline-block shrink-0",
-    compact ? "h-3 w-8" : "h-5 w-14",
-  );
-  const logoClass = "absolute inset-0 h-full w-full object-contain";
-  const logo = (
-    <span className={logoBox}>
-      <img
-        src="/logo.png"
-        alt=""
-        className={cn(logoClass, "dark:hidden")}
-      />
-      <img
-        src="/devlogo.png"
-        alt=""
-        className={cn(logoClass, "hidden dark:block")}
-      />
-    </span>
-  );
-
-  return (
-    <a
-      href={XAEON_URL}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t("A Xaeon product")}
-      className={cn(
-        "inline-flex items-center gap-1.5 text-muted-foreground transition-colors hover:text-foreground",
-        compact ? "text-xs" : "min-h-10 text-sm",
-      )}
-    >
-      {locale === "ar" ? (
-        <>
-          <span aria-hidden="true">{t("A product from")}</span>
-          {logo}
-        </>
-      ) : (
-        <>
-          <span aria-hidden="true">{t("A")}</span>
-          {logo}
-          <span aria-hidden="true">{t("product")}</span>
-        </>
-      )}
-    </a>
-  );
-}
+import { t } from "@/i18n";
 
 export function MarketingFooter() {
-  const t = useT();
   return (
-    <footer className="border-t border-border/60 bg-background/70 pb-20 md:pb-0">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-2">
-          <p className="text-lg font-semibold tracking-tight">Elevora</p>
-          <XaeonProductCredit />
-          <a
-            href="mailto:info@xaeons.com"
-            className="block text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            info@xaeons.com
-          </a>
-        </div>
-        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm sm:grid-cols-3">
-          <Link href="/pricing" className="text-muted-foreground hover:text-foreground">
+    <footer className="mt-10 border-t border-line py-8 sm:py-9">
+      <div className="mx-auto flex max-w-[1180px] flex-col gap-4 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+        <Link href="/" className="flex items-center gap-2.5">
+          <span className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink text-primary-foreground">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
+              <path
+                d="M5 19V5h12M5 12h9M5 19h14"
+                stroke="currentColor"
+                strokeWidth="2.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+          <span className="text-[15px] font-bold tracking-[0.04em] text-ink">
+            ELEVORA
+          </span>
+        </Link>
+        <div className="flex flex-wrap gap-x-[18px] gap-y-2 text-[12.5px] text-ink-muted">
+          <Link href="/pricing" className="hover:text-ink">
             {t("Pricing")}
           </Link>
-          <Link href="/signup" className="text-muted-foreground hover:text-foreground">
-            {t("Start free trial")}
+          <Link href="/demo" className="hover:text-ink">
+            {t("Book a demo")}
           </Link>
-          <Link href="/demo" className="text-muted-foreground hover:text-foreground">
-            {t("Request demo")}
+          <Link href="/privacy" className="hover:text-ink">
+            {t("Privacy")}
           </Link>
-          <Link href="/terms" className="text-muted-foreground hover:text-foreground">
-            {t("Terms of Service")}
-          </Link>
-          <Link href="/privacy" className="text-muted-foreground hover:text-foreground">
-            {t("Privacy Policy")}
-          </Link>
-          <Link href="/login" className="text-muted-foreground hover:text-foreground">
-            {t("Sign in")}
+          <Link href="/terms" className="hover:text-ink">
+            {t("Terms")}
           </Link>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-x-1 border-t border-border/40 px-4 py-4 text-xs text-muted-foreground sm:px-6">
-        <span>© {new Date().getFullYear()} Elevora ·</span>
-        <XaeonProductCredit compact />
+        <p className="text-[12.5px] text-ink-muted">© 2026 Xaeon Software Solutions</p>
       </div>
     </footer>
   );

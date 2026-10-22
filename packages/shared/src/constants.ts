@@ -49,6 +49,49 @@ export type TenantStatus = (typeof TENANT_STATUSES)[number];
 export const EMPLOYEE_STATUSES = ["active", "inactive"] as const;
 export type EmployeeStatus = (typeof EMPLOYEE_STATUSES)[number];
 
+export const PRESENCE_MODES = ["fixed_zone", "mobile"] as const;
+export type PresenceMode = (typeof PRESENCE_MODES)[number];
+
+export const EMPLOYEE_DOCUMENT_TYPES = [
+  "passport",
+  "residency",
+  "driving_license",
+  "contract",
+  "other",
+] as const;
+export type EmployeeDocumentType = (typeof EMPLOYEE_DOCUMENT_TYPES)[number];
+
+export const SKILL_LEVELS = ["basic", "competent", "strong"] as const;
+export type SkillLevel = (typeof SKILL_LEVELS)[number];
+
+export const SKILL_LEVEL_RANK: Record<SkillLevel, number> = {
+  basic: 1,
+  competent: 2,
+  strong: 3,
+};
+
+export const TRAINING_REASONS = ["gap", "strengthen"] as const;
+export type TrainingReason = (typeof TRAINING_REASONS)[number];
+
+export const TRAINING_STATUSES = [
+  "proposed",
+  "in_progress",
+  "completed",
+  "cancelled",
+] as const;
+export type TrainingStatus = (typeof TRAINING_STATUSES)[number];
+
+export const ASSESSMENT_PERIODS = ["weekly", "monthly"] as const;
+export type AssessmentPeriod = (typeof ASSESSMENT_PERIODS)[number];
+
+export const PERFORMANCE_REPORT_CADENCES = [
+  "daily",
+  "weekly",
+  "monthly",
+] as const;
+export type PerformanceReportCadence =
+  (typeof PERFORMANCE_REPORT_CADENCES)[number];
+
 export const KPI_TYPES = ["numeric", "qualitative"] as const;
 export type KpiType = (typeof KPI_TYPES)[number];
 

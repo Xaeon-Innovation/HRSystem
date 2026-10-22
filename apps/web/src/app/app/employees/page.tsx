@@ -2,19 +2,53 @@
 
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { Plus, Search, Settings2, X } from "lucide-react";
+import {
+  Car,
+  Download,
+  MapPin,
+  Plus,
+  Search,
+  Settings2,
+  Upload,
+  Users,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserAvatar } from "@/components/user-avatar";
-import { OrgSetupPanel } from "@/components/employees/org-setup-panel";
 import { LoginCredentialsPanel } from "@/components/employees/login-credentials";
+import { EmployeeHrPanel } from "@/components/employees/employee-hr-panel";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { cn } from "@/lib/utils";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import {
+  Chip,
+  EmptyState,
+  Notice,
+  PageHeader,
+  PersonCell,
+  PillSelect,
+  Segmented,
+  StatusText,
+  Steps,
+} from "@/components/elevora";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  DataTableWrap,
+} from "@/components/ui/table";
 import {
   DEFAULT_GEOFENCE_RADIUS_METERS,
   MAX_GEOFENCE_RADIUS_METERS,
@@ -31,6 +65,7 @@ import {
   type EmployeeCsvFieldKey,
   type EmployeeDraft,
   type ParsedEmployeeRow,
+  type PresenceMode,
   type SystemModuleRole,
 } from "@hr/shared";
 import { t } from "@/i18n";
@@ -73,6 +108,7 @@ type Employee = {
   geofenceLat: number | null;
   geofenceLng: number | null;
   geofenceRadiusMeters: number | null;
+  presenceMode?: PresenceMode;
 };
 
 type JobRoleSummary = {
@@ -99,8 +135,40 @@ const ROLE_LABEL: Record<string, string> = {
   tenant_admin: "Admin",
 };
 
-const PILL =
-  "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium";
+/** PillSelect face with a native <select> laid over it (works on touch). */
+function FilterPill({
+  label,
+  ariaLabel,
+  value,
+  onChange,
+  options,
+  disabled,
+}: {
+  label: string;
+  ariaLabel: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: { value: string; label: string }[];
+  disabled?: boolean;
+}) {
+  return (
+    <PillSelect label={label} className="py-1.5">
+      <select
+        aria-label={ariaLabel}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </PillSelect>
+  );
+}
 
 function JobRolePicker({
   roles,
@@ -331,30 +399,12 @@ function downloadRosterCsv(
   URL.revokeObjectURL(url);
 }
 
-function StatusPill({ status }: { status: string }) {
-  const active = status === "active";
-  return (
-    <span
-      className={cn(
-        PILL,
-        "uppercase tracking-wide",
-        active
-          ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:ring-emerald-800"
-          : "bg-slate-100 text-slate-600 ring-1 ring-slate-200 dark:bg-slate-800/80 dark:text-slate-400 dark:ring-slate-700",
-      )}
-    >
-      {status}
-    </span>
-  );
-}
-
 function Modal({
   open,
   onOpenChange,
   title,
   description,
   children,
-  wide,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -364,46 +414,23 @@ function Modal({
   wide?: boolean;
 }) {
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[60] bg-foreground/30 backdrop-blur-[2px]" />
-        <DialogPrimitive.Content
-          className={cn(
-            "fixed left-1/2 top-1/2 z-[61] flex max-h-[min(90dvh,46rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl border bg-card shadow-2xl",
-            wide
-              ? "w-[min(52rem,calc(100vw-2rem))]"
-              : "w-[min(42rem,calc(100vw-2rem))]",
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="max-w-2xl">
+        <SheetHeader>
+          <SheetTitle>{title}</SheetTitle>
+          {description ? (
+            <SheetDescription>{description}</SheetDescription>
+          ) : (
+            <SheetDescription className="sr-only">{title}</SheetDescription>
           )}
-        >
-          <div className="flex items-start justify-between gap-3 border-b px-5 py-4 pr-12">
-            <div>
-              <DialogPrimitive.Title className="text-lg font-semibold tracking-tight">
-                {title}
-              </DialogPrimitive.Title>
-              {description ? (
-                <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">
-                  {description}
-                </DialogPrimitive.Description>
-              ) : (
-                <DialogPrimitive.Description className="sr-only">
-                  {title}
-                </DialogPrimitive.Description>
-              )}
-            </div>
-            <DialogPrimitive.Close className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
-              <X className="h-4 w-4" />
-              <span className="sr-only">{t("Close")}</span>
-            </DialogPrimitive.Close>
-          </div>
-          <div className="flex-1 overflow-y-auto px-5 py-4">{children}</div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+        </SheetHeader>
+        <SheetBody>{children}</SheetBody>
+      </SheetContent>
+    </Sheet>
   );
 }
 
 export default function EmployeesPage() {
-  const redesign = useUiRedesign();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [rosterReady, setRosterReady] = useState(false);
   const [org, setOrg] = useState<Branch[]>([]);
@@ -415,6 +442,12 @@ export default function EmployeesPage() {
   );
   const [editSystemRoles, setEditSystemRoles] = useState<SystemModuleRole[]>([]);
   const [q, setQ] = useState("");
+  const [branchFilter, setBranchFilter] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [presenceFilter, setPresenceFilter] = useState<
+    "all" | PresenceMode
+  >("all");
   const [form, setForm] = useState<EmployeeDraft>(emptyEmployeeDraft);
   const [branchId, setBranchId] = useState("");
   const [createManagerId, setCreateManagerId] = useState("");
@@ -433,6 +466,10 @@ export default function EmployeesPage() {
   const [zoneRadius, setZoneRadius] = useState(
     String(DEFAULT_GEOFENCE_RADIUS_METERS),
   );
+  const [createPresenceMode, setCreatePresenceMode] =
+    useState<PresenceMode>("fixed_zone");
+  const [editPresenceMode, setEditPresenceMode] =
+    useState<PresenceMode>("fixed_zone");
   const [zoneBusy, setZoneBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
@@ -460,6 +497,7 @@ export default function EmployeesPage() {
         ...e,
         jobRoles: e.jobRoles ?? [],
         systemModuleRoles: e.systemModuleRoles ?? [],
+        presenceMode: e.presenceMode ?? "fixed_zone",
       })),
     );
     setOrg(branchData.branches);
@@ -508,6 +546,7 @@ export default function EmployeesPage() {
     setEditStatus(emp.status === "inactive" ? "inactive" : "active");
     setEditJobRoleIds((emp.jobRoles ?? []).map((r) => r.id));
     setEditSystemRoles(emp.systemModuleRoles ?? []);
+    setEditPresenceMode(emp.presenceMode ?? "fixed_zone");
     setZoneLat(emp.geofenceLat != null ? String(emp.geofenceLat) : "");
     setZoneLng(emp.geofenceLng != null ? String(emp.geofenceLng) : "");
     setZoneRadius(
@@ -586,7 +625,10 @@ export default function EmployeesPage() {
       );
       return;
     }
-    const zone = parseZoneFields();
+    const zone =
+      editPresenceMode === "mobile"
+        ? ({ ok: true as const, lat: null, lng: null, radius: null })
+        : parseZoneFields();
     if (!zone.ok) {
       setError(zone.message);
       return;
@@ -616,6 +658,7 @@ export default function EmployeesPage() {
           jobRoleIds: editJobRoleIds,
           systemModuleRoles:
             payload.role === "tenant_admin" ? [] : editSystemRoles,
+          presenceMode: editPresenceMode,
           geofenceLat: zone.lat,
           geofenceLng: zone.lng,
           geofenceRadiusMeters: zone.radius,
@@ -689,6 +732,14 @@ export default function EmployeesPage() {
           jobRoleIds: createJobRoleIds,
           systemModuleRoles:
             payload.role === "tenant_admin" ? [] : createSystemRoles,
+          presenceMode: createPresenceMode,
+          ...(createPresenceMode === "mobile"
+            ? {
+                geofenceLat: null,
+                geofenceLng: null,
+                geofenceRadiusMeters: null,
+              }
+            : {}),
         }),
       });
       setForm(emptyEmployeeDraft());
@@ -696,6 +747,7 @@ export default function EmployeesPage() {
       setCreateManagerId("");
       setCreateJobRoleIds([]);
       setCreateSystemRoles([]);
+      setCreatePresenceMode("fixed_zone");
       setAddOpen(false);
       setSuccess(`${res.employee.name} was added to the roster.`);
       if (res.temporaryPassword) {
@@ -752,6 +804,28 @@ export default function EmployeesPage() {
       });
     });
   }
+
+  const visibleEmployees = useMemo(
+    () =>
+      employees.filter((emp) => {
+        if (branchFilter && emp.branchId !== branchFilter) return false;
+        if (
+          roleFilter &&
+          !(emp.jobRoles ?? []).some((r) => r.id === roleFilter)
+        ) {
+          return false;
+        }
+        if (statusFilter && emp.status !== statusFilter) return false;
+        if (
+          presenceFilter !== "all" &&
+          (emp.presenceMode ?? "fixed_zone") !== presenceFilter
+        ) {
+          return false;
+        }
+        return true;
+      }),
+    [employees, branchFilter, roleFilter, statusFilter, presenceFilter],
+  );
 
   const incompleteCount = useMemo(
     () => reviewRows?.filter((row) => !isEmployeeDraftComplete(row.data)).length ?? 0,
@@ -811,221 +885,300 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{t("Employees")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {redesign
-              ? t("Roster first. Job roles and branches live under Org setup.")
-              : t("Roster, access, and work zones, one table, less clutter.")}
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-          {redesign ? (
+      <PageHeader
+        title={t("Employees")}
+        subtitle={
+          rosterReady
+            ? `${employees.length} ${employees.length === 1 ? "person" : "people"} · ${org.length} ${org.length === 1 ? "branch" : "branches"}`
+            : t("Roster first. Job roles and branches live under Org setup.")
+        }
+        actions={
+          <>
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href="/app/settings/org">
                 <Settings2 className="h-4 w-4" />
-                {t("Org setup")}</Link>
+                {t("Org setup")}
+              </Link>
             </Button>
-          ) : null}
-          {redesign ? (
             <Button
               variant="outline"
               className="w-full sm:w-auto"
               onClick={() => openAdd("csv")}
             >
-              {t("Import CSV")}</Button>
-          ) : null}
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={!rosterReady || employees.length === 0}
-            onClick={() =>
-              downloadRosterCsv(
-                employees.map((emp) => ({
-                  name: emp.name,
-                  email: emp.email,
-                  phone: emp.phone,
-                  jobTitle: emp.jobTitle,
-                  status: emp.status,
-                  branch: branchNameOf(emp.branchId),
-                })),
-              )
-            }
-          >
-            {t("Export CSV")}</Button>
-          <Button className="w-full sm:w-auto" onClick={() => openAdd("one")}>
-            <Plus className="h-4 w-4" />
-            {t("Add employee")}</Button>
-        </div>
-      </div>
+              <Upload className="h-4 w-4" />
+              {t("Import CSV")}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={!rosterReady || employees.length === 0}
+              onClick={() =>
+                downloadRosterCsv(
+                  employees.map((emp) => ({
+                    name: emp.name,
+                    email: emp.email,
+                    phone: emp.phone,
+                    jobTitle: emp.jobTitle,
+                    status: emp.status,
+                    branch: branchNameOf(emp.branchId),
+                  })),
+                )
+              }
+            >
+              <Download className="h-4 w-4" />
+              {t("Export CSV")}
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={() => openAdd("one")}>
+              <Plus className="h-4 w-4" />
+              {t("Add employee")}
+            </Button>
+          </>
+        }
+      />
 
-      {pageError ? <p className="text-sm text-destructive">{pageError}</p> : null}
-      {success ? <p className="text-sm text-emerald-700">{success}</p> : null}
+      {pageError ? <Notice tone="warn">{pageError}</Notice> : null}
+      {success ? <Notice tone="accent">{success}</Notice> : null}
       {createdCreds.length > 0 ? (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{t("Temporary passwords")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <p className="text-muted-foreground">
-              {t("Share these once. Employees should change them after first sign-in.")}</p>
-            {createdCreds.map((c) => (
-              <p key={c.id}>
-                <span className="font-medium">{c.name}</span> ({c.email}):{" "}
-                <code className="rounded bg-secondary px-1.5 py-0.5">
-                  {c.temporaryPassword}
-                </code>
-              </p>
-            ))}
-          </CardContent>
-        </Card>
+        <Notice tone="warn" className="space-y-1">
+          <p className="font-semibold">{t("Temporary passwords")}</p>
+          <p className="text-ink-muted">
+            {t("Share these once. Employees should change them after first sign-in.")}</p>
+          {createdCreds.map((c) => (
+            <p key={c.id} className="break-all">
+              <span className="font-medium">{c.name}</span> ({c.email}):{" "}
+              <code className="rounded-sm bg-surface px-1.5 py-0.5">
+                {c.temporaryPassword}
+              </code>
+            </p>
+          ))}
+        </Notice>
       ) : null}
 
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <CardTitle className="text-base">{t("Roster")}</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {!rosterReady
-                  ? t("Loading…")
-                  : `${employees.length} ${employees.length === 1 ? "person" : "people"}`}
-              </p>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <div className="relative min-w-0 flex-1 sm:w-64">
-                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="h-9 w-full pl-8"
-                  placeholder={t("Search name, email, phone…")}
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") void load(q);
-                  }}
-                  disabled={!rosterReady}
-                />
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => load(q)}
-                disabled={!rosterReady}
-              >
-                {t("Search")}</Button>
-            </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="relative w-full min-w-0 sm:max-w-[280px]">
+          <Search className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+          <Input
+            className="h-9 w-full ps-9"
+            placeholder={t("Search name, email or phone")}
+            aria-label={t("Search employees")}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void load(q);
+            }}
+            disabled={!rosterReady}
+          />
+        </div>
+        <FilterPill
+          ariaLabel={t("Branch")}
+          label={
+            branchFilter ? branchNameOf(branchFilter) : t("All branches")
+          }
+          value={branchFilter}
+          onChange={setBranchFilter}
+          disabled={!rosterReady}
+          options={[
+            { value: "", label: t("All branches") },
+            ...org.map((b) => ({ value: b.id, label: b.name })),
+          ]}
+        />
+        <FilterPill
+          ariaLabel={t("Job role")}
+          label={
+            roleFilter
+              ? (jobRoles.find((r) => r.id === roleFilter)?.name ??
+                t("Any role"))
+              : t("Any role")
+          }
+          value={roleFilter}
+          onChange={setRoleFilter}
+          disabled={!rosterReady}
+          options={[
+            { value: "", label: t("Any role") },
+            ...jobRoles.map((r) => ({ value: r.id, label: r.name })),
+          ]}
+        />
+        <FilterPill
+          ariaLabel={t("Status")}
+          label={
+            statusFilter === "active"
+              ? `${t("Status")}: ${t("Active")}`
+              : statusFilter === "inactive"
+                ? `${t("Status")}: ${t("Inactive")}`
+                : `${t("Status")}: ${t("All")}`
+          }
+          value={statusFilter}
+          onChange={setStatusFilter}
+          disabled={!rosterReady}
+          options={[
+            { value: "", label: t("All") },
+            { value: "active", label: t("Active") },
+            { value: "inactive", label: t("Inactive") },
+          ]}
+        />
+        <Segmented
+          aria-label={t("Presence mode")}
+          className="max-w-full overflow-x-auto"
+          value={presenceFilter}
+          onChange={setPresenceFilter}
+          options={[
+            { value: "all", label: t("All") },
+            { value: "fixed_zone", label: t("Fixed zone") },
+            { value: "mobile", label: t("Mobile") },
+          ]}
+        />
+      </div>
+
+      <section className="overflow-hidden rounded-lg border border-line bg-surface p-0">
+        {!rosterReady ? (
+          <div className="px-4 pb-6 pt-2">
+            <PageSkeleton dense />
           </div>
-        </CardHeader>
-        <CardContent className="overflow-x-auto px-0 pb-0">
-          {!rosterReady ? (
-            <div className="px-4 pb-6 pt-2">
-              <PageSkeleton dense />
-            </div>
-          ) : employees.length === 0 ? (
-            <div className="px-4 pb-6 pt-2 text-center">
-              <p className="text-sm font-medium">{t("No employees yet")}</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("Add one person or import a CSV to build the roster.")}</p>
-              <div className="mt-4 flex justify-center gap-2">
+        ) : employees.length === 0 ? (
+          <EmptyState
+            icon={<Users className="h-5 w-5" />}
+            title={t("No employees yet")}
+            subtitle={t("Add one person or import a CSV to build the roster.")}
+            action={
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button size="sm" onClick={() => openAdd("one")}>
-                  {t("Add employee")}</Button>
+                  {t("Add employee")}
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => openAdd("csv")}
                 >
-                  {t("Import CSV")}</Button>
+                  {t("Import CSV")}
+                </Button>
               </div>
-            </div>
-          ) : (
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="border-y bg-secondary/50 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-2.5 font-medium">{t("Employee")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Title")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Roles")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Branch")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Manager")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Access")}</th>
-                  <th className="px-3 py-2.5 font-medium">{t("Status")}</th>
-                  <th className="px-4 py-2.5 font-medium">
+            }
+          />
+        ) : visibleEmployees.length === 0 ? (
+          <EmptyState
+            icon={<Search className="h-5 w-5" />}
+            title={t("No matching employees")}
+            subtitle={t("Try a different search or clear a filter.")}
+            action={
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setBranchFilter("");
+                  setRoleFilter("");
+                  setStatusFilter("");
+                  setPresenceFilter("all");
+                }}
+              >
+                {t("Clear filters")}
+              </Button>
+            }
+          />
+        ) : (
+          <DataTableWrap>
+            <DataTable className="min-w-[860px]">
+              <DataTableHead>
+                <DataTableRow className="hover:bg-transparent">
+                  <DataTableHeaderCell>{t("Employee")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Title")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Branch")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Manager")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Access")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Presence")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Status")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>
                     <span className="sr-only">{t("Actions")}</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.map((emp) => {
+                  </DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
+                {visibleEmployees.map((emp) => {
                   const roles = emp.jobRoles ?? [];
-                  const shown = roles.slice(0, 2);
-                  const extra = roles.length - shown.length;
+                  const mobile =
+                    (emp.presenceMode ?? "fixed_zone") === "mobile";
+                  const complete = profileComplete(emp);
                   return (
-                    <tr
+                    <DataTableRow
                       key={emp.id}
-                      className="cursor-pointer border-b last:border-0 hover:bg-accent/30"
+                      className="cursor-pointer"
                       onClick={() => openEditor(emp)}
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex min-w-0 items-center gap-3">
-                          <UserAvatar
-                            name={emp.name}
-                            avatarUrl={emp.avatarUrl}
-                            size="sm"
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate font-medium">{emp.name}</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                              {emp.email}
-                              {emp.phone ? ` · ${emp.phone}` : ""}
-                            </p>
-                          </div>
+                      <DataTableCell>
+                        <PersonCell
+                          name={emp.name}
+                          subtitle={emp.email}
+                          avatar={
+                            <UserAvatar
+                              name={emp.name}
+                              avatarUrl={emp.avatarUrl}
+                              size="sm"
+                            />
+                          }
+                        />
+                      </DataTableCell>
+                      <DataTableCell>
+                        <div className="text-sm text-ink-2">
+                          {emp.jobTitle ?? "—"}
                         </div>
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
-                        {emp.jobTitle ?? "-"}
-                      </td>
-                      <td className="px-3 py-3">
-                        {roles.length === 0 ? (
-                          <span className="text-muted-foreground">-</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {shown.map((role) => (
-                              <span
-                                key={role.id}
-                                className="rounded-full bg-secondary px-2 py-0.5 text-[11px] font-medium"
-                              >
-                                {role.name}
-                              </span>
-                            ))}
-                            {extra > 0 ? (
-                              <span className="text-[11px] text-muted-foreground">
-                                +{extra}
-                              </span>
-                            ) : null}
+                        {roles.length > 0 ? (
+                          <div className="max-w-[14rem] truncate text-xs text-ink-muted">
+                            {roles.map((r) => r.name).join(", ")}
                           </div>
-                        )}
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
+                        ) : null}
+                      </DataTableCell>
+                      <DataTableCell className="text-sm text-ink-2">
                         {branchNameOf(emp.branchId)}
-                      </td>
-                      <td className="px-3 py-3 text-muted-foreground">
+                      </DataTableCell>
+                      <DataTableCell className="text-sm text-ink-muted">
                         {managerNameOf(emp.managerId)}
-                      </td>
-                      <td className="px-3 py-3">
-                        {ROLE_LABEL[emp.role] ?? emp.role}
-                      </td>
-                      <td className="px-3 py-3">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <StatusPill status={emp.status} />
-                          {!profileComplete(emp) ? (
-                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-800">
-                              {t("Incomplete")}</span>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <div className="flex flex-wrap items-center gap-1">
+                          {emp.role === "tenant_admin" ? (
+                            <Chip tone="ink">{t("Admin")}</Chip>
+                          ) : (
+                            <Chip>
+                              {t(ROLE_LABEL[emp.role] ?? emp.role)}
+                            </Chip>
+                          )}
+                          {emp.role !== "tenant_admin"
+                            ? (emp.systemModuleRoles ?? []).map((r) => (
+                                <Chip key={r} tone="ok">
+                                  {SYSTEM_MODULE_ROLE_LABELS[r] ?? r}
+                                </Chip>
+                              ))
+                            : null}
+                        </div>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <span className="inline-flex items-center gap-1.5 text-sm text-ink-2">
+                          {mobile ? (
+                            <Car className="h-3.5 w-3.5" aria-hidden />
+                          ) : (
+                            <MapPin className="h-3.5 w-3.5" aria-hidden />
+                          )}
+                          {mobile ? t("Mobile") : t("Fixed zone")}
+                        </span>
+                      </DataTableCell>
+                      <DataTableCell>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <StatusText
+                            status={
+                              emp.status === "inactive"
+                                ? t("Inactive")
+                                : t("Active")
+                            }
+                          />
+                          {!complete ? (
+                            <span className="text-[11px] font-medium text-warn">
+                              {t("Incomplete")}
+                            </span>
                           ) : null}
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      </DataTableCell>
+                      <DataTableCell>
                         <div
-                          className="flex justify-end gap-2"
+                          className="flex items-center justify-end"
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Button
@@ -1034,27 +1187,18 @@ export default function EmployeesPage() {
                             variant="outline"
                             onClick={() => openEditor(emp)}
                           >
-                            {profileComplete(emp) ? t("Edit") : t("Complete")}
+                            {complete ? t("Open") : t("Complete")}
                           </Button>
-                          <a
-                            href={`/app/analytics/employees/${emp.id}`}
-                            className="inline-flex h-8 items-center rounded-md px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-                          >
-                            {t("Analytics")}</a>
                         </div>
-                      </td>
-                    </tr>
+                      </DataTableCell>
+                    </DataTableRow>
                   );
                 })}
-              </tbody>
-            </table>
-          )}
-        </CardContent>
-      </Card>
-
-      {!redesign ? (
-        <OrgSetupPanel layout="details" onChanged={() => void load()} />
-      ) : null}
+              </DataTableBody>
+            </DataTable>
+          </DataTableWrap>
+        )}
+      </section>
 
       <Modal
         open={addOpen}
@@ -1067,32 +1211,20 @@ export default function EmployeesPage() {
         title={t("Add employee")}
         description="Create one person, or import a roster from CSV."
       >
-        <div className="mb-4 inline-flex rounded-lg bg-secondary p-1 text-sm">
-          <button
-            type="button"
-            className={cn(
-              "rounded-md px-3 py-1.5 font-medium",
-              addMode === "one"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground",
-            )}
-            onClick={() => setAddMode("one")}
-          >
-            {t("One person")}</button>
-          <button
-            type="button"
-            className={cn(
-              "rounded-md px-3 py-1.5 font-medium",
-              addMode === "csv"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground",
-            )}
-            onClick={() => setAddMode("csv")}
-          >
-            {t("Import CSV")}</button>
-        </div>
+        <Segmented
+          aria-label={t("Add mode")}
+          className="mb-4"
+          value={addMode}
+          onChange={setAddMode}
+          options={[
+            { value: "one", label: t("One person") },
+            { value: "csv", label: t("Import CSV") },
+          ]}
+        />
         {dialogError && addOpen ? (
-          <p className="mb-3 text-sm text-destructive">{dialogError}</p>
+          <Notice tone="warn" className="mb-3">
+            {dialogError}
+          </Notice>
         ) : null}
 
         {addMode === "one" ? (
@@ -1153,7 +1285,29 @@ export default function EmployeesPage() {
                 onChange={setCreateSystemRoles}
               />
             </div>
-            <div className="flex justify-end gap-2 md:col-span-2">
+            <div className="space-y-1 md:col-span-2">
+              <Label>{t("Presence mode")}</Label>
+              <select
+                className={selectClass}
+                value={createPresenceMode}
+                onChange={(e) =>
+                  setCreatePresenceMode(
+                    e.target.value === "mobile" ? "mobile" : "fixed_zone",
+                  )
+                }
+              >
+                <option value="fixed_zone">{t("Fixed work zone")}</option>
+                <option value="mobile">
+                  {t("Mobile (no zone, for example drivers)")}
+                </option>
+              </select>
+              <p className="text-xs text-muted-foreground">
+                {createPresenceMode === "mobile"
+                  ? t("Mobile employees clock in anywhere; no geofence is stored.")
+                  : t("Set a work zone later on the map or in this profile.")}
+              </p>
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end md:col-span-2">
               <Button
                 type="button"
                 variant="outline"
@@ -1168,17 +1322,31 @@ export default function EmployeesPage() {
           </form>
         ) : (
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              {t("Required columns: name, email, phone, role (employee or tenant_admin), jobTitle, nationalId, dateOfBirth, address, hireDate. Optional: emergencyContactName, emergencyContactPhone, branchCode.")}</p>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={downloadTemplate}
-              >
-                {t("Download template")}</Button>
-              <label className="inline-flex h-10 cursor-pointer items-center rounded-md border border-input bg-background px-4 text-sm font-medium hover:bg-accent">
-                {t("Upload CSV")}<input
+            <Steps
+              steps={[
+                { id: "upload", label: t("Upload") },
+                { id: "review", label: t("Review") },
+                { id: "commit", label: t("Commit") },
+              ]}
+              currentIndex={
+                importing ? 2 : reviewRows ? 1 : 0
+              }
+            />
+            <div className="rounded-xl border-[1.5px] border-dashed border-line-strong p-5 text-center">
+              <span className="mx-auto mb-2 grid h-11 w-11 place-items-center rounded-[9px] bg-surface-2 text-ink-2">
+                <Upload className="h-5 w-5" aria-hidden />
+              </span>
+              <p className="text-sm font-semibold text-ink">
+                {t("Drop a CSV or paste rows")}
+              </p>
+              <p className="mt-1 text-xs text-ink-muted">
+                {csvFileName
+                  ? `${csvFileName}${reviewRows ? ` · ${reviewRows.length} ${t("rows detected")}` : ""}`
+                  : t("Upload a file or paste CSV below.")}
+              </p>
+              <label className="mt-3 inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-md border border-line-strong bg-surface px-4 text-sm font-medium text-ink hover:bg-surface-2 sm:w-auto">
+                {t("Upload CSV")}
+                <input
                   type="file"
                   accept=".csv,text/csv"
                   className="hidden"
@@ -1195,11 +1363,16 @@ export default function EmployeesPage() {
                 />
               </label>
             </div>
-            {csvFileName ? (
-              <p className="text-xs text-muted-foreground">
-                {t("File:")}{csvFileName}
-              </p>
-            ) : null}
+            <p className="text-xs text-ink-muted">
+              {t("Required columns: name, email, phone, role (employee or tenant_admin), jobTitle, nationalId, dateOfBirth, address, hireDate. Optional: emergencyContactName, emergencyContactPhone, branchCode.")}</p>
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-accent-ink hover:underline"
+              onClick={downloadTemplate}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              {t("Download template")}
+            </button>
             <textarea
               className="min-h-24 w-full rounded-md border border-input bg-background p-3 text-sm"
               value={csvText}
@@ -1219,12 +1392,14 @@ export default function EmployeesPage() {
             {reviewRows ? (
               <div className="space-y-3">
                 {incompleteCount > 0 ? (
-                  <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
+                  <Notice tone="warn">
                     {incompleteCount} of {reviewRows.length} {t("row")}{reviewRows.length === 1 ? "" : "s"}{" "}
-                    {incompleteCount === 1 ? "is" : "are"} {t("missing required information.")}</p>
+                    {incompleteCount === 1 ? "is" : "are"} {t("missing required information.")}
+                  </Notice>
                 ) : (
-                  <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-200">
-                    {t("All")}{reviewRows.length} {t("row")}{reviewRows.length === 1 ? "" : "s"} {t("look complete.")}</p>
+                  <Notice tone="accent">
+                    {t("All")}{reviewRows.length} {t("row")}{reviewRows.length === 1 ? "" : "s"} {t("look complete.")}
+                  </Notice>
                 )}
                 <div className="space-y-3">
                   {reviewRows.map((row, index) => {
@@ -1232,10 +1407,10 @@ export default function EmployeesPage() {
                     return (
                       <div
                         key={`${row.line}-${index}`}
-                        className={`rounded-lg border p-3 ${
+                        className={`rounded-sm border p-3 ${
                           incomplete
-                            ? "border-amber-300 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40"
-                            : "border-border"
+                            ? "border-warn/40 bg-warn/10"
+                            : "border-line"
                         }`}
                       >
                         <div className="mb-2 flex items-center justify-between gap-2">
@@ -1321,7 +1496,7 @@ export default function EmployeesPage() {
                     );
                   })}
                 </div>
-                <div className="flex justify-end gap-2">
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button
                     type="button"
                     variant="outline"
@@ -1376,11 +1551,12 @@ export default function EmployeesPage() {
         {editing ? (
           <div className="space-y-4">
             {dialogError && editId ? (
-              <p className="text-sm text-destructive">{dialogError}</p>
+              <Notice tone="warn">{dialogError}</Notice>
             ) : null}
             {!isEmployeeDraftComplete(editDraft) ? (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-200">
-                {t("Fill the highlighted fields to complete this profile.")}</p>
+              <Notice tone="warn">
+                {t("Fill the highlighted fields to complete this profile.")}
+              </Notice>
             ) : null}
             <LoginCredentialsPanel
               employeeId={editing.id}
@@ -1451,8 +1627,33 @@ export default function EmployeesPage() {
                   onChange={setEditSystemRoles}
                 />
               </div>
+              <div className="space-y-1 md:col-span-2">
+                <Label>{t("Presence mode")}</Label>
+                <select
+                  className={selectClass}
+                  value={editPresenceMode}
+                  onChange={(e) =>
+                    setEditPresenceMode(
+                      e.target.value === "mobile" ? "mobile" : "fixed_zone",
+                    )
+                  }
+                >
+                  <option value="fixed_zone">{t("Fixed work zone")}</option>
+                  <option value="mobile">
+                    {t("Mobile (no zone, for example drivers)")}
+                  </option>
+                </select>
+              </div>
             </div>
-            <div className="rounded-lg border bg-secondary/30 p-3">
+            {editPresenceMode === "mobile" ? (
+              <div className="rounded-sm border border-line bg-surface-2 p-3">
+                <p className="text-sm font-medium">{t("Work zone")}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t("Mobile employees have no work zone. Saving clears any stored geofence.")}
+                </p>
+              </div>
+            ) : (
+            <div className="rounded-sm border border-line bg-surface-2 p-3">
               <p className="mb-2 text-sm font-medium">{t("Work zone")}</p>
               <p className="mb-3 text-xs text-muted-foreground">
                 {t("Clock-in/out must happen inside this radius. Leave blank for no zone.")}</p>
@@ -1497,16 +1698,29 @@ export default function EmployeesPage() {
                 </Button>
               ) : null}
             </div>
-            <div className="flex justify-end gap-2">
+            )}
+            <EmployeeHrPanel
+              employeeId={editing.id}
+              jobRoles={editing.jobRoles ?? []}
+            />
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={`/app/analytics/employees/${editing.id}`}>
+                  {t("Analytics")}
+                </Link>
+              </Button>
               <Button
                 type="button"
                 variant="outline"
+                className="w-full sm:w-auto"
                 disabled={editSaving}
                 onClick={closeEditor}
               >
-                {t("Cancel")}</Button>
+                {t("Cancel")}
+              </Button>
               <Button
                 type="button"
+                className="w-full sm:w-auto"
                 disabled={editSaving}
                 onClick={() => void saveEditor(editing.id)}
               >

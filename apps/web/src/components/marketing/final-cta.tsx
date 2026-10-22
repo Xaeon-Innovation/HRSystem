@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { MarketingSection } from "@/components/marketing/section";
-import { Reveal } from "@/components/marketing/reveal";
 import { useLocale, useT } from "@/i18n/provider";
 import { cn } from "@/lib/utils";
+
+const STAIR = [
+  0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1,
+];
 
 export function FinalCta() {
   const t = useT();
@@ -14,48 +15,55 @@ export function FinalCta() {
   const isAr = locale === "ar";
 
   return (
-    <MarketingSection compact>
-      <Reveal>
-        <div className="relative mx-auto max-w-3xl overflow-hidden rounded-3xl border border-primary/30 bg-card/90 px-5 py-10 text-center shadow-[0_18px_50px_-20px_hsl(199_85%_32%/0.45)] sm:px-12 sm:py-14 dark:border-primary/35 dark:bg-card/60 dark:shadow-[0_18px_50px_-18px_hsl(192_70%_46%/0.4)]">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_hsl(199_85%_32%/0.18),_transparent_58%)] dark:bg-[radial-gradient(ellipse_at_top,_hsl(192_70%_50%/0.28),_transparent_60%)]"
-          />
-          <div className="relative" dir={isAr ? "rtl" : undefined}>
-            <p className="inline-flex max-w-full flex-wrap items-center justify-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              {t("14-day free trial · No credit card required")}
-            </p>
-            <h2 className="mt-5 font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-              {t("Ready to run your field team on Elevora?")}
-            </h2>
-            <p className="mx-auto mt-4 max-w-lg text-muted-foreground">
-              {t("Start a free trial in minutes, no credit card required.")}
-            </p>
-            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-              <Button
-                asChild
-                size="lg"
-                className="h-12 w-full px-8 text-base shadow-lg shadow-primary/35 hover:shadow-primary/50 sm:w-auto"
-              >
-                <Link href="/signup">
-                  {t("Start free trial")}
-                  <ArrowRight
-                    className={cn("ms-1 h-4 w-4", isAr && "-scale-x-100")}
-                  />
-                </Link>
-              </Button>
-              <Button
-                asChild
-                size="lg"
-                variant="outline"
-                className="h-12 w-full border-primary/25 bg-background/70 sm:w-auto"
-              >
-                <Link href="/pricing">{t("See pricing")}</Link>
-              </Button>
-            </div>
-          </div>
+    <section className="py-10 sm:py-14">
+      <div
+        className="relative overflow-hidden rounded-xl bg-ink px-6 py-11 text-primary-foreground sm:px-11 sm:py-12"
+        dir={isAr ? "rtl" : undefined}
+      >
+        <h2 className="relative z-10 max-w-xl text-[clamp(28px,3.5vw,34px)] font-semibold leading-[1.1] tracking-[-0.03em]">
+          {t("Try Elevora free for 14 days.")}
+        </h2>
+        <p className="relative z-10 mt-3 max-w-md text-sm text-primary-foreground/70 sm:text-[15px]">
+          {t(
+            "Every module unlocked during the trial. Invite your team in minutes.",
+          )}
+        </p>
+        <div className="relative z-10 mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <Button
+            asChild
+            size="lg"
+            variant="accent"
+            className="h-12 w-full px-7 text-base sm:w-auto"
+          >
+            <Link href="/signup">{t("Start free trial")}</Link>
+          </Button>
+          <Button
+            asChild
+            size="lg"
+            variant="outline"
+            className="h-12 w-full border-primary-foreground/30 bg-transparent px-7 text-base text-primary-foreground hover:bg-primary-foreground/10 sm:w-auto"
+          >
+            <Link href="/demo">{t("Book a demo")}</Link>
+          </Button>
         </div>
-      </Reveal>
-    </MarketingSection>
+
+        <div
+          className={cn(
+            "pointer-events-none absolute bottom-0 end-0 grid w-[120px] grid-cols-4 gap-1 p-4 opacity-80 sm:w-[160px]",
+          )}
+          aria-hidden
+        >
+          {STAIR.map((on, i) => (
+            <span
+              key={i}
+              className={cn(
+                "aspect-square rounded-[3px]",
+                on ? (i % 3 ? "hatch" : "hatch-soft") : "bg-transparent",
+              )}
+            />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }

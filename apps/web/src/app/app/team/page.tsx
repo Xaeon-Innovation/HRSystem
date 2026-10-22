@@ -1,11 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BarChart3, Users } from "lucide-react";
 import { api } from "@/lib/api";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
-import { cn } from "@/lib/utils";
+import {
+  EmptyState,
+  Notice,
+  PageHeader,
+  PersonCell,
+  Segmented,
+  StatBlock,
+  StatusText,
+} from "@/components/elevora";
+import { UserAvatar } from "@/components/user-avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  DataTableBody,
+  DataTableCell,
+  DataTableHead,
+  DataTableHeaderCell,
+  DataTableRow,
+  DataTableWrap,
+} from "@/components/ui/table";
 import { t } from "@/i18n";
+
+type PresenceFilter = "all" | "clocked_in" | "late" | "clocked_out" | "on_leave";
 
 type TeamStatus = "clocked_in" | "clocked_out" | "on_leave" | "unknown";
 
@@ -25,13 +47,6 @@ const STATUS_LABEL: Record<TeamStatus, string> = {
   unknown: "Unknown",
 };
 
-const STATUS_CLASS: Record<TeamStatus, string> = {
-  clocked_in: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300",
-  clocked_out: "bg-muted text-muted-foreground",
-  on_leave: "bg-sky-500/15 text-sky-800 dark:text-sky-300",
-  unknown: "bg-amber-500/15 text-amber-900 dark:text-amber-200",
-};
-
 function formatClockIn(iso: string | null | undefined) {
   if (!iso) return null;
   try {
@@ -42,6 +57,12 @@ function formatClockIn(iso: string | null | undefined) {
   } catch {
     return null;
   }
+}
+
+function statusForRow(m: TeamMember): string {
+  if (m.missedClockOut) return t("Missed clock-out");
+  if (m.late) return t("Late");
+  return STATUS_LABEL[m.status];
 }
 
 export default function TeamTodayPage() {
@@ -67,64 +88,181 @@ export default function TeamTodayPage() {
     };
   }, []);
 
+  const [filter, setFilter] = useState<PresenceFilter>("all");
+
+  const groups = useMemo(() => {
+    const list = team ?? [];
+    return {
+      clocked_in: list.filter((m) => m.status === "clocked_in"),
+      late: list.filter((m) => m.late),
+      clocked_out: list.filter((m) => m.status === "clocked_out"),
+      on_leave: list.filter((m) => m.status === "on_leave"),
+    };
+  }, [team]);
+
+  const visible = useMemo(() => {
+    const list = team ?? [];
+    return filter === "all" ? list : groups[filter];
+  }, [team, groups, filter]);
+
   if (team === null) {
     return <PageSkeleton dense />;
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex min-w-0 flex-col gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Team today")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Who is in, out, late, or on leave")}{day ? ` · ${day}` : ""}
-        </p>
-      </div>
+      <PageHeader
+        title={t("Team today")}
+        subtitle={
+          day
+            ? `${t("Who is in, out, late, or on leave")} · ${day}`
+            : t("Who is in, out, late, or on leave")
+        }
+        actions={
+          team.length > 0 ? (
+            <div className="max-w-full overflow-x-auto">
+              <Segmented<PresenceFilter>
+                aria-label={t("Status")}
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: "all", label: t("All") },
+                  { value: "clocked_in", label: t("Clocked in") },
+                  { value: "late", label: t("Late") },
+                  { value: "clocked_out", label: t("Clocked out") },
+                  { value: "on_leave", label: t("On leave") },
+                ]}
+                className="w-max"
+              />
+            </div>
+          ) : null
+        }
+      />
 
-      {error ? (
-        <p className="text-sm text-destructive">{error}</p>
+      {error ? <Notice tone="warn">{error}</Notice> : null}
+
+      {team.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {(
+            [
+              { key: "clocked_in", label: t("Clocked in") },
+              { key: "late", label: t("Late") },
+              { key: "clocked_out", label: t("Clocked out") },
+              { key: "on_leave", label: t("On leave") },
+            ] as const
+          ).map((s) => {
+            const members = groups[s.key];
+            return (
+              <div
+                key={s.key}
+                className="min-w-0 rounded-lg border border-line bg-surface p-4 shadow-sm"
+              >
+                <StatBlock label={s.label} value={String(members.length)} size="sm" />
+                <div className="mt-3 flex h-8 items-center">
+                  {members.length > 0 ? (
+                    <div className="flex items-center -space-x-2 rtl:space-x-reverse">
+                      {members.slice(0, 5).map((m) => (
+                        <UserAvatar
+                          key={m.id}
+                          name={m.name}
+                          size="sm"
+                          className="ring-2 ring-surface"
+                        />
+                      ))}
+                      {members.length > 5 ? (
+                        <span className="relative inline-grid h-8 w-8 place-items-center rounded-full bg-surface-2 text-[10px] font-semibold text-ink-2 ring-2 ring-surface">
+                          +{members.length - 5}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-ink-muted">—</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       ) : null}
 
       {team.length === 0 && !error ? (
-        <Card>
-          <CardContent className="py-8 text-sm text-muted-foreground">
-            {t("No direct reports to show for today.")}</CardContent>
-        </Card>
+        <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+          <EmptyState
+            icon={<Users className="h-5 w-5" />}
+            title={t("No direct reports to show for today.")}
+            subtitle={t("When your team clocks in, they will appear here.")}
+          />
+        </div>
       ) : (
-        <ul className="space-y-2">
-          {team.map((m) => {
-            const time = formatClockIn(m.clockInAt);
-            return (
-              <li key={m.id}>
-                <Card>
-                  <CardContent className="flex min-w-0 flex-col gap-2 py-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{m.name}</p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                        {time ? <span>{t("In")} {time}</span> : null}
-                        {m.late ? (
-                          <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 font-medium text-amber-900 dark:text-amber-200">
-                            {t("Late")}</span>
-                        ) : null}
-                        {m.missedClockOut ? (
-                          <span className="rounded-md bg-destructive/10 px-1.5 py-0.5 font-medium text-destructive">
-                            {t("Missed clock-out")}</span>
-                        ) : null}
-                      </div>
-                    </div>
-                    <span
-                      className={cn(
-                        "inline-flex w-fit shrink-0 rounded-md px-2 py-1 text-xs font-medium",
-                        STATUS_CLASS[m.status],
-                      )}
-                    >
-                      {STATUS_LABEL[m.status]}
-                    </span>
-                  </CardContent>
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
+          <DataTableWrap>
+            <DataTable>
+              <DataTableHead>
+                <DataTableRow className="border-b border-line hover:bg-transparent">
+                  <DataTableHeaderCell>{t("Employee")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Clock-in")}</DataTableHeaderCell>
+                  <DataTableHeaderCell>{t("Status")}</DataTableHeaderCell>
+                  <DataTableHeaderCell className="w-12">
+                    <span className="sr-only">{t("Analytics")}</span>
+                  </DataTableHeaderCell>
+                </DataTableRow>
+              </DataTableHead>
+              <DataTableBody>
+                {visible.length === 0 ? (
+                  <DataTableRow className="hover:bg-transparent">
+                    <DataTableCell colSpan={4} className="py-8 text-center text-ink-muted">
+                      {t("No one matches this filter.")}
+                    </DataTableCell>
+                  </DataTableRow>
+                ) : null}
+                {visible.map((m) => {
+                  const time = formatClockIn(m.clockInAt);
+                  const subtitle = [
+                    time ? `${t("In")} ${time}` : null,
+                    m.late ? t("Late") : null,
+                    m.missedClockOut ? t("Missed clock-out") : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <DataTableRow key={m.id}>
+                      <DataTableCell>
+                        <PersonCell
+                          name={m.name}
+                          subtitle={subtitle || undefined}
+                          avatar={
+                            <UserAvatar name={m.name} size="sm" />
+                          }
+                        />
+                      </DataTableCell>
+                      <DataTableCell className="text-ink-muted">
+                        {time ?? "—"}
+                      </DataTableCell>
+                      <DataTableCell>
+                        <StatusText status={statusForRow(m)} />
+                      </DataTableCell>
+                      <DataTableCell>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 shrink-0"
+                        >
+                          <Link
+                            href={`/app/analytics/employees/${m.id}`}
+                            aria-label={t("Analytics")}
+                          >
+                            <BarChart3 className="h-4 w-4" />
+                          </Link>
+                        </Button>
+                      </DataTableCell>
+                    </DataTableRow>
+                  );
+                })}
+              </DataTableBody>
+            </DataTable>
+          </DataTableWrap>
+        </div>
       )}
     </div>
   );

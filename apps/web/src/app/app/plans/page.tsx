@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   PLAN_FEATURE_KEYS,
   PLAN_FEATURE_LABELS,
+  derivePackFlags,
+  type ModuleKey,
   type PlanFeatureKey,
 } from "@hr/shared";
 import { api } from "@/lib/api";
@@ -11,6 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Chip, Notice, PageHeader } from "@/components/elevora";
+import { Check, Plus } from "lucide-react";
 import { t } from "@/i18n";
 
 type PlanFeatures = Partial<
@@ -242,38 +246,106 @@ export default function PlansPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-semibold">{t("Plans")}</h1>
-          <p className="text-sm text-muted-foreground">
-            {t("Subscription catalog (Polar sync optional)")}
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void syncAllPolar(false)}
-          >
-            {t("Sync all to Polar")}
-          </Button>
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void syncAllPolar(true)}
-          >
-            {t("Sync all (update prices)")}
-          </Button>
-        </div>
-      </div>
-      <p className="text-xs text-muted-foreground">
+      <PageHeader
+        title={t("Plans")}
+        subtitle={t("Catalog and module coverage")}
+        actions={
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={() => void syncAllPolar(false)}
+            >
+              {t("Sync all to Polar")}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={() => void syncAllPolar(true)}
+            >
+              {t("Sync all (update prices)")}
+            </Button>
+            <Button
+              className="w-full sm:w-auto"
+              onClick={() => {
+                const el = document.getElementById("create-plan");
+                el?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              {t("New plan")}
+            </Button>
+          </div>
+        }
+      />
+      <p className="text-xs text-ink-muted">
         {t(
           "Price updates affect new Polar checkouts. Existing subscribers keep their grandfathered Polar price.",
         )}
       </p>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
+
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead>
+              <tr className="border-b border-line text-start text-2xs text-ink-muted">
+                <th className="px-5 py-3 font-medium">{t("Plan")}</th>
+                <th className="px-3 py-3 font-medium">{t("Price")}</th>
+                <th className="px-3 py-3 font-medium">{t("Seats")}</th>
+                <th className="px-3 py-3 font-medium">{t("Field ops")}</th>
+                <th className="px-3 py-3 font-medium">{t("People ops")}</th>
+                <th className="px-3 py-3 font-medium">{t("Analytics")}</th>
+                <th className="px-5 py-3 font-medium">{t("Integrations")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {plans.map((p) => {
+                const packs = derivePackFlags(
+                  p.features as Partial<Record<ModuleKey, boolean>>,
+                );
+                return (
+                  <tr key={`matrix-${p.id}`} className="border-b border-line last:border-0">
+                    <td className="px-5 py-3 align-middle">
+                      <b className="text-ink">{p.name}</b>
+                      <div className="text-2xs text-ink-muted">
+                        {p.code} · {p.intervalDays}d
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 align-middle tabular text-ink">
+                      {(p.amountCents / 100).toFixed(0)} {p.currency}
+                    </td>
+                    <td className="px-3 py-3 align-middle tabular text-ink-2">
+                      {p.seatLimit ?? "∞"}
+                    </td>
+                    {(
+                      [
+                        packs.fieldOps,
+                        packs.peopleOps,
+                        packs.analytics,
+                        packs.integrations,
+                      ] as const
+                    ).map((on, i) => (
+                      <td key={i} className="px-3 py-3 align-middle">
+                        {on ? (
+                          <Chip tone="ok" className="px-1.5">
+                            <Check className="h-3 w-3" aria-hidden />
+                          </Chip>
+                        ) : (
+                          <span className="text-ink-muted">—</span>
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       <div className="space-y-2">
         {plans.map((p) => (
           <Card key={p.id}>
@@ -441,7 +513,7 @@ export default function PlansPage() {
         ))}
       </div>
 
-      <Card>
+      <Card id="create-plan">
         <CardHeader>
           <CardTitle className="text-base">{t("Create plan")}</CardTitle>
         </CardHeader>

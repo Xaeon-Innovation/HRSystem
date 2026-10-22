@@ -22,14 +22,14 @@ export function Switch({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-        checked ? "bg-primary" : "bg-input",
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-50",
+        checked ? "bg-accent" : "bg-line-strong",
       )}
     >
       <span
         className={cn(
-          "pointer-events-none block h-5 w-5 rounded-full bg-background shadow transition-transform",
-          checked ? "translate-x-[22px]" : "translate-x-[2px]",
+          "pointer-events-none block h-5 w-5 rounded-full bg-surface shadow transition-transform duration-150",
+          checked ? "translate-x-[22px] rtl:-translate-x-[22px]" : "translate-x-[2px] rtl:-translate-x-[2px]",
         )}
       />
     </button>

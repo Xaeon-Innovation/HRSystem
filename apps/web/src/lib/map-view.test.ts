@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { estimateMapZoom, filterLiveLocations } from "./map-view";
+import {
+  estimateMapZoom,
+  filterLiveLocations,
+  formatSecondsAgo,
+} from "./map-view";
 
 describe("estimateMapZoom", () => {
   it("zooms in for a single point", () => {
@@ -32,5 +36,15 @@ describe("filterLiveLocations", () => {
     expect(filterLiveLocations(rows, "amira")).toEqual([rows[0]]);
     expect(filterLiveLocations(rows, "nurse")).toEqual([rows[0]]);
     expect(filterLiveLocations(rows, "  ")).toEqual(rows);
+  });
+});
+
+describe("formatSecondsAgo", () => {
+  it("uses just now, minutes, hours, and days", () => {
+    expect(formatSecondsAgo(0)).toBe("Just now");
+    expect(formatSecondsAgo(45)).toBe("Just now");
+    expect(formatSecondsAgo(613)).toBe("10m ago");
+    expect(formatSecondsAgo(3 * 3600)).toBe("3h ago");
+    expect(formatSecondsAgo(2 * 86400)).toBe("2d ago");
   });
 });

@@ -29,14 +29,14 @@ export function LeaveAccrualSettings({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <CardTitle className="text-base">{t("Accrual & carry-over")}</CardTitle>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {t("Example: add 2 days on the 1st of every month. Ready for a scheduler to call the same posting function.")}</p>
           </div>
           <Button size="sm" onClick={onRunAccrual}>
             {t("Run monthly accrual now")}</Button>
         </div>
         {lastPosted ? (
-          <p className="text-xs text-muted-foreground">{lastPosted}</p>
+          <p className="text-xs text-ink-muted">{lastPosted}</p>
         ) : null}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -171,7 +171,7 @@ export function LeaveAccrualSettings({
                 </div>
               ) : null}
               {p.accrual.method === "tenure_tiered" ? (
-                <p className="mt-2 text-xs text-muted-foreground">
+                <p className="mt-2 text-xs text-ink-muted">
                   {t("Tiers:")}{p.accrual.tenureTiers.map((t) => `${t.minYears}y → ${t.monthlyDays}d`).join(" · ") || t("None")}
                 </p>
               ) : null}
@@ -185,7 +185,7 @@ export function LeaveAccrualSettings({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-ink-muted">{label}</Label>
       {children}
     </div>
   );

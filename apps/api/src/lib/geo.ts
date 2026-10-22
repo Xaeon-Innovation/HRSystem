@@ -1,24 +1,20 @@
-/** Great-circle distance in meters (WGS84 sphere). */
-export function distanceMeters(
-  a: { lat: number; lng: number },
-  b: { lat: number; lng: number },
-): number {
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const earth = 6_371_000;
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const lat1 = toRad(a.lat);
-  const lat2 = toRad(b.lat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * earth * Math.asin(Math.min(1, Math.sqrt(h)));
-}
-
-export function isInsideGeofence(
-  point: { lat: number; lng: number },
-  zone: { lat: number; lng: number; radiusMeters: number },
-): { inside: boolean; distanceMeters: number } {
-  const distance = distanceMeters(point, { lat: zone.lat, lng: zone.lng });
-  return { inside: distance <= zone.radiusMeters, distanceMeters: distance };
-}
+/**
+ * Re-exports shared geo helpers from `@hr/geo`.
+ * Call sites keep importing from this module so behavior stays stable.
+ *
+ * Accuracy-aware `insideZone` / `isAccuracyAcceptable` are available for mobile
+ * and future API validation; existing routes still use `isInsideGeofence`
+ * (lenient: distance <= radius) — no behavior change in this ticket.
+ */
+export {
+  ACCURACY_CAP_METERS,
+  DEFAULT_MAX_ACCURACY_METERS,
+  distanceMeters,
+  insideZone,
+  isAccuracyAcceptable,
+  isInsideGeofence,
+  type GeofenceMode,
+  type InsideZoneResult,
+  type LatLng,
+  type Zone,
+} from "@hr/geo";

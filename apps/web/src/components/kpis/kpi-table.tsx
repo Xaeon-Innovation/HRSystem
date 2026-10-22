@@ -51,11 +51,11 @@ export function KpiTable({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <CardTitle className="text-base">{t("All metrics")}</CardTitle>
-            <p className="text-xs text-muted-foreground">{t("Target, result, and % of target")}</p>
+            <p className="text-xs text-ink-muted">{t("Target, result, and % of target")}</p>
           </div>
           <div className="flex min-w-0 flex-nowrap items-center gap-2">
             <div className="relative min-w-0 shrink">
-              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-ink-muted" />
               <Input
                 className="h-9 w-36 pl-8 sm:w-44"
                 placeholder={t("Search")}
@@ -81,7 +81,7 @@ export function KpiTable({
       <CardContent className="overflow-x-auto px-0 pb-2">
         <table className="w-full min-w-[640px] text-sm">
           <thead>
-            <tr className="border-y bg-secondary/50 text-left text-xs text-muted-foreground">
+            <tr className="border-y bg-surface-2 text-left text-xs text-ink-muted">
               <th className="px-3 py-2">{t("Metric")}</th>
               {showEmployee ? <th className="px-3 py-2">{t("Person")}</th> : null}
               <th className="px-3 py-2">{t("Target")}</th>
@@ -89,7 +89,7 @@ export function KpiTable({
               <th className="px-3 py-2">
                 <button
                   type="button"
-                  className="hover:text-foreground"
+                  className="hover:text-ink"
                   onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
                 >
                   {t("% of target")}</button>
@@ -100,14 +100,14 @@ export function KpiTable({
           </thead>
           <tbody>
             {rows.map((k) => (
-              <tr key={k.id} className="border-b hover:bg-secondary/40">
+              <tr key={k.id} className="border-b hover:bg-surface-2/40">
                 <td className="px-3 py-2 font-medium">
                   <button type="button" className="text-left hover:underline" onClick={() => onOpen(k.id)}>
                     {k.title}
                   </button>
                 </td>
                 {showEmployee ? (
-                  <td className="px-3 py-2 text-muted-foreground">{k.employeeName ?? "-"}</td>
+                  <td className="px-3 py-2 text-ink-muted">{k.employeeName ?? "-"}</td>
                 ) : null}
                 <td className="px-3 py-2 tabular-nums">{formatKpiValue(k.targetValue, k.unit)}</td>
                 <td className="px-3 py-2 tabular-nums">{formatKpiValue(k.actualValue, k.unit)}</td>
@@ -125,7 +125,7 @@ export function KpiTable({
               <tr>
                 <td
                   colSpan={showEmployee ? 7 : 6}
-                  className="px-4 py-10 text-center text-muted-foreground"
+                  className="px-4 py-10 text-center text-ink-muted"
                 >
                   {t("Nothing matches this search.")}</td>
               </tr>

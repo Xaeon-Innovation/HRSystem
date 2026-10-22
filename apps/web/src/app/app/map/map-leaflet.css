@@ -1,12 +1,12 @@
 /* -- Live map markers & chrome -- */
 .lm-map.leaflet-container {
   font-family: inherit;
-  background: hsl(var(--muted));
+  background: hsl(var(--surface-2));
 }
 
 .lm-map .leaflet-control-zoom {
   border: none !important;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12) !important;
+  box-shadow: var(--shadow-md) !important;
   border-radius: 14px !important;
   overflow: hidden;
 }
@@ -15,18 +15,25 @@
   width: 34px !important;
   height: 34px !important;
   line-height: 34px !important;
-  color: hsl(var(--secondary-foreground)) !important;
-  background: hsl(var(--card)) !important;
+  color: hsl(var(--text)) !important;
+  background: hsl(var(--surface)) !important;
   border: none !important;
   font-size: 16px !important;
 }
 
 .lm-map .leaflet-control-zoom a:hover {
-  background: hsl(var(--accent)) !important;
-  color: hsl(var(--accent-foreground)) !important;
+  background: hsl(var(--surface-2)) !important;
+  color: hsl(var(--text)) !important;
 }
 
 .lm-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Leaflet sets `.leaflet-marker-pane img { width: auto }` which blows the
+   avatar up to its natural size so only a corner shows in the crop circle. */
+.leaflet-container .leaflet-marker-pane .lm-icon.leaflet-div-icon {
   background: transparent !important;
   border: none !important;
 }
@@ -63,7 +70,8 @@
 
 .lm-pulse-core,
 .lm-soft-blob,
-.lm-pin-head {
+.lm-pin-head,
+.lm-photo-ring {
   position: relative;
   z-index: 2;
   display: grid;
@@ -72,6 +80,26 @@
   box-shadow:
     0 2px 8px color-mix(in srgb, var(--lm-color) 45%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.lm-photo-ring {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2.5px solid #fff;
+  background: var(--lm-color);
+  /* Clip the photo via .lm-marker-face, not here — status dot must sit on the ring. */
+  overflow: visible;
+}
+
+.lm-marker--photo .lm-marker-face {
+  inset: 0;
+  border-radius: 999px;
+}
+
+.lm-marker--photo .lm-status-dot {
+  top: 1px;
+  right: 1px;
 }
 
 .lm-marker-face {
@@ -86,6 +114,15 @@
 .lm-marker-photo {
   width: 100%;
   height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.leaflet-container .leaflet-marker-pane img.lm-marker-photo {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
   object-fit: cover;
   display: block;
 }
@@ -136,7 +173,8 @@
 
 .lm-marker--idle .lm-pulse-core,
 .lm-marker--idle .lm-soft-blob,
-.lm-marker--idle .lm-pin-head {
+.lm-marker--idle .lm-pin-head,
+.lm-marker--idle .lm-photo-ring {
   filter: saturate(0.75);
 }
 
@@ -203,17 +241,18 @@
 }
 
 .lm-marker--active .lm-pulse-core,
-.lm-marker--active .lm-pin-head {
+.lm-marker--active .lm-pin-head,
+.lm-marker--active .lm-photo-ring {
   animation: lm-breathe 2.8s ease-in-out infinite;
 }
 
 .lm-popup .leaflet-popup-content-wrapper {
   border-radius: 16px;
   padding: 0;
-  background: hsl(var(--card) / var(--card-alpha));
-  color: hsl(var(--card-foreground));
-  box-shadow: 0 12px 32px hsl(var(--foreground) / 0.16);
-  border: 1px solid hsl(var(--border) / 0.65);
+  background: hsl(var(--surface) / 0.96);
+  color: hsl(var(--text));
+  box-shadow: var(--shadow-md);
+  border: 1px solid hsl(var(--line));
   backdrop-filter: blur(18px) saturate(1.45);
   -webkit-backdrop-filter: blur(18px) saturate(1.45);
 }
@@ -244,13 +283,13 @@
   margin: 0;
   font-size: 14px;
   font-weight: 650;
-  color: hsl(215 28% 12%);
+  color: hsl(var(--text));
 }
 
 .lm-popup-meta {
   margin: 2px 0 0;
   font-size: 12px;
-  color: hsl(215 12% 42%);
+  color: hsl(var(--muted-fg));
 }
 
 .lm-popup-status {
@@ -277,7 +316,7 @@
 .lm-popup-updated {
   margin: 8px 0 0;
   font-size: 11px;
-  color: hsl(215 12% 48%);
+  color: hsl(var(--muted-fg));
 }
 
 @keyframes lm-status-glow {
@@ -355,6 +394,7 @@
   .lm-pulse-ring,
   .lm-marker--active .lm-pulse-core,
   .lm-marker--active .lm-pin-head,
+  .lm-marker--active .lm-photo-ring,
   .lm-marker--soft .lm-soft-blob,
   .lm-status-dot--online {
     animation: none !important;

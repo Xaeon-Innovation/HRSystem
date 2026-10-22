@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LeaveAccrualSettings } from "@/components/leave/leave-accrual-settings";
 import { LeaveNotificationsSettings } from "@/components/leave/leave-notifications-settings";
@@ -39,6 +40,21 @@ export function LeavePoliciesPanel({
 }) {
   return (
     <div className="space-y-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full sm:w-auto"
+          onClick={() => {
+            document.getElementById("leave-notification-settings")?.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }}
+        >
+          {t("Notification settings")}
+        </Button>
+      </div>
       <LeaveTypesManager types={types} onChange={onTypeChange} />
       <LeaveAccrualSettings
         policies={policies}
@@ -48,7 +64,9 @@ export function LeavePoliciesPanel({
         lastPosted={lastPosted}
       />
       <PolicyRules policies={policies} types={types} onChange={onPolicyChange} />
-      <LeaveNotificationsSettings settings={notifications} onChange={onNotificationChange} />
+      <div id="leave-notification-settings">
+        <LeaveNotificationsSettings settings={notifications} onChange={onNotificationChange} />
+      </div>
     </div>
   );
 }
@@ -68,7 +86,7 @@ function PolicyRules({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Policy rules")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {t("Notice, probation, weekends, holidays, staffing, and approval routing.")}</p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -176,12 +194,12 @@ function PolicyRules({
               />
             </div>
             {p.blackoutDates.length > 0 ? (
-              <p className="mt-2 text-xs text-muted-foreground">
+              <p className="mt-2 text-xs text-ink-muted">
                 {t("Blackout:")}{p.blackoutDates.map((b) => `${b.label} (${b.startDate}–${b.endDate})`).join(" · ")}
               </p>
             ) : null}
             {p.scope.department || p.scope.branchId || p.scope.role ? (
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 text-xs text-ink-muted">
                 {t("Scoped to")}{[p.scope.department, p.scope.branchId, p.scope.role].filter(Boolean).join(" · ")}
               </p>
             ) : null}
@@ -195,7 +213,7 @@ function PolicyRules({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-ink-muted">{label}</Label>
       {children}
     </div>
   );

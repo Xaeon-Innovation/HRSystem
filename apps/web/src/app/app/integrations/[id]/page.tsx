@@ -3,13 +3,21 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { CheckCircle2, CircleAlert } from "lucide-react";
 import { API_URL, api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  EmptyState,
+  Notice,
+  PageHeader,
+  Segmented,
+  Steps,
+  StatusChip,
+} from "@/components/elevora";
+import { History, Inbox, Pause, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { t } from "@/i18n";
 
 type EntityConfig = {
@@ -561,7 +569,9 @@ export default function IntegrationDetailPage() {
   }
 
   if (!conn) {
-    return <p className="text-muted-foreground">{error ?? t("Loading…")}</p>;
+    return (
+      <p className="text-sm text-ink-muted">{error ?? t("Loading…")}</p>
+    );
   }
 
   const configuredEntities = conn.connectorConfig?.entities ?? [];
@@ -574,129 +584,154 @@ export default function IntegrationDetailPage() {
       conn.providerType === "crm");
   const sourceEntityOptions = configuredEntities.map((e) => e.sourceEntity);
 
+  const tabOptions = TABS.map((name) => ({
+    value: name,
+    label: t(name),
+  }));
+
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/app/integrations" className="text-sm text-muted-foreground hover:underline">
-          {t("← Integrations")}</Link>
-        <h1 className="text-2xl font-semibold">{conn.name}</h1>
-        <p className="text-sm text-muted-foreground">
-          {isCmsGoalsPreset
+      <PageHeader
+        breadcrumbs={
+          <Link
+            href="/app/integrations"
+            className="hover:text-ink"
+          >
+            {t("Integrations")}
+          </Link>
+        }
+        title={conn.name}
+        subtitle={`${
+          isCmsGoalsPreset
             ? t("CMS Goals")
             : isHubSpotPreset
               ? t("HubSpot CRM")
-              : conn.providerType}{" "}
-          · {conn.syncMode} · {conn.status}
-        </p>
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              : conn.providerType
+        } · ${conn.syncMode}`}
+        actions={
+          <>
+            <StatusChip status={conn.status} label={conn.status} />
+            {conn.status === "active" ? (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setStatus("paused")}
+              >
+                <Pause className="h-4 w-4" aria-hidden />
+                {t("Pause")}
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setStatus("active")}
+              >
+                <Play className="h-4 w-4" aria-hidden />
+                {t("Activate")}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={replay}
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              {t("Replay dead letters")}
+              {deadLetterCount > 0 ? ` · ${deadLetterCount}` : ""}
+            </Button>
+            <Button className="w-full sm:w-auto" onClick={syncNow}>
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              {t("Sync now")}
+            </Button>
+          </>
+        }
+      />
+      {error ? <Notice tone="warn">{error}</Notice> : null}
       {isCmsGoalsPreset ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <Notice tone="accent">
           {t("Connected to CMS Goals, tokens refresh automatically. Use")}{" "}
-          <strong>{t("Sync now")}</strong> {t("to pull the latest goals. Open Authentication only if the CMS password changes.")}</p>
+          <strong>{t("Sync now")}</strong>{" "}
+          {t(
+            "to pull the latest goals. Open Authentication only if the CMS password changes.",
+          )}
+        </Notice>
       ) : null}
       {isHubSpotPreset ? (
-        <p className="rounded-md border border-emerald-200 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
+        <Notice tone="accent">
           {t("Connected to HubSpot CRM, tokens refresh automatically. Use")}{" "}
           <strong>{t("Sync now")}</strong>{" "}
           {t("to pull the latest deals. Reconnect OAuth if access expires.")}
-        </p>
+        </Notice>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {TABS.map((t) => (
-          <Button
-            key={t}
-            variant={tab === t ? "default" : "outline"}
-            size="sm"
-            onClick={() => setTab(t)}
-          >
-            {t}
-          </Button>
-        ))}
-      </div>
+      <Segmented
+        className="flex w-full flex-wrap gap-1 sm:w-auto"
+        aria-label={t("Integration sections")}
+        options={tabOptions}
+        value={tab}
+        onChange={setTab}
+      />
 
       {tab === t("Overview") ? (
         <div className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base">{t("Setup progress")}</CardTitle>
+              <p className="text-2xs text-ink-muted">
+                {progress.doneCount} {t("of")} {progress.total} {t("steps")}
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-foreground">
-                    {progress.doneCount} of {progress.total} {t("complete")}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {progress.pct}%
-                  </span>
-                </div>
-                <div
-                  className="h-2.5 overflow-hidden rounded-full bg-muted"
-                  role="progressbar"
-                  aria-valuenow={progress.pct}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={t("Setup progress")}
-                >
-                  <div
-                    className="h-full rounded-full bg-emerald-500 transition-[width] duration-500 ease-out"
-                    style={{ width: `${progress.pct}%` }}
-                  />
-                </div>
-                {progress.allDone ? (
-                  <p className="text-sm text-emerald-700">
-                    {t("Setup complete, you can sync and use Analytics.")}</p>
-                ) : null}
-              </div>
-              <ul className="space-y-2 text-sm">
-                {checklist.map((step) => (
-                  <li
-                    key={step.id}
-                    className={cn(
-                      "flex flex-col gap-2 rounded-lg border px-3 py-2.5 transition-colors sm:flex-row sm:items-center sm:justify-between",
-                      step.done
-                        ? "border-emerald-200/60 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/40"
-                        : "border-amber-200/60 bg-amber-50/40 dark:border-amber-800 dark:bg-amber-950/40",
-                    )}
-                  >
-                    <div className="flex min-w-0 items-start gap-2.5">
-                      {step.done ? (
-                        <CheckCircle2
-                          className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600"
-                          aria-hidden
-                        />
-                      ) : (
-                        <CircleAlert
-                          className="mt-0.5 h-5 w-5 shrink-0 text-amber-500"
-                          aria-hidden
-                        />
-                      )}
-                      <div className="min-w-0">
-                        <p className="font-medium text-foreground">{step.label}</p>
-                        {!step.done ? (
-                          <p className="text-xs text-muted-foreground">{step.hint}</p>
-                        ) : null}
-                      </div>
-                    </div>
-                    {!step.done ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="shrink-0 self-start sm:self-center"
-                        onClick={() => setTab(step.tab)}
+              <Steps
+                steps={[
+                  { id: "baseUrl", label: t("Base URL") },
+                  { id: "endpoints", label: t("Endpoints") },
+                  { id: "auth", label: t("Authentication") },
+                  { id: "mappings", label: t("Field mappings") },
+                  { id: "test", label: t("Test fetch") },
+                  { id: "sync", label: t("Sync") },
+                ]}
+                currentIndex={Math.min(
+                  progress.doneCount,
+                  Math.max(0, progress.total - 1),
+                )}
+              />
+              {progress.allDone ? (
+                <Notice tone="accent">
+                  {t("Setup complete, you can sync and use Analytics.")}
+                </Notice>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {checklist
+                    .filter((step) => !step.done)
+                    .slice(0, 2)
+                    .map((step) => (
+                      <li
+                        key={step.id}
+                        className="flex flex-col gap-2 rounded-sm border border-line bg-surface-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        {t("Go to")}{step.tab}
-                      </Button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">{step.label}</p>
+                          <p className="text-xs text-ink-muted">{step.hint}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="shrink-0 self-start sm:self-center"
+                          onClick={() => setTab(step.tab)}
+                        >
+                          {t("Go to")} {step.tab}
+                        </Button>
+                      </li>
+                    ))}
+                </ul>
+              )}
               {deadLetterCount > 0 ? (
-                <p className="text-sm text-destructive">
-                  {deadLetterCount} {t("record(s) could not be processed")}{isCmsGoalsPreset
+                <Notice tone="warn">
+                  {deadLetterCount} {t("record(s) could not be processed")}
+                  {isCmsGoalsPreset
                     ? t(". Open Mapping (advanced) or check that HR employees use the CMS UUID as external ID.")
                     : t(". Usually missing field mappings or a mismatched source entity, fix under Mapping, then Replay.")}
-                </p>
+                </Notice>
               ) : null}
             </CardContent>
           </Card>
@@ -1327,7 +1362,12 @@ export default function IntegrationDetailPage() {
       {tab === t("Sync history") ? (
         <div className="space-y-2">
           {runs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No sync runs yet.")}</p>
+            <Card>
+              <EmptyState
+                icon={<History className="h-5 w-5" aria-hidden />}
+                title={t("No sync runs yet")}
+              />
+            </Card>
           ) : null}
           {runs.map((run) => (
             <Card key={run.id}>
@@ -1352,7 +1392,12 @@ export default function IntegrationDetailPage() {
       {tab === t("Raw events") ? (
         <div className="space-y-2">
           {events.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No raw events yet.")}</p>
+            <Card>
+              <EmptyState
+                icon={<Inbox className="h-5 w-5" aria-hidden />}
+                title={t("No raw events yet")}
+              />
+            </Card>
           ) : null}
           {events.map((ev) => (
             <Card key={ev.id}>

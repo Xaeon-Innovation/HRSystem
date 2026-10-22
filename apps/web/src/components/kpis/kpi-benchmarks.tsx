@@ -23,20 +23,20 @@ export function KpiBenchmarks({
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Benchmarks & context")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {t("Isolated scores are weaker than comparisons across time and peers")}</p>
       </CardHeader>
       <CardContent className="grid grid-cols-2 gap-2 md:grid-cols-3 lg:grid-cols-6">
         {rows.map((row) => (
-          <div key={row.label} className="rounded-lg bg-secondary/50 px-3 py-2">
-            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <div key={row.label} className="rounded-lg bg-surface-2 px-3 py-2">
+            <p className="text-[11px] uppercase tracking-wide text-ink-muted">
               {row.label}
             </p>
             <p className="mt-1 text-lg font-semibold tabular-nums">
               {formatNumber(row.value, 1)}
             </p>
             {overall != null && row.value != null && row.label !== t("This period") ? (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-ink-muted">
                 {overall - row.value >= 0 ? "+" : ""}
                 {(overall - row.value).toFixed(1)} {t("vs this period")}</p>
             ) : null}

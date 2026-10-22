@@ -1,11 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Chip,
+  EmptyState,
+  Kanban,
+  KanbanCard,
+  KanbanColumn,
+  Notice,
+  PageHeader,
+  PersonCell,
+} from "@/components/elevora";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { UserPlus } from "lucide-react";
 import { t } from "@/i18n";
 
 type Lead = {
@@ -25,6 +44,14 @@ type Lead = {
 
 const STATUSES = ["new", "contacted", "qualified", "converted", "closed"] as const;
 const SOURCES = ["demo", "signup_trial", "signup_paid", "enterprise"] as const;
+
+const STATUS_LABEL: Record<(typeof STATUSES)[number], string> = {
+  new: "New",
+  contacted: "Contacted",
+  qualified: "Qualified",
+  converted: "Converted",
+  closed: "Closed",
+};
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
@@ -75,14 +102,27 @@ export default function LeadsPage() {
     }
   }
 
+  const byStatus = useMemo(() => {
+    const map = Object.fromEntries(
+      STATUSES.map((s) => [s, [] as Lead[]]),
+    ) as Record<(typeof STATUSES)[number], Lead[]>;
+    for (const lead of leads) {
+      const key = (
+        STATUSES.includes(lead.status as (typeof STATUSES)[number])
+          ? lead.status
+          : "new"
+      ) as (typeof STATUSES)[number];
+      map[key].push(lead);
+    }
+    return map;
+  }, [leads]);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Leads")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Demo requests and self-serve signups")} ({total})
-        </p>
-      </div>
+      <PageHeader
+        title={t("Leads")}
+        subtitle={`${t("Demo and signup leads")} · ${total}`}
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Input
@@ -92,19 +132,19 @@ export default function LeadsPage() {
           onChange={(e) => setQ(e.target.value)}
         />
         <select
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-10 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
           <option value="">{t("All statuses")}</option>
           {STATUSES.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {STATUS_LABEL[s]}
             </option>
           ))}
         </select>
         <select
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-10 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink"
           value={source}
           onChange={(e) => setSource(e.target.value)}
         >
@@ -124,153 +164,176 @@ export default function LeadsPage() {
         </Button>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
 
-      <div className="space-y-2">
-        {leads.map((lead) => (
-          <Card key={lead.id}>
-            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {lead.company}{" "}
-                  <span className="text-xs text-muted-foreground">
-                    ({lead.source})
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {lead.name} · {lead.email}
-                  {lead.phone ? ` · ${lead.phone}` : ""}
-                  {lead.planCode ? ` · ${lead.planCode}` : ""}
-                  {lead.tenant?.slug ? ` · tenant ${lead.tenant.slug}` : ""}
-                </p>
-                {lead.message ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                    {lead.message}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <span className="text-xs uppercase">{lead.status}</span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => {
-                    setEditing(lead);
-                    setNotes(lead.notes ?? "");
-                  }}
-                >
-                  {t("Update")}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-        {leads.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No leads found.")}</p>
-        ) : null}
-      </div>
-
-      {editing ? (
-        <Card className="border-primary/30">
-          <CardContent className="space-y-3 py-4">
-            <p className="font-medium">
-              {editing.company} — {editing.name}
-            </p>
-            <div className="space-y-1">
-              <Label>{t("Status")}</Label>
-              <select
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                value={editing.status}
-                onChange={(e) =>
-                  setEditing((l) =>
-                    l ? { ...l, status: e.target.value } : l,
-                  )
-                }
-              >
-                {STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>{t("Notes")}</Label>
-              <textarea
-                className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                className="w-full sm:w-auto"
-                disabled={busy}
-                onClick={() => void saveLead()}
-              >
-                {t("Save")}
-              </Button>
-              {!editing.tenant ? (
-                <Button
-                  className="w-full sm:w-auto"
-                  variant="secondary"
-                  disabled={busy}
-                  onClick={() => {
-                    const slug = editing.company
-                      .toLowerCase()
-                      .replace(/[^a-z0-9]+/g, "-")
-                      .replace(/^-|-$/g, "")
-                      .slice(0, 40) || "enterprise";
-                    const password = `Ent${Math.random().toString(36).slice(2, 10)}!`;
-                    setBusy(true);
-                    setError(null);
-                    void api<{ tenant: { id: string } }>("/v1/tenants", {
-                      method: "POST",
-                      body: JSON.stringify({
-                        name: editing.company,
-                        slug: `${slug}-${Date.now().toString(36).slice(-4)}`,
-                        adminEmail: editing.email,
-                        adminName: editing.name,
-                        adminPassword: password,
-                        planCode: "enterprise",
-                        leadId: editing.id,
-                      }),
-                    })
-                      .then(async (res) => {
-                        setEditing(null);
-                        await load();
-                        window.location.href = `/app/tenants/${res.tenant.id}`;
-                      })
-                      .catch((err) => {
-                        setError(
-                          err instanceof Error ? err.message : "Failed",
-                        );
-                        setBusy(false);
-                      });
-                  }}
-                >
-                  {t("Provision Enterprise")}
-                </Button>
-              ) : (
-                <Button asChild variant="outline" className="w-full sm:w-auto">
-                  <a href={`/app/tenants/${editing.tenant.id}`}>
-                    {t("Open tenant")}
-                  </a>
-                </Button>
-              )}
-              <Button
-                className="w-full sm:w-auto"
-                variant="outline"
-                disabled={busy}
-                onClick={() => setEditing(null)}
-              >
-                {t("Cancel")}
-              </Button>
-            </div>
-          </CardContent>
+      {leads.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<UserPlus className="h-5 w-5" aria-hidden />}
+            title={t("No leads found")}
+          />
         </Card>
-      ) : null}
+      ) : (
+        <Kanban>
+          {STATUSES.map((s) => (
+            <KanbanColumn
+              key={s}
+              title={t(STATUS_LABEL[s])}
+              count={byStatus[s].length}
+            >
+              {byStatus[s].map((lead) => (
+                <KanbanCard key={lead.id}>
+                  <PersonCell
+                    name={lead.company || lead.name}
+                    subtitle={[
+                      lead.name,
+                      lead.planCode,
+                      lead.phone,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  />
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <Chip>{lead.source}</Chip>
+                    <span className="text-2xs text-ink-muted tabular">
+                      {new Date(lead.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="mt-2 w-full"
+                    onClick={() => {
+                      setEditing(lead);
+                      setNotes(lead.notes ?? "");
+                    }}
+                  >
+                    {t("Update")}
+                  </Button>
+                </KanbanCard>
+              ))}
+            </KanbanColumn>
+          ))}
+        </Kanban>
+      )}
+
+      <Sheet
+        open={Boolean(editing)}
+        onOpenChange={(open) => {
+          if (!open && !busy) setEditing(null);
+        }}
+      >
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>
+              {editing?.company} — {editing?.name}
+            </SheetTitle>
+            <SheetDescription>{editing?.email}</SheetDescription>
+          </SheetHeader>
+          <SheetBody className="space-y-3">
+            {editing ? (
+              <>
+                <div className="space-y-1">
+                  <Label>{t("Status")}</Label>
+                  <select
+                    className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink"
+                    value={editing.status}
+                    onChange={(e) =>
+                      setEditing((l) =>
+                        l ? { ...l, status: e.target.value } : l,
+                      )
+                    }
+                  >
+                    {STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {STATUS_LABEL[s]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label>{t("Notes")}</Label>
+                  <textarea
+                    className="min-h-24 w-full rounded-sm border border-line-strong bg-surface px-3 py-2 text-sm text-ink"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <Button
+                    className="w-full sm:w-auto"
+                    disabled={busy}
+                    onClick={() => void saveLead()}
+                  >
+                    {t("Save")}
+                  </Button>
+                  {!editing.tenant ? (
+                    <Button
+                      className="w-full sm:w-auto"
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        const slug =
+                          editing.company
+                            .toLowerCase()
+                            .replace(/[^a-z0-9]+/g, "-")
+                            .replace(/^-|-$/g, "")
+                            .slice(0, 40) || "enterprise";
+                        const password = `Ent${Math.random().toString(36).slice(2, 10)}!`;
+                        setBusy(true);
+                        setError(null);
+                        void api<{ tenant: { id: string } }>("/v1/tenants", {
+                          method: "POST",
+                          body: JSON.stringify({
+                            name: editing.company,
+                            slug: `${slug}-${Date.now().toString(36).slice(-4)}`,
+                            adminEmail: editing.email,
+                            adminName: editing.name,
+                            adminPassword: password,
+                            planCode: "enterprise",
+                            leadId: editing.id,
+                          }),
+                        })
+                          .then(async (res) => {
+                            setEditing(null);
+                            await load();
+                            window.location.href = `/app/tenants/${res.tenant.id}`;
+                          })
+                          .catch((err) => {
+                            setError(
+                              err instanceof Error ? err.message : "Failed",
+                            );
+                            setBusy(false);
+                          });
+                      }}
+                    >
+                      {t("Provision Enterprise")}
+                    </Button>
+                  ) : (
+                    <Button
+                      asChild
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      <a href={`/app/tenants/${editing.tenant.id}`}>
+                        {t("Open tenant")}
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    className="w-full sm:w-auto"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setEditing(null)}
+                  >
+                    {t("Cancel")}
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </SheetBody>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

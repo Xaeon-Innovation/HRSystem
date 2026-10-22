@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+  ASSESSMENT_PERIODS,
+  EMPLOYEE_DOCUMENT_TYPES,
   EMPLOYEE_STATUSES,
   FIELD_TRANSFORM_TYPES,
   IDENTITY_MATCH_METHODS,
@@ -12,11 +14,14 @@ import {
   MIN_PING_INTERVAL_SEC,
   NOTIFICATION_TYPES,
   PAYMOB_INTERVAL_DAYS,
+  PERFORMANCE_REPORT_CADENCES,
+  PRESENCE_MODES,
   REVIEW_PERIODS,
   LEAD_SOURCES,
   LEAD_STATUSES,
   PLAN_LIMIT_KEYS,
   ROLES,
+  SKILL_LEVELS,
   SYSTEM_MODULE_ROLES,
   normalizeSystemModuleRoles,
   SUBSCRIPTION_STATUSES,
@@ -28,6 +33,8 @@ import {
   TASK_STATUSES,
   TASK_ASSIGNMENT_MODES,
   TASK_DELIVERABLE_TYPES,
+  TRAINING_REASONS,
+  TRAINING_STATUSES,
   SHIFT_CADENCES,
   BREAK_PERIOD_MODES,
   LEFT_ZONE_RESOLUTIONS,
@@ -212,6 +219,7 @@ const employeeBaseFields = {
   emergencyContactName: z.string().max(120).optional().nullable(),
   emergencyContactPhone: z.string().max(40).optional().nullable(),
   status: z.enum(EMPLOYEE_STATUSES).default("active"),
+  presenceMode: z.enum(PRESENCE_MODES).default("fixed_zone"),
   branchId: z.string().uuid().optional().nullable(),
   siteId: z.string().uuid().optional().nullable(),
   branchCode: z.string().max(40).optional().nullable(),
@@ -232,6 +240,20 @@ const employeeBaseFields = {
 export const createEmployeeSchema = z
   .object(employeeBaseFields)
   .superRefine((data, ctx) => {
+    if (data.presenceMode === "mobile") {
+      if (
+        data.geofenceLat != null ||
+        data.geofenceLng != null ||
+        data.geofenceRadiusMeters != null
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Mobile employees cannot have a work zone",
+          path: ["geofenceRadiusMeters"],
+        });
+      }
+      return;
+    }
     const parts = [data.geofenceLat, data.geofenceLng, data.geofenceRadiusMeters];
     const provided = parts.filter((v) => v != null).length;
     if (provided > 0 && provided < 3) {
@@ -265,6 +287,7 @@ export const updateEmployeeSchema = z
     emergencyContactName: z.string().max(120).optional().nullable(),
     emergencyContactPhone: z.string().max(40).optional().nullable(),
     status: z.enum(EMPLOYEE_STATUSES).optional(),
+    presenceMode: z.enum(PRESENCE_MODES).optional(),
     contactPhone: z.string().max(40).optional().nullable(),
     branchId: z.string().uuid().optional().nullable(),
     siteId: z.string().uuid().optional().nullable(),
@@ -280,6 +303,20 @@ export const updateEmployeeSchema = z
     managerId: z.string().uuid().optional().nullable(),
   })
   .superRefine((data, ctx) => {
+    if (data.presenceMode === "mobile") {
+      if (
+        data.geofenceLat != null ||
+        data.geofenceLng != null ||
+        data.geofenceRadiusMeters != null
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Mobile employees cannot have a work zone",
+          path: ["geofenceRadiusMeters"],
+        });
+      }
+      return;
+    }
     const hasAny =
       data.geofenceLat !== undefined ||
       data.geofenceLng !== undefined ||
@@ -608,9 +645,87 @@ export type CreateCustomAlertRuleInput = z.infer<typeof createCustomAlertRuleSch
 
 export const createJobRoleSchema = z.object({
   name: z.string().trim().min(1).max(80),
+  description: z.string().max(5000).optional().nullable(),
+  responsibilities: z.string().max(5000).optional().nullable(),
+  requirements: z.string().max(5000).optional().nullable(),
 });
 
 export const updateJobRoleSchema = createJobRoleSchema.partial();
+
+export const jobRoleCriterionSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  metric: z.string().max(500).optional().nullable(),
+  targetValue: z.number().optional().nullable(),
+  weight: z.number().min(0).max(100).optional().default(1),
+  sortOrder: z.number().int().min(0).max(10_000).optional().default(0),
+});
+
+export const createJobRoleCriterionSchema = jobRoleCriterionSchema;
+export const updateJobRoleCriterionSchema = jobRoleCriterionSchema.partial();
+
+export const createRoleAssessmentSchema = z.object({
+  employeeId: z.string().uuid(),
+  jobRoleId: z.string().uuid(),
+  period: z.enum(ASSESSMENT_PERIODS),
+  periodStart: isoDate,
+  periodEnd: isoDate,
+  scores: z
+    .array(
+      z.object({
+        criterionId: z.string().uuid(),
+        score: z.number().min(0).max(100),
+        note: z.string().max(2000).optional().nullable(),
+      }),
+    )
+    .max(100),
+  overallComment: z.string().max(5000).optional().nullable(),
+});
+
+export const createEmployeeDocumentSchema = z.object({
+  type: z.enum(EMPLOYEE_DOCUMENT_TYPES),
+  label: z.string().max(120).optional().nullable(),
+  documentNumber: z.string().max(80).optional().nullable(),
+  expiresOn: isoDate,
+});
+
+export const updateEmployeeDocumentSchema =
+  createEmployeeDocumentSchema.partial();
+
+export const createSkillSchema = z.object({
+  name: z.string().trim().min(1).max(120),
+});
+
+export const updateSkillSchema = createSkillSchema.partial();
+
+export const upsertJobRoleSkillSchema = z.object({
+  skillId: z.string().uuid(),
+  requiredLevel: z.enum(SKILL_LEVELS).default("competent"),
+});
+
+export const upsertEmployeeSkillSchema = z.object({
+  skillId: z.string().uuid(),
+  level: z.enum(SKILL_LEVELS),
+  note: z.string().max(2000).optional().nullable(),
+  /** When true, open a strengthen training even if level meets role requirement. */
+  needsStrengthening: z.boolean().optional(),
+});
+
+export const updateTrainingAssignmentSchema = z.object({
+  status: z.enum(TRAINING_STATUSES).optional(),
+  note: z.string().max(2000).optional().nullable(),
+  reason: z.enum(TRAINING_REASONS).optional(),
+});
+
+export const createTrainingAssignmentSchema = z.object({
+  employeeId: z.string().uuid(),
+  skillId: z.string().uuid(),
+  reason: z.enum(TRAINING_REASONS).default("strengthen"),
+  note: z.string().max(2000).optional().nullable(),
+});
+
+export const updatePerformanceReportFeedbackSchema = z.object({
+  feedback: z.string().max(10_000).nullable(),
+});
 
 export const createBranchSchema = z.object({
   name: z.string().min(1).max(120),

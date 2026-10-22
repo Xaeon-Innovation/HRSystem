@@ -8,9 +8,11 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.base.json ./
 COPY apps/api ./apps/api
 COPY packages/shared ./packages/shared
 COPY packages/db ./packages/db
+COPY packages/geo ./packages/geo
 
 RUN pnpm install --frozen-lockfile --filter @hr/api...
-RUN pnpm --filter @hr/shared build \
+RUN pnpm --filter @hr/geo build \
+  && pnpm --filter @hr/shared build \
   && pnpm --filter @hr/db build \
   && pnpm --filter @hr/api build
 
@@ -25,6 +27,7 @@ COPY --from=builder --chown=hr:hr /app/node_modules ./node_modules
 COPY --from=builder --chown=hr:hr /app/apps/api ./apps/api
 COPY --from=builder --chown=hr:hr /app/packages/shared ./packages/shared
 COPY --from=builder --chown=hr:hr /app/packages/db ./packages/db
+COPY --from=builder --chown=hr:hr /app/packages/geo ./packages/geo
 COPY --chown=hr:hr docker/api-entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 

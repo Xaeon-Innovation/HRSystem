@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, overviewCardClass } from "@/components/ui/card";
 import { formatHours, formatMoney } from "@/lib/compensation/format";
 import { cn } from "@/lib/utils";
 import type { PayslipBreakdown } from "@/lib/compensation/types";
@@ -22,10 +22,10 @@ export function CompensationPayslipPreview({
   ];
 
   return (
-    <Card className={cn(!compact && "border-primary/15 bg-gradient-to-br from-card to-accent/20")}>
+    <Card className={cn(!compact && overviewCardClass, !compact && "border-primary/15")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-base">{t("Payslip-ready breakdown")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {breakdown.hourlyRate != null
             ? `Hourly: ${formatHours(breakdown.workedHours)} clocked · ${formatHours(breakdown.regularHours)} regular · ${formatHours(breakdown.overtimeHours)} OT at 1.5×. Tax/insurance are placeholders.`
             : t("Structured for a future payroll engine. Tax and insurance are placeholders, not statutory calculations.")}
@@ -38,10 +38,10 @@ export function CompensationPayslipPreview({
               key={r.label}
               className={cn(
                 "rounded-lg px-3 py-2",
-                r.emphasize ? "bg-card ring-1 ring-primary/15" : "bg-secondary/60",
+                r.emphasize ? "bg-surface ring-1 ring-primary/15" : "bg-surface-2",
               )}
             >
-              <dt className="text-[11px] text-muted-foreground">{r.label}</dt>
+              <dt className="text-[11px] text-ink-muted">{r.label}</dt>
               <dd
                 className={cn(
                   "mt-0.5 text-sm font-semibold tabular-nums",
@@ -55,10 +55,10 @@ export function CompensationPayslipPreview({
           ))}
         </dl>
         {!compact ? (
-          <ul className="divide-y rounded-lg border bg-card text-sm">
+          <ul className="divide-y rounded-lg border bg-surface text-sm">
             {breakdown.lines.map((line, i) => (
               <li key={`${line.kind}-${i}`} className="flex items-center justify-between px-3 py-2">
-                <span className="text-muted-foreground">{line.label}</span>
+                <span className="text-ink-muted">{line.label}</span>
                 <span
                   className={cn(
                     "tabular-nums font-medium",

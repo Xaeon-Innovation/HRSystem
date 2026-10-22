@@ -31,6 +31,48 @@ export const employeeStatusEnum = pgEnum("employee_status", [
   "inactive",
 ]);
 
+/** Fixed work zone (geofence) vs mobile field workers (e.g. drivers). */
+export const presenceModeEnum = pgEnum("presence_mode", [
+  "fixed_zone",
+  "mobile",
+]);
+
+export const employeeDocumentTypeEnum = pgEnum("employee_document_type", [
+  "passport",
+  "residency",
+  "driving_license",
+  "contract",
+  "other",
+]);
+
+export const skillLevelEnum = pgEnum("skill_level", [
+  "basic",
+  "competent",
+  "strong",
+]);
+
+export const trainingReasonEnum = pgEnum("training_reason", [
+  "gap",
+  "strengthen",
+]);
+
+export const trainingStatusEnum = pgEnum("training_status", [
+  "proposed",
+  "in_progress",
+  "completed",
+  "cancelled",
+]);
+
+export const assessmentPeriodEnum = pgEnum("assessment_period", [
+  "weekly",
+  "monthly",
+]);
+
+export const performanceReportCadenceEnum = pgEnum(
+  "performance_report_cadence",
+  ["daily", "weekly", "monthly"],
+);
+
 export const kpiTypeEnum = pgEnum("kpi_type", ["numeric", "qualitative"]);
 
 export const reviewPeriodEnum = pgEnum("review_period", [
@@ -367,6 +409,12 @@ export type TenantSettings = {
       boolean
     >
   >;
+  /** Tenant-admin Getting started checklist marks / dismiss. */
+  setupChecklist?: {
+    leaveReviewedAt?: string;
+    alertsReviewedAt?: string;
+    dismissedAt?: string;
+  };
 };
 
 export type IntegrationConnectorConfig = {
@@ -456,6 +504,8 @@ export const users = pgTable(
       .default([]),
     avatarMime: text("avatar_mime"),
     avatarBytes: text("avatar_bytes"),
+    /** When true, mobile (and future web) must change password before normal use. */
+    mustChangePassword: boolean("must_change_password").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -549,6 +599,13 @@ export const employees = pgTable(
     emergencyContactPhone: text("emergency_contact_phone"),
     deviceInfo: text("device_info"),
     status: employeeStatusEnum("status").notNull().default("active"),
+    /**
+     * fixed_zone: clock inside geofence when set.
+     * mobile: no geofence (drivers / field); GPS still recorded at clock events.
+     */
+    presenceMode: presenceModeEnum("presence_mode")
+      .notNull()
+      .default("fixed_zone"),
     /** Allowed work zone center (WGS84). Null = no geofence. */
     geofenceLat: doublePrecision("geofence_lat"),
     geofenceLng: doublePrecision("geofence_lng"),
@@ -578,6 +635,10 @@ export const jobRoles = pgTable(
       .notNull()
       .references(() => tenants.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Job description (الوصف الوظيفي). */
+    description: text("description"),
+    responsibilities: text("responsibilities"),
+    requirements: text("requirements"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -588,6 +649,284 @@ export const jobRoles = pgTable(
   (t) => [
     uniqueIndex("job_roles_tenant_name_uidx").on(t.tenantId, t.name),
     index("job_roles_tenant_idx").on(t.tenantId),
+  ],
+);
+
+/** Criteria / metrics HR uses to assess employees in a job role. */
+export const jobRoleCriteria = pgTable(
+  "job_role_criteria",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    jobRoleId: uuid("job_role_id")
+      .notNull()
+      .references(() => jobRoles.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    /** How the criterion is measured. */
+    metric: text("metric"),
+    targetValue: doublePrecision("target_value"),
+    weight: doublePrecision("weight").notNull().default(1),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("job_role_criteria_role_idx").on(t.tenantId, t.jobRoleId),
+  ],
+);
+
+export type RoleAssessmentCriterionScore = {
+  criterionId: string;
+  score: number;
+  note?: string | null;
+};
+
+/** HR assessment of an employee against a role's criteria. */
+export const roleAssessments = pgTable(
+  "role_assessments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    jobRoleId: uuid("job_role_id")
+      .notNull()
+      .references(() => jobRoles.id, { onDelete: "cascade" }),
+    period: assessmentPeriodEnum("period").notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    scores: jsonb("scores")
+      .$type<RoleAssessmentCriterionScore[]>()
+      .notNull()
+      .default([]),
+    overallComment: text("overall_comment"),
+    reviewerUserId: uuid("reviewer_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("role_assessments_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("role_assessments_tenant_period_idx").on(
+      t.tenantId,
+      t.periodStart,
+      t.periodEnd,
+    ),
+  ],
+);
+
+/** Compliance / identity documents with expiry dates (no file storage). */
+export const employeeDocuments = pgTable(
+  "employee_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    type: employeeDocumentTypeEnum("type").notNull(),
+    label: text("label"),
+    documentNumber: text("document_number"),
+    expiresOn: date("expires_on").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("employee_documents_tenant_employee_idx").on(t.tenantId, t.employeeId),
+    index("employee_documents_tenant_expires_idx").on(t.tenantId, t.expiresOn),
+  ],
+);
+
+export const skills = pgTable(
+  "skills",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("skills_tenant_name_uidx").on(t.tenantId, t.name),
+    index("skills_tenant_idx").on(t.tenantId),
+  ],
+);
+
+export const jobRoleSkills = pgTable(
+  "job_role_skills",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    jobRoleId: uuid("job_role_id")
+      .notNull()
+      .references(() => jobRoles.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    requiredLevel: skillLevelEnum("required_level").notNull().default("competent"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("job_role_skills_uidx").on(t.jobRoleId, t.skillId),
+    index("job_role_skills_tenant_role_idx").on(t.tenantId, t.jobRoleId),
+  ],
+);
+
+export const employeeSkills = pgTable(
+  "employee_skills",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    level: skillLevelEnum("level").notNull().default("basic"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("employee_skills_uidx").on(t.employeeId, t.skillId),
+    index("employee_skills_tenant_employee_idx").on(t.tenantId, t.employeeId),
+  ],
+);
+
+export const trainingAssignments = pgTable(
+  "training_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    skillId: uuid("skill_id")
+      .notNull()
+      .references(() => skills.id, { onDelete: "cascade" }),
+    reason: trainingReasonEnum("reason").notNull().default("gap"),
+    status: trainingStatusEnum("status").notNull().default("proposed"),
+    note: text("note"),
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("training_assignments_tenant_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+    ),
+    index("training_assignments_tenant_status_idx").on(t.tenantId, t.status),
+  ],
+);
+
+export type PerformanceReportSnapshot = {
+  attendance?: {
+    daysWorked?: number;
+    totalWorkMinutes?: number;
+    latenessMinutes?: number;
+  };
+  hours?: {
+    shiftMinutes?: number;
+    overtimeMinutes?: number;
+  };
+  kpi?: {
+    overallScore?: number | null;
+  };
+  roleAssessment?: {
+    assessmentId?: string | null;
+    overallComment?: string | null;
+    scores?: RoleAssessmentCriterionScore[];
+  };
+};
+
+export const performanceReports = pgTable(
+  "performance_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    employeeId: uuid("employee_id")
+      .notNull()
+      .references(() => employees.id, { onDelete: "cascade" }),
+    cadence: performanceReportCadenceEnum("cadence").notNull(),
+    periodStart: date("period_start").notNull(),
+    periodEnd: date("period_end").notNull(),
+    snapshot: jsonb("snapshot")
+      .$type<PerformanceReportSnapshot>()
+      .notNull()
+      .default({}),
+    feedback: text("feedback"),
+    feedbackAuthorUserId: uuid("feedback_author_user_id").references(
+      () => users.id,
+      { onDelete: "set null" },
+    ),
+    generatedAt: timestamp("generated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("performance_reports_uidx").on(
+      t.tenantId,
+      t.employeeId,
+      t.cadence,
+      t.periodStart,
+      t.periodEnd,
+    ),
+    index("performance_reports_tenant_employee_idx").on(
+      t.tenantId,
+      t.employeeId,
+    ),
   ],
 );
 
@@ -1900,6 +2239,8 @@ export const tasks = pgTable(
     completedByUserId: uuid("completed_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    /** Optimistic concurrency for mobile sync conflicts. */
+    version: integer("version").notNull().default(1),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -2245,5 +2586,108 @@ export const leftZoneIncidents = pgTable(
       t.tenantId,
       t.employeeId,
     ),
+  ],
+);
+
+export const mobilePlatformEnum = pgEnum("mobile_platform", ["ios", "android"]);
+
+/** Registered Elevora Field devices (opaque refresh sessions). */
+export const mobileDevices = pgTable(
+  "mobile_devices",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    platform: mobilePlatformEnum("platform").notNull(),
+    model: text("model"),
+    appVersion: text("app_version"),
+    pushToken: text("push_token"),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("mobile_devices_tenant_user_idx").on(t.tenantId, t.userId),
+    index("mobile_devices_user_idx").on(t.userId),
+  ],
+);
+
+export const mobileRefreshTokens = pgTable(
+  "mobile_refresh_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    deviceId: uuid("device_id")
+      .notNull()
+      .references(() => mobileDevices.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    replacedBy: uuid("replaced_by"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("mobile_refresh_tokens_hash_uidx").on(t.tokenHash),
+    index("mobile_refresh_tokens_device_idx").on(t.deviceId),
+  ],
+);
+
+/** Mobile leave/task file uploads (data_url storage; no object store yet). */
+export const mobileUploads = pgTable(
+  "mobile_uploads",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(),
+    fileName: text("file_name").notNull(),
+    mime: text("mime").notNull(),
+    size: integer("size").notNull(),
+    dataUrl: text("data_url").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [index("mobile_uploads_tenant_user_idx").on(t.tenantId, t.userId)],
+);
+
+/** Idempotency store for mobile outbox events (`/v1/mobile/sync/push`). */
+export const clientEvents = pgTable(
+  "client_events",
+  {
+    id: uuid("id").primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    deviceId: uuid("device_id"),
+    type: text("type").notNull(),
+    status: text("status").notNull(),
+    resultJson: jsonb("result_json")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default({}),
+    receivedAt: timestamp("received_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("client_events_tenant_user_idx").on(t.tenantId, t.userId),
+    index("client_events_tenant_received_idx").on(t.tenantId, t.receivedAt),
   ],
 );

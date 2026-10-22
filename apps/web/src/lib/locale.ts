@@ -44,9 +44,7 @@ export function applyLocaleToDocument(locale: AppLocale = getLocale()) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
   root.lang = locale;
-  // Keep the existing LTR chrome. Arabic copy sits in the same places;
-  // the browser still shapes Arabic glyphs correctly inside each string.
-  root.dir = "ltr";
+  root.dir = locale === "ar" ? "rtl" : "ltr";
   root.dataset.locale = locale;
 }
 

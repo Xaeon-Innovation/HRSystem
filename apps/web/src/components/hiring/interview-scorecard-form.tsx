@@ -135,7 +135,7 @@ function Score({
     <div>
       <div className="mb-1 flex items-center justify-between text-sm">
         <Label>{name}</Label>
-        <span className="tabular-nums text-muted-foreground">{value}/5</span>
+        <span className="tabular-nums text-ink-muted">{value}/5</span>
       </div>
       <input
         type="range"

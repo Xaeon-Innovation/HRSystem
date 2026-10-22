@@ -983,6 +983,7 @@ export async function handleComplianceLocationPing(
       eq(employees.tenantId, input.tenantId),
     ),
     columns: {
+      presenceMode: true,
       geofenceLat: true,
       geofenceLng: true,
       geofenceRadiusMeters: true,
@@ -990,6 +991,7 @@ export async function handleComplianceLocationPing(
   });
   if (
     !emp ||
+    emp.presenceMode === "mobile" ||
     emp.geofenceLat == null ||
     emp.geofenceLng == null ||
     emp.geofenceRadiusMeters == null

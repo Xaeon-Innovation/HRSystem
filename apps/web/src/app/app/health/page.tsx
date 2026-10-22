@@ -1,9 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  AlarmClockOff,
+  BellOff,
+  RefreshCwOff,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import {
+  EmptyState,
+  IconTile,
+  Notice,
+  PageHeader,
+  Timeline,
+  type TimelineItem,
+  type TimelineTone,
+} from "@/components/elevora";
 import { t } from "@/i18n";
 
 type Metrics = {
@@ -17,6 +32,41 @@ type Metrics = {
   }[];
 };
 
+const METRIC_META: Record<
+  string,
+  { icon: typeof Activity; tone: "warn" | "danger" | "accent" | "neutral"; label: string }
+> = {
+  missed_clock_out: {
+    icon: AlarmClockOff,
+    tone: "warn",
+    label: "Missed clock-outs",
+  },
+  sync_failure: {
+    icon: RefreshCwOff,
+    tone: "danger",
+    label: "Sync failures",
+  },
+  notification_issue: {
+    icon: BellOff,
+    tone: "neutral",
+    label: "Notification issues",
+  },
+  uptime: {
+    icon: Activity,
+    tone: "accent",
+    label: "Uptime",
+  },
+};
+
+function toneForMetric(metric: string): TimelineTone {
+  const m = metric.toLowerCase();
+  if (m.includes("fail") || m.includes("error") || m.includes("sync")) {
+    return "danger";
+  }
+  if (m.includes("miss") || m.includes("warn")) return "warn";
+  return "accent";
+}
+
 export default function HealthPage() {
   const [data, setData] = useState<Metrics | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -27,37 +77,74 @@ export default function HealthPage() {
       .catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <p className="text-destructive">{error}</p>;
+  const timelineItems = useMemo((): TimelineItem[] => {
+    if (!data) return [];
+    return data.recent.slice(0, 12).map((r) => ({
+      id: r.id,
+      title: `${r.metric} · ${r.value}`,
+      meta: new Date(r.createdAt).toLocaleString(),
+      tone: toneForMetric(r.metric),
+    }));
+  }, [data]);
+
+  if (error) return <Notice tone="warn">{error}</Notice>;
   if (!data) return <PageSkeleton />;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Health metrics")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Missed clock-outs, sync failures, notification issues")}</p>
+      <PageHeader
+        title={t("Health")}
+        subtitle={t("Operational metrics")}
+      />
+
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4">
+        {data.aggregates.map((a) => {
+          const meta = METRIC_META[a.metric];
+          const Icon = meta?.icon ?? Activity;
+          const tone = meta?.tone ?? "neutral";
+          const label = meta?.label ?? a.metric;
+          return (
+            <Card key={a.metric} className="min-w-0">
+              <CardContent className="pt-5">
+                <IconTile
+                  tone={
+                    tone === "accent"
+                      ? "accent"
+                      : tone === "warn"
+                        ? "warn"
+                        : tone === "danger"
+                          ? "danger"
+                          : "neutral"
+                  }
+                >
+                  <Icon className="h-4 w-4" aria-hidden />
+                </IconTile>
+                <div className="mt-3 text-stat font-semibold tabular tracking-tight text-ink">
+                  {a.total}
+                </div>
+                <p className="mt-0.5 text-sm text-ink-muted">{t(label)}</p>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        {data.aggregates.map((a) => (
-          <Card key={a.metric}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-muted-foreground">
-                {a.metric}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-3xl font-semibold">{a.total}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-      <ul className="space-y-2 text-sm">
-        {data.recent.map((r) => (
-          <li key={r.id} className="rounded-md border bg-card px-3 py-2">
-            {r.metric} · {r.value} · {new Date(r.createdAt).toLocaleString()}
-          </li>
-        ))}
-      </ul>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("Recent events")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {timelineItems.length === 0 ? (
+            <EmptyState
+              icon={<Activity className="h-5 w-5" aria-hidden />}
+              title={t("No recent events")}
+              className="py-8"
+            />
+          ) : (
+            <Timeline items={timelineItems} />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
   type MapTileStyle,
 } from "@hr/shared";
 import { mediaUrl } from "@/lib/api";
+import { formatSecondsAgo } from "@/lib/map-view";
 import "leaflet/dist/leaflet.css";
 import { t } from "@/i18n";
 
@@ -135,13 +136,23 @@ function markerHtml({
 }) {
   const safeLabel = escapeHtml(label);
   const safePhoto = photoUrl ? escapeHtml(photoUrl) : "";
-  const faceInner = safePhoto
-    ? `<img class="lm-marker-photo" src="${safePhoto}" alt="" />`
-    : showInitials
-      ? `<span class="lm-marker-initials">${safeLabel}</span>`
-      : `<span class="lm-pulse-dot"></span>`;
-  const face = `<span class="lm-marker-face">${faceInner}</span>`;
   const statusDot = `<span class="lm-status-dot ${active ? "lm-status-dot--online" : "lm-status-dot--offline"}" aria-hidden="true"></span>`;
+
+  // Profile photo always renders as a circular face pin (theme shapes are for no-photo only).
+  if (safePhoto) {
+    return `<div class="lm-marker lm-marker--photo ${active ? "lm-marker--active" : "lm-marker--idle"}" style="--lm-color:${color}">
+      <div class="lm-photo-ring">
+        <span class="lm-marker-face"><img class="lm-marker-photo" src="${safePhoto}" alt="" /></span>
+      </div>
+      ${statusDot}
+      ${active ? `<span class="lm-pulse-ring" aria-hidden="true"></span>` : ""}
+    </div>`;
+  }
+
+  const faceInner = showInitials
+    ? `<span class="lm-marker-initials">${safeLabel}</span>`
+    : `<span class="lm-pulse-dot"></span>`;
+  const face = `<span class="lm-marker-face">${faceInner}</span>`;
 
   if (style === "pin") {
     return `<div class="lm-marker lm-marker--pin ${active ? "lm-marker--active" : "lm-marker--idle"}" style="--lm-color:${color}">
@@ -172,14 +183,20 @@ function buildIcon(
     ? appearance.onShiftColor
     : appearance.lastSeenColor;
   const label = initialsOf(opts.name);
+  const photoUrl = mediaUrl(opts.avatarUrl);
+  const usePhoto = Boolean(photoUrl);
   const size =
-    appearance.markerStyle === "pin"
-      ? ([36, 44] as [number, number])
-      : ([40, 40] as [number, number]);
+    usePhoto
+      ? ([40, 40] as [number, number])
+      : appearance.markerStyle === "pin"
+        ? ([36, 44] as [number, number])
+        : ([40, 40] as [number, number]);
   const anchor =
-    appearance.markerStyle === "pin"
-      ? ([18, 40] as [number, number])
-      : ([20, 20] as [number, number]);
+    usePhoto
+      ? ([20, 20] as [number, number])
+      : appearance.markerStyle === "pin"
+        ? ([18, 40] as [number, number])
+        : ([20, 20] as [number, number]);
 
   return L.divIcon({
     className: `lm-icon${opts.focused ? " lm-icon--focused" : ""}`,
@@ -189,11 +206,11 @@ function buildIcon(
       style: appearance.markerStyle,
       active: opts.active,
       showInitials: appearance.showInitials,
-      photoUrl: mediaUrl(opts.avatarUrl),
+      photoUrl,
     }),
     iconSize: size,
     iconAnchor: anchor,
-    popupAnchor: [0, appearance.markerStyle === "pin" ? -36 : -18],
+    popupAnchor: [0, !usePhoto && appearance.markerStyle === "pin" ? -36 : -18],
   });
 }
 
@@ -547,7 +564,10 @@ export default function LiveMapView({
                           {t("Zone ·")}{zoneRadius}{t("m radius")}</p>
                       ) : null}
                       <p className="lm-popup-updated">
-                        {t("Updated")}{l.secondsSinceUpdate ?? 0}{t("s ago")}</p>
+                        {t("Updated {when}", {
+                          when: formatSecondsAgo(l.secondsSinceUpdate ?? 0),
+                        })}
+                      </p>
                     </div>
                   </Popup>
                 </Marker>

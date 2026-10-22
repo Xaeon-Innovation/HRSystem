@@ -8,6 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Chip,
+  EmptyState,
+  IconTile,
+  Notice,
+  PageHeader,
+  StatusChip,
+} from "@/components/elevora";
+import { ArrowRight, Handshake, Plug, Plus, Target, Webhook } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
 
 type Connection = {
@@ -217,36 +227,206 @@ function IntegrationsPageInner() {
     setError(null);
   }
 
+  const connectionIcon = (row: Connection) => {
+    const preset = row.connectorConfig?.preset;
+    if (preset === "hubspot_crm") return <Handshake className="h-5 w-5" aria-hidden />;
+    if (preset === "creative_cms_goals") return <Target className="h-5 w-5" aria-hidden />;
+    if (row.providerType === "webhook") return <Webhook className="h-5 w-5" aria-hidden />;
+    return <Plug className="h-5 w-5" aria-hidden />;
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Integrations")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Connect CMS, CRM, or ERP without API wiring. Pick a connector; we handle auth, endpoints, and mappings.",
-          )}
-        </p>
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      <PageHeader
+        title={t("Integrations")}
+        subtitle={t(
+          "Connect CMS, CRM, or ERP without API wiring. Pick a connector; we handle auth, endpoints, and mappings.",
+        )}
+        actions={
+          <Button
+            className="w-full sm:w-auto"
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-expanded={showAdvanced}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {showAdvanced
+              ? t("Hide custom / advanced connection")
+              : t("Custom connection")}
+          </Button>
+        }
+      />
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        {readyPacks.map((pack) => {
-          const isOpen = activePackId === pack.id;
-          const busy = connecting && activePackId === pack.id;
-          return (
-            <Card
-              key={pack.id}
-              className="border-emerald-200/70 bg-emerald-50/30 dark:border-emerald-800 dark:bg-emerald-950/30"
-            >
-              <CardHeader>
-                <CardTitle className="text-base">{t(pack.label)}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
+      {error ? <Notice tone="warn">{error}</Notice> : null}
+
+      {showAdvanced ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("Custom REST connection")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="grid gap-3 sm:grid-cols-2" onSubmit={create}>
+              <div className="space-y-1">
+                <Label>{t("Name")}</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Provider")}</Label>
+                <select
+                  className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                  value={providerType}
+                  onChange={(e) => setProviderType(e.target.value)}
+                >
+                  <option value="custom_api">{t("Custom REST API")}</option>
+                  <option value="webhook">{t("Webhook")}</option>
+                  <option value="csv">{t("CSV import")}</option>
+                  <option value="crm">{t("CRM (via Custom REST)")}</option>
+                  <option value="erp">{t("ERP (via Custom REST)")}</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Sync mode")}</Label>
+                <select
+                  className="h-10 w-full rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+                  value={syncMode}
+                  onChange={(e) => setSyncMode(e.target.value)}
+                >
+                  <option value="polling">{t("Polling")}</option>
+                  <option value="webhook">{t("Webhook")}</option>
+                  <option value="manual">{t("Manual / CSV")}</option>
+                  <option value="hybrid">{t("Hybrid")}</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Base URL")}</Label>
+                <Input
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                  placeholder="https://api.example.com"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Button
+                  type="submit"
+                  className="w-full sm:w-auto"
+                  disabled={creating}
+                >
+                  {creating ? t("Creating…") : t("Create and continue")}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <section aria-labelledby="integrations-connected" className="space-y-3">
+        <h2
+          id="integrations-connected"
+          className="text-2xs font-semibold uppercase tracking-wider text-ink-muted"
+        >
+          {t("Connected")}
+        </h2>
+        {rows.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={<Plug className="h-5 w-5" aria-hidden />}
+              title={t("No connections yet")}
+              subtitle={t("Connect a pack below to get started.")}
+            />
+          </Card>
+        ) : (
+          <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+            {rows.map((row) => (
+              <Link
+                key={row.id}
+                href={`/app/integrations/${row.id}`}
+                className="group block min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/25"
+              >
+                <Card className="h-full p-5 transition-colors group-hover:border-line-strong">
+                  <div className="flex items-start justify-between gap-2">
+                    <IconTile tone="ink" size="lg">
+                      {connectionIcon(row)}
+                    </IconTile>
+                    <StatusChip status={row.status} label={row.status} />
+                  </div>
+                  <h3 className="mt-3 truncate text-[15px] font-semibold text-ink">
+                    {row.name}
+                  </h3>
+                  <p className="mt-0.5 truncate text-xs text-ink-muted">
+                    {packLabelForConnection(row, packs)} · {row.syncMode}
+                  </p>
+                  {row.lastError ? (
+                    <p className="mt-2 line-clamp-2 text-xs text-danger">
+                      {row.lastError}
+                    </p>
+                  ) : null}
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t border-line pt-3 text-xs text-ink-muted">
+                    <span className="min-w-0 truncate">
+                      {t("Last sync")}{" "}
+                      {row.lastSyncAt
+                        ? new Date(row.lastSyncAt).toLocaleString()
+                        : t("never")}
+                    </span>
+                    <span className="inline-flex shrink-0 items-center gap-1 font-medium text-ink">
+                      {t("Manage")}
+                      <ArrowRight
+                        className="h-3.5 w-3.5 rtl:-scale-x-100"
+                        aria-hidden
+                      />
+                    </span>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section aria-labelledby="integrations-catalog" className="space-y-3">
+        <h2
+          id="integrations-catalog"
+          className="text-2xs font-semibold uppercase tracking-wider text-ink-muted"
+        >
+          {t("Catalog")}
+        </h2>
+        <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
+          {readyPacks.map((pack) => {
+            const isOpen = activePackId === pack.id;
+            const busy = connecting && activePackId === pack.id;
+            return (
+              <Card
+                key={pack.id}
+                className={cn(
+                  "min-w-0 p-5",
+                  isOpen && pack.authStrategy !== "oauth2" && "sm:col-span-2 xl:col-span-3",
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <IconTile tone="neutral" size="lg">
+                    <Plug className="h-5 w-5" aria-hidden />
+                  </IconTile>
+                  {pack.authStrategy === "oauth2" || isOpen ? null : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openPackForm(pack)}
+                    >
+                      {t("Connect")}
+                    </Button>
+                  )}
+                </div>
+                <h3 className="mt-3 text-[15px] font-semibold text-ink">
+                  {t(pack.label)}
+                </h3>
+                <p className="mt-0.5 text-xs text-ink-muted">
                   {t(pack.description)}
                 </p>
+
                 {pack.authStrategy === "oauth2" ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
                     <Button
                       className="w-full sm:w-auto"
                       disabled={busy || pack.oauthConfigured === false}
@@ -257,7 +437,7 @@ function IntegrationsPageInner() {
                         : t("Connect {name}", { name: pack.label })}
                     </Button>
                     {pack.oauthConfigured === false ? (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-ink-muted">
                         {t(
                           "OAuth is not configured on this server yet. Ask your platform admin.",
                         )}
@@ -266,7 +446,7 @@ function IntegrationsPageInner() {
                   </div>
                 ) : isOpen ? (
                   <form
-                    className="grid gap-3 sm:grid-cols-2"
+                    className="mt-4 grid gap-3 sm:grid-cols-2"
                     onSubmit={(e) => connectCredentialPack(e, pack)}
                   >
                     {pack.authFields.map((field) => (
@@ -304,7 +484,7 @@ function IntegrationsPageInner() {
                     <div className="sm:col-span-2">
                       <button
                         type="button"
-                        className="text-xs text-muted-foreground underline hover:text-foreground"
+                        className="text-xs text-ink-muted underline hover:text-ink"
                         onClick={() => setPackAdvanced((v) => !v)}
                       >
                         {packAdvanced
@@ -323,7 +503,7 @@ function IntegrationsPageInner() {
                       </div>
                     ) : null}
                     {pack.id === "creative_cms_goals" ? (
-                      <p className="sm:col-span-2 text-xs text-muted-foreground">
+                      <p className="text-xs text-ink-muted sm:col-span-2">
                         {t(
                           "For Analytics attribution, HR employees should use the same CMS employee UUID as their external ID.",
                         )}
@@ -350,151 +530,29 @@ function IntegrationsPageInner() {
                       </Button>
                     </div>
                   </form>
-                ) : (
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={() => openPackForm(pack)}
-                  >
-                    {t("Connect {name}", { name: pack.label })}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
+                ) : null}
+              </Card>
+            );
+          })}
 
-        {comingSoonPacks.map((pack) => (
-          <Card key={pack.id} className="opacity-80">
-            <CardHeader>
-              <CardTitle className="text-base">{t(pack.label)}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
+          {comingSoonPacks.map((pack) => (
+            <Card key={pack.id} className="min-w-0 p-5 opacity-70">
+              <div className="flex items-start justify-between gap-2">
+                <IconTile tone="neutral" size="lg">
+                  <Plug className="h-5 w-5" aria-hidden />
+                </IconTile>
+                <Chip>{t("Coming soon")}</Chip>
+              </div>
+              <h3 className="mt-3 text-[15px] font-semibold text-ink">
+                {t(pack.label)}
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-muted">
                 {t(pack.description)}
               </p>
-              <Button className="w-full sm:w-auto" disabled>
-                {t("Coming soon")}
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-2">
-        <h2 className="text-sm font-medium text-muted-foreground">
-          {t("Your connections")}
-        </h2>
-        {rows.map((row) => (
-          <Link key={row.id} href={`/app/integrations/${row.id}`}>
-            <Card>
-              <CardContent className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium">{row.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {packLabelForConnection(row, packs)} · {row.syncMode}{" "}
-                    {t("· last sync")}{" "}
-                    {row.lastSyncAt
-                      ? new Date(row.lastSyncAt).toLocaleString()
-                      : "never"}
-                  </p>
-                  {row.lastError ? (
-                    <p className="text-xs text-destructive">{row.lastError}</p>
-                  ) : null}
-                </div>
-                <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                  {row.status}
-                </span>
-              </CardContent>
             </Card>
-          </Link>
-        ))}
-        {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {t("No connections yet. Connect a pack above.")}
-          </p>
-        ) : null}
-      </div>
-
-      <div>
-        <button
-          type="button"
-          className="text-sm text-muted-foreground underline hover:text-foreground"
-          onClick={() => setShowAdvanced((v) => !v)}
-        >
-          {showAdvanced
-            ? t("Hide custom / advanced connection")
-            : t("Custom REST / advanced connection")}
-        </button>
-      </div>
-
-      {showAdvanced ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {t("Custom REST connection")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form
-              className="grid gap-3 sm:grid-cols-2"
-              onSubmit={create}
-            >
-              <div className="space-y-1">
-                <Label>{t("Name")}</Label>
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-1">
-                <Label>{t("Provider")}</Label>
-                <select
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={providerType}
-                  onChange={(e) => setProviderType(e.target.value)}
-                >
-                  <option value="custom_api">{t("Custom REST API")}</option>
-                  <option value="webhook">{t("Webhook")}</option>
-                  <option value="csv">{t("CSV import")}</option>
-                  <option value="crm">{t("CRM (via Custom REST)")}</option>
-                  <option value="erp">{t("ERP (via Custom REST)")}</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>{t("Sync mode")}</Label>
-                <select
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  value={syncMode}
-                  onChange={(e) => setSyncMode(e.target.value)}
-                >
-                  <option value="polling">{t("Polling")}</option>
-                  <option value="webhook">{t("Webhook")}</option>
-                  <option value="manual">{t("Manual / CSV")}</option>
-                  <option value="hybrid">{t("Hybrid")}</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>{t("Base URL")}</Label>
-                <Input
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  placeholder="https://api.example.com"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <Button
-                  type="submit"
-                  className="w-full sm:w-auto"
-                  disabled={creating}
-                >
-                  {creating ? t("Creating…") : t("Create and continue")}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : null}
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
@@ -503,7 +561,7 @@ export default function IntegrationsPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-48 w-full animate-pulse rounded-xl bg-muted/40" />
+        <div className="h-48 w-full animate-pulse rounded-lg bg-surface-2" />
       }
     >
       <IntegrationsPageInner />

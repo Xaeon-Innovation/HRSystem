@@ -1,12 +1,12 @@
 import type { ReactNode } from "react";
 import { AlertCircle, Briefcase, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
+import { EmptyState, Notice } from "@/components/elevora";
 import { t } from "@/i18n";
 
 export function HiringLoadingSkeleton() {
-  return <PageSkeleton />;
+  return <PageSkeleton dense />;
 }
 
 export function HiringErrorState({
@@ -17,20 +17,23 @@ export function HiringErrorState({
   onRetry: () => void;
 }) {
   return (
-    <Card className="border-destructive/30 bg-rose-50/60 dark:bg-rose-950/40">
-      <CardContent className="flex flex-col items-start gap-3 py-8 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-3">
-          <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
-          <div>
-            <p className="font-medium">{t("Couldn’t load hiring")}</p>
-            <p className="text-sm text-muted-foreground">{message}</p>
-          </div>
-        </div>
-        <Button onClick={onRetry} variant="outline" size="sm">
+    <div className="rounded-sm border border-line bg-surface p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <Notice tone="warn" className="flex-1 border-danger/30 bg-danger/10">
+          <span className="flex gap-2">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-danger" />
+            <span>
+              <p className="font-medium text-ink">{t("Couldn’t load hiring")}</p>
+              <p className="mt-0.5 text-ink-muted">{message}</p>
+            </span>
+          </span>
+        </Notice>
+        <Button onClick={onRetry} variant="outline" size="sm" className="w-full sm:w-auto">
           <RefreshCw className="h-4 w-4" />
-          {t("Try again")}</Button>
-      </CardContent>
-    </Card>
+          {t("Try again")}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -44,27 +47,26 @@ export function HiringEmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Card className="border-dashed">
-      <CardContent className="flex flex-col items-center py-12 text-center">
-        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent text-accent-foreground">
-          <Briefcase className="h-6 w-6" />
-        </div>
-        <p className="text-base font-semibold">{title}</p>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
-        {action ? <div className="mt-5">{action}</div> : null}
-      </CardContent>
-    </Card>
+    <div className="rounded-sm border border-dashed border-line bg-surface">
+      <EmptyState
+        icon={<Briefcase className="h-5 w-5" />}
+        title={title}
+        subtitle={description}
+        action={action}
+      />
+    </div>
   );
 }
 
 export function HiringAccessDenied() {
   return (
-    <Card className="border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/40">
-      <CardContent className="py-12 text-center">
-        <p className="text-base font-semibold">{t("Hiring is restricted")}</p>
-        <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-          {t("Job openings, candidates, and interviews are available to HR, hiring managers, and assigned interviewers.")}</p>
-      </CardContent>
-    </Card>
+    <Notice tone="warn" className="py-8 text-center">
+      <p className="text-base font-semibold text-ink">{t("Hiring is restricted")}</p>
+      <p className="mx-auto mt-2 max-w-md text-sm text-ink-muted">
+        {t(
+          "Job openings, candidates, and interviews are available to HR, hiring managers, and assigned interviewers.",
+        )}
+      </p>
+    </Notice>
   );
 }

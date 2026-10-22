@@ -4,8 +4,16 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import {
+  Chip,
+  EmptyState,
+  Notice,
+  PageHeader,
+  StatusChip,
+} from "@/components/elevora";
+import { CreditCard } from "lucide-react";
 import { t } from "@/i18n";
 
 type SubscriptionRow = {
@@ -99,12 +107,10 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t("Subscriptions")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Cross-tenant billing status, plan assignment, and overrides")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("Subscriptions")}
+        subtitle={t("Cross-tenant status")}
+      />
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Input
@@ -114,7 +120,7 @@ export default function SubscriptionsPage() {
           onChange={(e) => setQ(e.target.value)}
         />
         <select
-          className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+          className="h-10 rounded-sm border border-line-strong bg-surface px-3 text-sm text-ink"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
         >
@@ -136,73 +142,103 @@ export default function SubscriptionsPage() {
         </Button>
       </div>
 
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className="space-y-2">
-        {rows.map((s) => (
-          <Card key={s.id}>
-            <CardContent className="flex flex-col gap-3 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="font-medium">
-                  {s.tenant?.name ?? t("Unknown tenant")}{" "}
-                  <span className="text-xs text-muted-foreground">
-                    ({s.tenant?.slug})
-                  </span>
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {s.plan?.name ?? t("No plan")} · {s.status}
-                  {s.cancelAtPeriodEnd ? t(" · cancel at period end") : ""}
-                  {" · "}
-                  {s.seatsUsed}
-                  {s.seatLimit != null ? `/${s.seatLimit}` : ""} {t("seats")}
-                  {s.currentPeriodEnd
-                    ? ` · ends ${new Date(s.currentPeriodEnd).toLocaleDateString()}`
-                    : ""}
-                  {s.tenant?.status === "suspended" ? " · tenant suspended" : ""}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <select
-                  className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm sm:w-44"
-                  disabled={assigningId === s.id}
-                  value={s.plan?.id ?? ""}
-                  onChange={(e) => void changePlan(s, e.target.value)}
-                >
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-                {s.status !== "canceled" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setPending({ type: "cancel", row: s })}
-                  >
-                    {t("Cancel")}
-                  </Button>
-                ) : null}
-                {s.status === "past_due" ||
-                s.status === "canceled" ||
-                s.status === "expired" ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => setPending({ type: "force", row: s })}
-                  >
-                    {t("Force active")}
-                  </Button>
-                ) : null}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      {error ? <Notice tone="warn">{error}</Notice> : null}
+
+      <Card className="overflow-hidden">
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("No subscriptions.")}</p>
-        ) : null}
-      </div>
+          <EmptyState
+            icon={<CreditCard className="h-5 w-5" aria-hidden />}
+            title={t("No subscriptions")}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[48rem] text-sm">
+              <thead>
+                <tr className="border-b border-line text-start text-2xs text-ink-muted">
+                  <th className="px-5 py-3 font-medium">{t("Tenant")}</th>
+                  <th className="px-3 py-3 font-medium">{t("Plan")}</th>
+                  <th className="px-3 py-3 font-medium tabular">{t("Seats")}</th>
+                  <th className="px-3 py-3 font-medium">{t("Period end")}</th>
+                  <th className="px-3 py-3 font-medium">{t("Status")}</th>
+                  <th className="px-5 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((s) => (
+                  <tr key={s.id} className="border-b border-line last:border-0">
+                    <td className="px-5 py-3 align-middle">
+                      <b className="text-ink">{s.tenant?.name ?? t("Unknown tenant")}</b>
+                      <p className="text-2xs text-ink-muted">
+                        {s.tenant?.slug}
+                        {s.cancelAtPeriodEnd
+                          ? t(" · cancel at period end")
+                          : ""}
+                      </p>
+                    </td>
+                    <td className="px-3 py-3 align-middle">
+                      <Chip>{s.plan?.name ?? t("No plan")}</Chip>
+                    </td>
+                    <td className="px-3 py-3 align-middle tabular text-ink">
+                      {s.seatsUsed}
+                      {s.seatLimit != null ? `/${s.seatLimit}` : ""}
+                    </td>
+                    <td className="px-3 py-3 align-middle tabular text-xs text-ink-muted">
+                      {s.currentPeriodEnd
+                        ? new Date(s.currentPeriodEnd).toLocaleDateString()
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-3 align-middle">
+                      <StatusChip status={s.status} label={s.status} />
+                    </td>
+                    <td className="px-5 py-3 align-middle">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                        <select
+                          className="h-9 w-full rounded-sm border border-line-strong bg-surface px-2 text-sm sm:w-44"
+                          disabled={assigningId === s.id}
+                          value={s.plan?.id ?? ""}
+                          onChange={(e) => void changePlan(s, e.target.value)}
+                        >
+                          {plans.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.name}
+                            </option>
+                          ))}
+                        </select>
+                        {s.status !== "canceled" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() =>
+                              setPending({ type: "cancel", row: s })
+                            }
+                          >
+                            {t("Cancel")}
+                          </Button>
+                        ) : null}
+                        {s.status === "past_due" ||
+                        s.status === "canceled" ||
+                        s.status === "expired" ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full sm:w-auto"
+                            onClick={() =>
+                              setPending({ type: "force", row: s })
+                            }
+                          >
+                            {t("Force active")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
 
       <ConfirmDialog
         open={Boolean(pending)}

@@ -160,12 +160,12 @@ export function TaskDetailSheet({
           </SheetHeader>
           <SheetBody className="space-y-4">
             {error ? (
-              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              <p className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
                 {error}
               </p>
             ) : null}
             {!task ? (
-              <p className="text-sm text-muted-foreground">{t("Loading…")}</p>
+              <p className="text-sm text-ink-muted">{t("Loading…")}</p>
             ) : (
               <>
                 <div className="flex flex-wrap gap-2 text-xs">
@@ -184,7 +184,7 @@ export function TaskDetailSheet({
                   {task.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-full bg-secondary px-2.5 py-1"
+                      className="rounded-full bg-surface-2 px-2.5 py-1"
                     >
                       {tag}
                     </span>
@@ -192,13 +192,13 @@ export function TaskDetailSheet({
                 </div>
 
                 {task.description ? (
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  <p className="whitespace-pre-wrap text-sm text-ink-muted">
                     {task.description}
                   </p>
                 ) : null}
 
                 {task.reviewNote ? (
-                  <p className="rounded-md border border-input bg-secondary/40 px-3 py-2 text-sm">
+                  <p className="rounded-md border border-input bg-surface-2/40 px-3 py-2 text-sm">
                     <span className="font-medium">{t("Review note")}: </span>
                     {task.reviewNote}
                   </p>
@@ -206,7 +206,7 @@ export function TaskDetailSheet({
 
                 <div>
                   <h3 className="mb-1 text-sm font-medium">{t("Assignees")}</h3>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-ink-muted">
                     {task.assignees.map((a) => a.name).join(", ") || t("None")}
                   </p>
                 </div>
@@ -240,7 +240,7 @@ export function TaskDetailSheet({
                             a.name
                           )}
                           {a.uploadedByName ? (
-                            <span className="text-muted-foreground">
+                            <span className="text-ink-muted">
                               {" "}
                               · {a.uploadedByName}
                             </span>
@@ -262,8 +262,8 @@ export function TaskDetailSheet({
                           <span
                             className={
                               covered.has(r.id)
-                                ? "text-foreground"
-                                : "text-muted-foreground"
+                                ? "text-ink"
+                                : "text-ink-muted"
                             }
                           >
                             {covered.has(r.id) ? "[done]" : "[needed]"}{" "}
@@ -348,14 +348,14 @@ export function TaskDetailSheet({
                           </Button>
                         </div>
                         {missingReqs.length ? (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-ink-muted">
                             {t("Still needed")}:{" "}
                             {missingReqs
                               .map((r) => DELIVERABLE_TYPE_LABEL[r.type])
                               .join(", ")}
                           </p>
                         ) : (
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-ink-muted">
                             {t("All required deliverables uploaded.")}
                           </p>
                         )}
@@ -372,16 +372,16 @@ export function TaskDetailSheet({
                         <span className="font-medium">
                           {a.actorName ?? t("Someone")}
                         </span>{" "}
-                        <span className="text-muted-foreground">
+                        <span className="text-ink-muted">
                           {a.message}
                         </span>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-ink-muted">
                           {new Date(a.createdAt).toLocaleString()}
                         </div>
                       </li>
                     ))}
                     {!task.activity.length ? (
-                      <li className="text-sm text-muted-foreground">
+                      <li className="text-sm text-ink-muted">
                         {t("No activity yet")}
                       </li>
                     ) : null}

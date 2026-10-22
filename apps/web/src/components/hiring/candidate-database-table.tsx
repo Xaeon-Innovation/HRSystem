@@ -8,15 +8,8 @@ import { HiringEmptyState } from "@/components/hiring/hiring-states";
 import {
   CandidateStatusBadge,
   SourceChip,
-  StageBadge,
-  TagChip,
 } from "@/components/hiring/hiring-status-badge";
-import {
-  formatDateTime,
-  SELECT_CLASS,
-  sourceLabel,
-  stageLabel,
-} from "@/lib/hiring/format";
+import { SELECT_CLASS, sourceLabel, stageLabel } from "@/lib/hiring/format";
 import type { FitScoreResult } from "@/lib/hiring/fit-score";
 import { FitScoreBadge } from "@/components/hiring/fit-score-badge";
 import {
@@ -93,7 +86,7 @@ export function CandidateDatabaseTable({
             className={
               filters.view === v.id
                 ? "rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-                : "rounded-full bg-secondary px-3 py-1 text-xs font-medium hover:bg-secondary/80"
+                : "rounded-full bg-surface-2 px-3 py-1 text-xs font-medium hover:bg-surface-2/80"
             }
           >
             {v.label}
@@ -192,108 +185,86 @@ export function CandidateDatabaseTable({
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-xl border bg-card">
-          <table className="w-full min-w-[72rem] text-left text-sm">
-            <thead className="border-b bg-secondary/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 font-medium">{t("Name")}</th>
-                <th className="px-3 py-2 font-medium">{t("Role")}</th>
-                <th className="px-3 py-2 font-medium">{t("Stage")}</th>
-                <th className="px-3 py-2 font-medium">{t("Source")}</th>
-                <th className="px-3 py-2 font-medium">{t("Contact")}</th>
-                <th className="px-3 py-2 font-medium">{t("CV")}</th>
-                <th className="px-3 py-2 font-medium">{t("Exp")}</th>
-                <th className="px-3 py-2 font-medium">{t("Tags")}</th>
-                <th className="px-3 py-2 font-medium">{t("Fit")}</th>
-                <th className="px-3 py-2 font-medium">{t("Rating")}</th>
-                <th className="px-3 py-2 font-medium">{t("Owner")}</th>
-                <th className="px-3 py-2 font-medium">{t("Activity")}</th>
-                <th className="px-3 py-2 font-medium">{t("Status")}</th>
-                <th className="px-3 py-2 font-medium" />
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((c) => (
-                <tr key={c.id} className="border-b last:border-0 hover:bg-accent/30">
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 text-left"
-                      onClick={() => onOpen(c.id)}
-                    >
-                      <UserAvatar name={c.fullName} size="sm" />
-                      <span>
-                        <span className="block font-medium">{c.fullName}</span>
-                        {duplicateIds.has(c.id) ? (
-                          <span className="text-[10px] font-semibold uppercase text-amber-800">
-                            {t("Possible duplicate")}</span>
-                        ) : null}
-                      </span>
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-muted-foreground">{c.appliedJobTitle}</td>
-                  <td className="px-3 py-2">
-                    <StageBadge stage={c.currentStage} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <SourceChip source={c.source} />
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    <p>{c.email}</p>
-                    <p className="text-muted-foreground">{c.phone || "-"}</p>
-                  </td>
-                  <td className="px-3 py-2 text-xs">
-                    {c.resumeUrl ? (
-                      <a href={c.resumeUrl} className="text-primary hover:underline">
-                        {t("Resume")}</a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-3 py-2 tabular-nums">{c.yearsOfExperience}y</td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1">
-                      {c.tags.slice(0, 3).map((t) => (
-                        <TagChip key={t} label={t} />
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <FitScoreBadge
-                      result={
-                        fits[c.id] ?? {
-                          score: null,
-                          band: null,
-                          matchedSkills: [],
-                          missingSkills: [],
-                          knockout: false,
-                          usedInterview: false,
-                        }
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2 tabular-nums">{c.rating ? `${c.rating}/5` : "-"}</td>
-                  <td className="px-3 py-2 text-xs">{c.recruiterOwnerName}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
-                    {formatDateTime(c.updatedAt)}
-                  </td>
-                  <td className="px-3 py-2">
-                    <CandidateStatusBadge status={c.status} />
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" onClick={() => onOpen(c.id)}>
-                        {t("Open")}</Button>
-                      {canManage ? (
-                        <Button size="sm" variant="ghost" onClick={() => onRemove(c.id)}>
-                          {t("Remove")}</Button>
-                      ) : null}
-                    </div>
-                  </td>
+        <div className="overflow-hidden rounded-sm border border-line bg-surface">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[56rem] text-left text-sm">
+              <thead>
+                <tr className="border-b border-line bg-surface-2 text-[11px] uppercase tracking-wide text-ink-muted">
+                  <th className="px-3 py-2.5 font-medium">{t("Candidate")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Source")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Stage")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Status")}</th>
+                  <th className="px-3 py-2.5 font-medium">{t("Fit")}</th>
+                  <th className="px-3 py-2.5 font-medium" />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-line last:border-0 hover:bg-surface-2/80"
+                  >
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        className="flex items-center gap-2 text-left"
+                        onClick={() => onOpen(c.id)}
+                      >
+                        <UserAvatar name={c.fullName} size="sm" />
+                        <span>
+                          <span className="block font-semibold text-ink">{c.fullName}</span>
+                          <span className="block text-xs text-ink-muted">{c.appliedJobTitle}</span>
+                          {duplicateIds.has(c.id) ? (
+                            <span className="text-[10px] font-semibold uppercase text-warn">
+                              {t("Possible duplicate")}
+                            </span>
+                          ) : null}
+                        </span>
+                      </button>
+                    </td>
+                    <td className="px-3 py-3">
+                      <SourceChip source={c.source} />
+                    </td>
+                    <td className="px-3 py-3 text-sm text-ink-muted">
+                      {stageLabel(c.currentStage)}
+                    </td>
+                    <td className="px-3 py-3">
+                      <CandidateStatusBadge status={c.status} />
+                    </td>
+                    <td className="px-3 py-3">
+                      <div className="w-[90px]">
+                        <FitScoreBadge
+                          compact
+                          result={
+                            fits[c.id] ?? {
+                              score: null,
+                              band: null,
+                              matchedSkills: [],
+                              missingSkills: [],
+                              knockout: false,
+                              usedInterview: false,
+                            }
+                          }
+                        />
+                      </div>
+                    </td>
+                    <td className="px-3 py-3 text-end">
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="ghost" onClick={() => onOpen(c.id)}>
+                          {t("Open")}
+                        </Button>
+                        {canManage ? (
+                          <Button size="sm" variant="ghost" onClick={() => onRemove(c.id)}>
+                            {t("Remove")}
+                          </Button>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

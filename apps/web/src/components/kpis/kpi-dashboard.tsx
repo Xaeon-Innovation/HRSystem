@@ -10,21 +10,22 @@ import {
 } from "@/components/kpis/kpi-summary-cards";
 import { KpiCharts } from "@/components/kpis/kpi-charts";
 import { KpiMetricList } from "@/components/kpis/kpi-metric-list";
-import { KpiTable } from "@/components/kpis/kpi-table";
 import { KpiDetailDrawer } from "@/components/kpis/kpi-detail-drawer";
 import { KpiTemplateDialog } from "@/components/kpis/kpi-template-dialog";
 import { KpiPeopleQueue } from "@/components/kpis/kpi-people-queue";
 import { KpiPersonScorecard } from "@/components/kpis/kpi-person-scorecard";
+import { KpiMePanel } from "@/components/kpis/kpi-me-panel";
 import { KpiBenchmarks } from "@/components/kpis/kpi-benchmarks";
+import { PerformanceReportsPanel } from "@/components/kpis/performance-reports-panel";
 import {
   KpiEmptyState,
   KpiErrorState,
   KpiLoadingSkeleton,
 } from "@/components/kpis/kpi-states";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { PrimaryTabBar } from "@/components/ui/primary-tab-bar";
-import { useUiRedesign } from "@/hooks/use-ui-redesign";
+import { PageHeader } from "@/components/elevora";
 import { adaptSummary, computeBenchmarks, filterKpis } from "@/lib/kpis/adapt";
 import { buildAlerts } from "@/lib/kpis/alerts";
 import { downloadCsv, kpisToCsv } from "@/lib/kpis/export";
@@ -44,7 +45,6 @@ import type {
 import { t } from "@/i18n";
 
 export function KpiDashboard() {
-  const redesign = useUiRedesign();
   const user = typeof window !== "undefined" ? getUser() : null;
   const isAdmin = userHasModule(user, "kpis");
   const initial = defaultPeriod("monthly");
@@ -72,7 +72,7 @@ export function KpiDashboard() {
   const [personId, setPersonId] = useState<string | null>(null);
   const [templateOpen, setTemplateOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [view, setView] = useState(redesign ? "people" : "metrics");
+  const [view, setView] = useState("people");
   const [drillFocus, setDrillFocus] = useState<KpiDrillFocus | "">("");
   const [actualsBusy, setActualsBusy] = useState(false);
   const [actualsMsg, setActualsMsg] = useState<string | null>(null);
@@ -405,8 +405,7 @@ export function KpiDashboard() {
 
   function toggleDrill(focus: KpiDrillFocus) {
     setDrillFocus((prev) => (prev === focus ? "" : focus));
-    if (redesign) setView("people");
-    else setView("metrics");
+    setView("people");
   }
 
   const drillLabel =
@@ -421,20 +420,16 @@ export function KpiDashboard() {
   const employeeSelf = !isAdmin;
 
   return (
-    <div className="space-y-5">
-      {redesign ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="max-w-xl">
-            <h1 className="text-2xl font-semibold tracking-tight">
-              {employeeSelf ? t("My performance") : t("Performance")}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {employeeSelf
-                ? t("Your overall score, what needs attention, and your metrics.")
-                : t("Team pulse first, open a person to coach. Metrics and insights are one tap away.")}
-            </p>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+    <div className="space-y-6">
+      <PageHeader
+        title={employeeSelf ? t("My performance") : t("Performance")}
+        subtitle={
+          employeeSelf
+            ? t("Your overall score, what needs attention, and your metrics.")
+            : t("Team pulse first, open a person to coach. Metrics and insights are one tap away.")
+        }
+        actions={
+          <>
             <Button
               variant="outline"
               size="sm"
@@ -449,20 +444,22 @@ export function KpiDashboard() {
               className="w-full sm:w-auto"
               onClick={exportCsv}
             >
-              {t("Export")}</Button>
+              {t("Export")}
+            </Button>
             {isAdmin ? (
               <Button
                 size="sm"
                 className="w-full sm:w-auto"
                 onClick={() => setTemplateOpen(true)}
               >
-                {t("Set up KPIs")}</Button>
+                {t("Set up KPIs")}
+              </Button>
             ) : null}
-          </div>
-        </div>
-      ) : null}
+          </>
+        }
+      />
 
-      {!redesign || filtersOpen ? (
+      {filtersOpen ? (
         <KpiFiltersBar
           filters={filters}
           onChange={patchFilters}
@@ -475,7 +472,7 @@ export function KpiDashboard() {
           isAdmin={isAdmin}
           onExport={exportCsv}
           onEditTemplate={() => setTemplateOpen(true)}
-          hideHeader={redesign}
+          hideHeader
         />
       ) : null}
 
@@ -514,11 +511,11 @@ export function KpiDashboard() {
             teamAverage={isAdmin ? benchmarks.teamAverage : null}
             hasActuals={hasActuals}
             periodLabel={period.label}
-            activeFocus={redesign ? drillFocus : undefined}
-            onDrill={redesign ? toggleDrill : undefined}
+            activeFocus={drillFocus}
+            onDrill={toggleDrill}
           />
 
-          {redesign && drillLabel ? (
+          {drillLabel ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 {t("Showing:")}{drillLabel} ({people.length} {t("people)")}</span>
@@ -534,7 +531,7 @@ export function KpiDashboard() {
           ) : null}
 
           {employeeSelf && pendingAckIds.length > 0 ? (
-            <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-accent/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-sm border border-accent/30 bg-accent-tint px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm">
                 <span className="font-medium">{pendingAckIds.length}</span> {t("new result")}{pendingAckIds.length === 1 ? "" : "s"} {t("waiting for your acknowledgement.")}</p>
               <Button
@@ -546,127 +543,101 @@ export function KpiDashboard() {
             </div>
           ) : null}
 
-          {redesign ? (
-            <Tabs value={view} onValueChange={setView}>
-              <PrimaryTabBar
-                value={view}
-                onValueChange={setView}
-                primaryCount={3}
-                tabs={[
-                  {
-                    value: "people",
-                    label: employeeSelf ? t("Me") : t("People"),
-                    badge: people.length,
-                  },
-                  {
-                    value: "metrics",
-                    label: t("Metrics"),
-                    badge: drillFiltered.length,
-                  },
-                  { value: "insights", label: t("Insights") },
-                ]}
-              />
-              <TabsContent value="people" className="mt-4">
-                {employeeSelf && people[0] ? (
-                  <div className="space-y-3">
-                    <KpiPeopleQueue
-                      people={people}
-                      selectedId={personId}
-                      onSelect={(id) => setPersonId(id)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {t("Open your row for Target / Result detail, ack, and CMS Goals (if linked).")}</p>
-                  </div>
-                ) : (
-                  <KpiPeopleQueue
-                    people={people}
-                    selectedId={personId}
-                    onSelect={(id) => setPersonId(id)}
-                  />
-                )}
-              </TabsContent>
-              <TabsContent value="metrics" className="mt-4">
-                {drillFiltered.length === 0 && drillFocus ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t("Nothing in this slice. Clear the filter or adjust Filters.")}</p>
-                ) : (
-                  <KpiMetricList
-                    items={drillFiltered}
-                    isAdmin={isAdmin}
-                    onOpen={setSelectedId}
-                  />
-                )}
-              </TabsContent>
-              <TabsContent value="insights" className="mt-4 space-y-4">
-                {isAdmin ? (
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Fill attendance-like KPI scores from this month&apos;s
-                      clock-ins when missing.
-                    </p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full sm:w-auto"
-                      disabled={actualsBusy}
-                      onClick={() => void pullAttendanceActuals()}
-                    >
-                      {actualsBusy
-                        ? t("Pulling…")
-                        : t("Pull attendance actuals")}
-                    </Button>
-                  </div>
-                ) : null}
-                {actualsMsg ? (
-                  <p className="text-sm text-muted-foreground">{actualsMsg}</p>
-                ) : null}
-                <KpiCharts
-                  items={drillFiltered}
-                  categories={scoreByCategory(drillFiltered)}
-                  onSelect={setSelectedId}
+          <Tabs value={view} onValueChange={setView}>
+            <PrimaryTabBar
+              value={view}
+              onValueChange={setView}
+              primaryCount={4}
+              tabs={[
+                {
+                  value: "people",
+                  label: employeeSelf ? t("Me") : t("People"),
+                  badge: people.length,
+                },
+                {
+                  value: "metrics",
+                  label: t("Metrics"),
+                  badge: drillFiltered.length,
+                },
+                { value: "insights", label: t("Insights") },
+                { value: "reports", label: t("Reports") },
+              ]}
+            />
+            <TabsContent value="people" className="mt-4">
+              {employeeSelf && people[0] ? (
+                <KpiMePanel
+                  person={people[0]}
+                  periodLabel={period.label}
+                  onOpenMetric={setSelectedId}
+                  onOpenScorecard={() => setPersonId(people[0]!.employeeId)}
+                  onAcknowledge={acknowledgeScores}
                 />
-                <KpiBenchmarks
-                  overall={dashSummary.overallPerformanceScore}
-                  benchmarks={benchmarks}
+              ) : (
+                <KpiPeopleQueue
+                  people={people}
+                  selectedId={personId}
+                  onSelect={(id) => setPersonId(id)}
                 />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <Tabs value={view} onValueChange={setView}>
-              <TabsList className="max-w-md">
-                <TabsTrigger value="metrics">{t("Metrics")}</TabsTrigger>
-                <TabsTrigger value="chart">{t("Chart")}</TabsTrigger>
-                <TabsTrigger value="table">{t("Table")}</TabsTrigger>
-              </TabsList>
-              <TabsContent value="metrics" className="mt-4">
+              )}
+            </TabsContent>
+            <TabsContent value="metrics" className="mt-4">
+              {drillFiltered.length === 0 && drillFocus ? (
+                <p className="text-sm text-ink-muted">
+                  {t("Nothing in this slice. Clear the filter or adjust Filters.")}
+                </p>
+              ) : (
                 <KpiMetricList
                   items={drillFiltered}
                   isAdmin={isAdmin}
                   onOpen={setSelectedId}
                 />
-              </TabsContent>
-              <TabsContent value="chart" className="mt-4">
-                <KpiCharts
-                  items={drillFiltered}
-                  categories={scoreByCategory(drillFiltered)}
-                  onSelect={setSelectedId}
-                  simple
-                />
-              </TabsContent>
-              <TabsContent value="table" className="mt-4">
-                <KpiTable
-                  items={tableRows}
-                  search={filters.search}
-                  onSearch={(search) => patchFilters({ search })}
-                  status={filters.status}
-                  onStatus={(status) => patchFilters({ status })}
-                  onOpen={setSelectedId}
-                  showEmployee={!filters.employeeId && isAdmin}
-                />
-              </TabsContent>
-            </Tabs>
-          )}
+              )}
+            </TabsContent>
+            <TabsContent value="insights" className="mt-4 space-y-4">
+              {isAdmin ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-ink-muted">
+                    Fill attendance-like KPI scores from this month&apos;s
+                    clock-ins when missing.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    disabled={actualsBusy}
+                    onClick={() => void pullAttendanceActuals()}
+                  >
+                    {actualsBusy
+                      ? t("Pulling…")
+                      : t("Pull attendance actuals")}
+                  </Button>
+                </div>
+              ) : null}
+              {actualsMsg ? (
+                <p className="text-sm text-ink-muted">{actualsMsg}</p>
+              ) : null}
+              <KpiCharts
+                items={drillFiltered}
+                categories={scoreByCategory(drillFiltered)}
+                onSelect={setSelectedId}
+              />
+              <KpiBenchmarks
+                overall={dashSummary.overallPerformanceScore}
+                benchmarks={benchmarks}
+              />
+            </TabsContent>
+            <TabsContent value="reports" className="mt-4">
+              <PerformanceReportsPanel
+                employees={
+                  employeeSelf && user?.employeeId
+                    ? employees.filter((e) => e.id === user.employeeId)
+                    : employees
+                }
+                isAdmin={isAdmin}
+              />
+            </TabsContent>
+          </Tabs>
         </>
       )}
 
@@ -685,24 +656,20 @@ export function KpiDashboard() {
         }
       />
 
-      {redesign ? (
-        <KpiPersonScorecard
-          person={selectedPerson}
-          open={Boolean(personId)}
-          onOpenChange={(open) => {
-            if (!open) setPersonId(null);
-          }}
-          allItems={allItems}
-          employees={employees}
-          isAdmin={isAdmin}
-          onOpenMetric={(id) => {
-            setSelectedId(id);
-          }}
-          onAcknowledge={
-            !isAdmin ? acknowledgeScores : undefined
-          }
-        />
-      ) : null}
+      <KpiPersonScorecard
+        person={selectedPerson}
+        open={Boolean(personId)}
+        onOpenChange={(open) => {
+          if (!open) setPersonId(null);
+        }}
+        allItems={allItems}
+        employees={employees}
+        isAdmin={isAdmin}
+        onOpenMetric={(id) => {
+          setSelectedId(id);
+        }}
+        onAcknowledge={!isAdmin ? acknowledgeScores : undefined}
+      />
 
       {isAdmin ? (
         <KpiTemplateDialog

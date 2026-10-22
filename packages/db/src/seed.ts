@@ -15,6 +15,7 @@ import {
   sites,
   analyticsMetricDefinitions,
   notifications,
+  shiftInstances,
 } from "./index.js";
 
 const connectionString =
@@ -638,6 +639,70 @@ async function main() {
         },
       ]);
       console.log("Seeded demo alerts for admin@cms.local");
+    }
+  }
+
+  // Store review: Acme Field employee must exercise Always / all-the-time location.
+  const acmeForStore = await db.query.tenants.findFirst({
+    where: eq(tenants.slug, "acme"),
+  });
+  if (acmeForStore) {
+    const storeUser = await db.query.users.findFirst({
+      where: eq(users.email, "employee@acme.local"),
+    });
+    if (storeUser) {
+      const storeEmp = await db.query.employees.findFirst({
+        where: and(
+          eq(employees.userId, storeUser.id),
+          eq(employees.tenantId, acmeForStore.id),
+        ),
+      });
+      if (storeEmp) {
+        if (
+          storeEmp.presenceMode !== "mobile" ||
+          storeEmp.geofenceLat != null ||
+          storeEmp.geofenceLng != null ||
+          storeEmp.geofenceRadiusMeters != null
+        ) {
+          await db
+            .update(employees)
+            .set({
+              presenceMode: "mobile",
+              geofenceLat: null,
+              geofenceLng: null,
+              geofenceRadiusMeters: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(employees.id, storeEmp.id));
+          console.log(
+            "Set employee@acme.local presenceMode=mobile for store review",
+          );
+        }
+
+        const start = new Date();
+        start.setHours(8, 0, 0, 0);
+        const end = new Date();
+        end.setHours(17, 0, 0, 0);
+        const workDate = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+        const existingShift = await db.query.shiftInstances.findFirst({
+          where: and(
+            eq(shiftInstances.tenantId, acmeForStore.id),
+            eq(shiftInstances.employeeId, storeEmp.id),
+            eq(shiftInstances.workDate, workDate),
+          ),
+        });
+        if (!existingShift) {
+          await db.insert(shiftInstances).values({
+            tenantId: acmeForStore.id,
+            employeeId: storeEmp.id,
+            workDate,
+            startAt: start,
+            endAt: end,
+            status: "scheduled",
+          });
+          console.log(`Seeded today's shift for employee@acme.local (${workDate})`);
+        }
+      }
     }
   }
 

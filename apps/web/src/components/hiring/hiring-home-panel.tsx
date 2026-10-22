@@ -1,8 +1,12 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { formatDateTime, formatPercent, sourceLabel, stageLabel } from "@/lib/hiring/format";
+import { Chip, HatchBar, ListRow } from "@/components/elevora";
+import { UserAvatar } from "@/components/user-avatar";
+import {
+  formatDateTime,
+  interviewModeLabel,
+  stageLabel,
+} from "@/lib/hiring/format";
 import type {
   Candidate,
   HiringAlert,
@@ -10,21 +14,42 @@ import type {
   Offer,
   RecruitmentMetricSummary,
 } from "@/lib/hiring/types";
-import { OfferStatusBadge, StageBadge } from "@/components/hiring/hiring-status-badge";
 import { t } from "@/i18n";
+
+const FUNNEL_STAGES: Array<{
+  match: (stage: string) => boolean;
+  label: string;
+}> = [
+  { match: (s) => s === "sourced", label: "Sourced" },
+  {
+    match: (s) => s === "resume_reviewed" || s === "phone_screen",
+    label: "Screened",
+  },
+  { match: (s) => s === "assessment", label: "Assessment" },
+  {
+    match: (s) =>
+      s === "interview_r1" || s === "interview_r2" || s === "final_interview",
+    label: "Interviews",
+  },
+  {
+    match: (s) => s === "offer_extended" || s === "offer_accepted",
+    label: "Offer",
+  },
+  { match: (s) => s === "hired", label: "Hired" },
+];
 
 export function HiringHomePanel({
   summary,
   alerts,
   interviewsToday,
-  pendingOffers,
+  pendingOffers: _pendingOffers,
   stuck,
   onOpenCandidate,
   onOpenInterview,
   onOpenOffer,
   onGoPipeline,
   onGoInterviews,
-  onGoOffers,
+  onGoOffers: _onGoOffers,
 }: {
   summary: RecruitmentMetricSummary;
   alerts: HiringAlert[];
@@ -38,195 +63,188 @@ export function HiringHomePanel({
   onGoInterviews: () => void;
   onGoOffers: () => void;
 }) {
-  const funnelMax = Math.max(1, ...summary.stageCounts.map((s) => s.count));
+  void _pendingOffers;
+  void _onGoOffers;
+
+  const funnel = FUNNEL_STAGES.map((f, i) => {
+    const count = summary.stageCounts
+      .filter((s) => f.match(s.stage))
+      .reduce((acc, s) => acc + s.count, 0);
+    return { ...f, count, index: i };
+  });
+  const funnelMax = Math.max(1, funnel[0]?.count ?? 1, ...funnel.map((f) => f.count));
+  const totalCandidates = summary.stageCounts
+    .filter((s) => s.stage !== "rejected")
+    .reduce((a, s) => a + s.count, 0);
+
+  const urgentRows = buildUrgentRows(alerts, stuck);
 
   return (
-    <div className="grid gap-3 lg:grid-cols-3">
-      <Card className="lg:col-span-2">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <CardTitle className="text-base">{t("Pipeline funnel")}</CardTitle>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t("People in each stage right now. Drag the board to move them.")}</p>
-            </div>
-            <button type="button" className="text-xs text-primary hover:underline" onClick={onGoPipeline}>
-              {t("Open pipeline")}</button>
+    <div className="grid gap-3 lg:grid-cols-12">
+      <section className="rounded-sm border border-line bg-surface p-4 lg:col-span-8">
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <h2 className="text-base font-semibold text-ink">{t("Funnel")}</h2>
+            <p className="text-xs text-ink-muted">
+              {t("All open roles")} · {totalCandidates} {t("candidates")}
+            </p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {summary.stageCounts
-            .filter((s) => s.stage !== "rejected")
-            .map((s) => (
-              <div key={s.stage}>
-                <div className="mb-1 flex items-center justify-between text-sm">
-                  <span className="font-medium">{s.label}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {s.count}
-                    {s.avgDays != null && s.count > 0 ? ` · ${s.avgDays}d avg` : ""}
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className="h-full rounded-full bg-primary transition-[width] duration-300"
-                    style={{ width: `${Math.max(s.count ? 8 : 0, (s.count / funnelMax) * 100)}%` }}
-                  />
-                </div>
+          <button
+            type="button"
+            className="text-xs text-accent-strong hover:underline"
+            onClick={onGoPipeline}
+          >
+            {t("Open pipeline")}
+          </button>
+        </div>
+        <div className="space-y-2">
+          {funnel.map((row) => (
+            <div key={row.label} className="flex items-center gap-3">
+              <span className="w-[5.75rem] shrink-0 text-xs text-ink-muted">
+                {t(row.label)}
+              </span>
+              <div className="min-w-0 flex-1">
+                <HatchBar
+                  size="default"
+                  percent={(row.count / funnelMax) * 100}
+                  tone={row.index > 3 ? "warn" : "accent"}
+                  animate={false}
+                />
               </div>
+              <b className="w-7 shrink-0 text-end text-sm tabular-nums text-ink">
+                {row.count}
+              </b>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="rounded-sm border border-line bg-surface p-4 lg:col-span-4">
+        <h2 className="text-base font-semibold text-ink">{t("Urgent")}</h2>
+        <p className="mb-2 text-xs text-ink-muted">
+          {t("Stuck stages and hire dates")}
+        </p>
+        {urgentRows.length === 0 ? (
+          <p className="py-4 text-sm text-ink-muted">{t("Pipeline looks healthy.")}</p>
+        ) : (
+          <div>
+            {urgentRows.map((row) => (
+              <button
+                key={row.id}
+                type="button"
+                className="block w-full text-left"
+                onClick={row.onClick}
+              >
+                <ListRow
+                  leading={<UserAvatar name={row.title} size="sm" />}
+                  title={row.title}
+                  status={row.statusHint}
+                />
+              </button>
             ))}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("Needs attention")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {alerts.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("Pipeline looks healthy.")}</p>
-          ) : (
-            alerts.slice(0, 6).map((a) => (
-              <button
-                key={a.id}
-                type="button"
-                className="flex w-full flex-col rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent/40"
-                onClick={() => {
-                  if (a.candidateId) onOpenCandidate(a.candidateId);
-                  else if (a.interviewId) onOpenInterview(a.interviewId);
-                  else if (a.offerId) onOpenOffer(a.offerId);
-                }}
-              >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{a.title}</span>
-                  <span
-                    className={
-                      a.severity === "urgent"
-                        ? "text-[10px] font-semibold uppercase text-rose-700"
-                        : a.severity === "warning"
-                          ? "text-[10px] font-semibold uppercase text-amber-800"
-                          : "text-[10px] font-semibold uppercase text-sky-800"
-                    }
-                  >
-                    {a.severity}
-                  </span>
-                </span>
-                <span className="mt-0.5 text-xs text-muted-foreground">{a.detail}</span>
-              </button>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">{t("Today’s interviews")}</CardTitle>
-            <button type="button" className="text-xs text-primary hover:underline" onClick={onGoInterviews}>
-              {t("Calendar")}</button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {interviewsToday.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("Nothing on the calendar today.")}</p>
-          ) : (
-            interviewsToday.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                className="flex w-full flex-col rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent/40"
-                onClick={() => onOpenCandidate(i.candidateId)}
-              >
-                <span className="font-medium">{i.candidateName}</span>
-                <span className="text-xs text-muted-foreground">
-                  {formatDateTime(i.scheduledAt)} · {i.interviewerNames.join(", ")}
-                </span>
-              </button>
-            ))
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </section>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base">{t("Offers in flight")}</CardTitle>
-            <button type="button" className="text-xs text-primary hover:underline" onClick={onGoOffers}>
-              {t("All offers")}</button>
+      <section className="rounded-sm border border-line bg-surface p-4 lg:col-span-12">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-semibold text-ink">{t("Interviews today")}</h2>
+          <button
+            type="button"
+            className="text-xs text-accent-strong hover:underline"
+            onClick={onGoInterviews}
+          >
+            {t("Calendar")}
+          </button>
+        </div>
+        {interviewsToday.length === 0 ? (
+          <p className="py-4 text-sm text-ink-muted">
+            {t("Nothing on the calendar today.")}
+          </p>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[repeat(auto-fill,minmax(240px,1fr))]">
+            {interviewsToday.map((i) => {
+              const time = formatTime(i.scheduledAt);
+              return (
+                <button
+                  key={i.id}
+                  type="button"
+                  onClick={() => onOpenCandidate(i.candidateId)}
+                  className="rounded-[14px] bg-surface-2 p-3.5 text-left transition hover:ring-1 hover:ring-line-strong"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <b className="tabular-nums text-ink">{time}</b>
+                    <Chip tone="info">{interviewModeLabel(i.mode)}</Chip>
+                  </div>
+                  <div className="mt-2 flex items-center gap-2.5">
+                    <UserAvatar name={i.candidateName} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-ink">{i.candidateName}</p>
+                      <p className="truncate text-xs text-ink-muted">
+                        {interviewTypeShort(i.type)} · {i.jobTitle}
+                      </p>
+                    </div>
+                  </div>
+                  {i.interviewerNames.length > 0 ? (
+                    <p className="mt-2 text-2xs text-ink-muted">
+                      {t("with")} {i.interviewerNames.join(", ")}
+                    </p>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {pendingOffers.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No offers waiting.")}</p>
-          ) : (
-            pendingOffers.map((o) => (
-              <button
-                key={o.id}
-                type="button"
-                className="flex w-full flex-col rounded-lg border bg-card px-3 py-2 text-left hover:bg-accent/40"
-                onClick={() => onOpenOffer(o.id)}
-              >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{o.candidateName}</span>
-                  <OfferStatusBadge status={o.status} />
-                </span>
-                <span className="text-xs text-muted-foreground">{o.offeredTitle}</span>
-              </button>
-            ))
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("Source performance")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {summary.sourcePerformance.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No source data yet.")}</p>
-          ) : (
-            summary.sourcePerformance
-              .slice()
-              .sort((a, b) => b.candidates - a.candidates)
-              .map((s) => (
-                <div key={s.source} className="flex items-center justify-between text-sm">
-                  <span>{sourceLabel(s.source)}</span>
-                  <span className="tabular-nums text-muted-foreground">
-                    {s.hired}/{s.candidates} {t("hired ·")}{formatPercent(s.hireRate)}
-                  </span>
-                </div>
-              ))
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="lg:col-span-3">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("Aging in stage")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {stuck.length === 0 ? (
-            <p className="text-sm text-muted-foreground">{t("No one is sitting too long in a stage.")}</p>
-          ) : (
-            <ul className="divide-y">
-              {stuck.slice(0, 8).map((c) => (
-                <li key={c.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-                  <div>
-                    <p className="font-medium">{c.fullName}</p>
-                    <p className="text-xs text-muted-foreground">{c.appliedJobTitle}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <StageBadge stage={c.currentStage} />
-                    <Button size="sm" variant="ghost" onClick={() => onOpenCandidate(c.id)}>
-                      {t("Open")}</Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </section>
     </div>
   );
+
+  function buildUrgentRows(
+    alertList: HiringAlert[],
+    stuckList: Candidate[],
+  ): Array<{
+    id: string;
+    title: string;
+    statusHint: string;
+    onClick: () => void;
+  }> {
+    const fromAlerts = alertList.slice(0, 4).map((a) => ({
+      id: a.id,
+      title: a.title,
+      statusHint: a.detail,
+      onClick: () => {
+        if (a.candidateId) onOpenCandidate(a.candidateId);
+        else if (a.interviewId) onOpenInterview(a.interviewId);
+        else if (a.offerId) onOpenOffer(a.offerId);
+      },
+    }));
+    if (fromAlerts.length > 0) return fromAlerts;
+    return stuckList.slice(0, 4).map((c) => ({
+      id: c.id,
+      title: c.fullName,
+      statusHint: `${stageLabel(c.currentStage)} · stuck`,
+      onClick: () => onOpenCandidate(c.id),
+    }));
+  }
+}
+
+function formatTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return formatDateTime(iso);
+  return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+function interviewTypeShort(type: string) {
+  const map: Record<string, string> = {
+    phone_screen: "Phone screen",
+    assessment_review: "Assessment",
+    technical: "Technical",
+    hiring_manager: "HM interview",
+    panel: "Panel",
+    final: "Final",
+    culture: "Culture",
+  };
+  return map[type] ?? type;
 }
 
 export { stageLabel };

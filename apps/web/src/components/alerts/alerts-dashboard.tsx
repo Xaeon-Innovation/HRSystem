@@ -10,10 +10,16 @@ import {
 } from "lucide-react";
 import { api, getUser, type AuthUser } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import {
+  IconTile,
+  Notice,
+  PageHeader,
+  Segmented,
+  StatBlock,
+} from "@/components/elevora";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Sheet,
   SheetBody,
@@ -125,48 +131,72 @@ export function AlertsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Alerts")}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isAdmin
-            ? t("Inbox for live notices, plus routing for employee, leave, KPI, attendance, payroll, and system events.")
-            : t("Your HR notices, leave updates, deadlines, and anything that needs attention.")}
-        </p>
-      </div>
-      {error ? <p className="text-sm text-destructive">{error}</p> : null}
-      <div className={`grid gap-3 ${isAdmin ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-3"}`}>
+      <PageHeader
+        title={t("Alerts")}
+        subtitle={
+          isAdmin
+            ? t(
+                "Inbox for live notices, plus routing for employee, leave, KPI, attendance, payroll, and system events.",
+              )
+            : t(
+                "Your HR notices, leave updates, deadlines, and anything that needs attention.",
+              )
+        }
+      />
+      {error ? <Notice tone="warn">{error}</Notice> : null}
+      <div
+        className={cn(
+          "grid gap-3",
+          isAdmin ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-1 sm:grid-cols-3",
+        )}
+      >
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <Card
+            <div
               key={card.label}
-              className="overflow-hidden border-primary/10 bg-gradient-to-br from-white to-accent/25"
+              className="rounded-sm border border-line bg-surface px-4 py-3"
             >
-              <CardContent className="py-4">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
-                  <span className="rounded-md bg-card p-1.5 text-primary">
-                    <Icon className="h-3.5 w-3.5" />
-                  </span>
-                </div>
-                <p className="mt-2 text-2xl font-semibold tabular-nums tracking-tight">
-                  {card.value}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">{card.hint}</p>
-              </CardContent>
-            </Card>
+              <div className="flex items-start justify-between gap-2">
+                <StatBlock label={card.label} value={card.value} size="sm" />
+                <IconTile tone="accent">
+                  <Icon className="h-4 w-4" />
+                </IconTile>
+              </div>
+              <p className="mt-2 text-xs text-ink-muted">{card.hint}</p>
+            </div>
           );
         })}
       </div>
 
       {isAdmin ? (
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="inbox">{t("Inbox")}</TabsTrigger>
-            <TabsTrigger value="events">{t("Event alerts")}</TabsTrigger>
-            <TabsTrigger value="custom">{t("Custom")}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="inbox">
+        <div className="space-y-4">
+          <div className="max-w-full overflow-x-auto">
+            <Segmented
+              className="w-max"
+              aria-label={t("Alert sections")}
+              value={tab}
+              onChange={setTab}
+              options={[
+                {
+                  value: "inbox",
+                  label:
+                    unread > 0
+                      ? `${t("Inbox")} (${unread > 99 ? "99+" : unread})`
+                      : t("Inbox"),
+                },
+                { value: "events", label: t("Event alerts") },
+                {
+                  value: "custom",
+                  label:
+                    customRules > 0
+                      ? `${t("Custom")} (${customRules})`
+                      : t("Custom"),
+                },
+              ]}
+            />
+          </div>
+          {tab === "inbox" ? (
             <AlertsInbox
               items={items}
               isAdmin={isAdmin}
@@ -177,15 +207,19 @@ export function AlertsDashboard() {
               onUrgency={setUrgency}
               onUnreadOnly={setUnreadOnly}
               onMarkRead={(id) =>
-                api(`/v1/notifications/${id}/read`, { method: "POST" }).then(loadInbox)
+                api(`/v1/notifications/${id}/read`, { method: "POST" }).then(
+                  loadInbox,
+                )
               }
               onMarkAll={() =>
-                api("/v1/notifications/read-all", { method: "POST" }).then(loadInbox)
+                api("/v1/notifications/read-all", { method: "POST" }).then(
+                  loadInbox,
+                )
               }
               onAnnounce={() => setAnnounceOpen(true)}
             />
-          </TabsContent>
-          <TabsContent value="events">
+          ) : null}
+          {tab === "events" ? (
             <AlertsEventRules
               rules={rules}
               selectedCategory={eventCategory}
@@ -193,8 +227,8 @@ export function AlertsDashboard() {
               onToggle={(rule, enabled) => void patchRule(rule.id, { enabled })}
               onOpen={setEditing}
             />
-          </TabsContent>
-          <TabsContent value="custom">
+          ) : null}
+          {tab === "custom" ? (
             <AlertsCustomBuilder
               rules={rules}
               onToggle={(rule, enabled) => void patchRule(rule.id, { enabled })}
@@ -209,12 +243,14 @@ export function AlertsDashboard() {
                 await patchRule(id, payloadFromDraft(draft));
               }}
               onDelete={async (id) => {
-                await api(`/v1/notifications/rules/${id}`, { method: "DELETE" });
+                await api(`/v1/notifications/rules/${id}`, {
+                  method: "DELETE",
+                });
                 await loadRules();
               }}
             />
-          </TabsContent>
-        </Tabs>
+          ) : null}
+        </div>
       ) : (
         <AlertsInbox
           items={items}
@@ -327,7 +363,7 @@ function AnnounceSheet({
               {t("Sends an in-app notice to everyone in this company.")}</SheetDescription>
           </SheetHeader>
           <SheetBody className="space-y-4">
-            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {error ? <p className="text-sm text-danger">{error}</p> : null}
             <div className="space-y-2">
               <Label htmlFor="announce-title">{t("Title")}</Label>
               <Input

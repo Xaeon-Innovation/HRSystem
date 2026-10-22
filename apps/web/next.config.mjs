@@ -8,7 +8,7 @@ const nextConfig = {
   reactStrictMode: true,
   output: "standalone",
   outputFileTracingRoot: root,
-  transpilePackages: ["@hr/shared", "pdfjs-dist"],
+  transpilePackages: ["@hr/shared", "@hr/i18n", "pdfjs-dist"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

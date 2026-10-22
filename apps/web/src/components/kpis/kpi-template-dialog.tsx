@@ -155,7 +155,7 @@ export function KpiTemplateDialog({
             {t("Assign a job pack or any custom metric to a person. Edit or delete saved metrics here.")}</SheetDescription>
         </SheetHeader>
         <SheetBody className="space-y-6">
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
+          {error ? <p className="text-sm text-danger">{error}</p> : null}
 
           <section className="space-y-2">
             <Label>{t("Person")}</Label>
@@ -171,7 +171,7 @@ export function KpiTemplateDialog({
                 </option>
               ))}
             </select>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-ink-muted">
               {employeeId
                 ? `Assign and unassign apply to ${personName}.`
                 : t("Choose a person to assign. You can still save, edit, or delete a metric without assigning it.")}
@@ -181,7 +181,7 @@ export function KpiTemplateDialog({
           {onPullActuals ? (
             <section className="space-y-2 rounded-md border px-3 py-3">
               <h3 className="text-sm font-semibold">{t("Attendance actuals")}</h3>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-ink-muted">
                 {t("For metrics named like Attendance or On-time, fill this month&apos;s score from clock-ins when missing.")}</p>
               <Button
                 type="button"
@@ -196,7 +196,7 @@ export function KpiTemplateDialog({
 
           <section className="space-y-3">
             <h3 className="text-sm font-semibold">{t("Assign a job pack")}</h3>
-            <p className="text-sm text-muted-foreground">{template.summary}</p>
+            <p className="text-sm text-ink-muted">{template.summary}</p>
             <div className="grid gap-2">
               <Label>{t("Job type")}</Label>
               <select
@@ -211,11 +211,11 @@ export function KpiTemplateDialog({
                 ))}
               </select>
             </div>
-            <ul className="space-y-1 rounded-md border bg-secondary/40 px-3 py-2 text-xs">
+            <ul className="space-y-1 rounded-md border bg-surface-2/40 px-3 py-2 text-xs">
               {template.kpis.map((k) => (
                 <li key={k.key} className="flex justify-between gap-2">
                   <span>{t(k.title)}</span>
-                  <span className="text-muted-foreground">{t("counts")}{k.weight}%</span>
+                  <span className="text-ink-muted">{t("counts")}{k.weight}%</span>
                 </li>
               ))}
             </ul>
@@ -232,7 +232,7 @@ export function KpiTemplateDialog({
             <h3 className="text-sm font-semibold">
               {editing ? `Edit “${editing.name}”` : t("Add a custom metric")}
             </h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-ink-muted">
               {editing
                 ? t("Saving changes updates this metric for everyone who has it.")
                 : t("Your own name and target, not limited to the job packs.")}
@@ -293,7 +293,7 @@ export function KpiTemplateDialog({
 
           <section>
             <h3 className="text-sm font-semibold">{t("Saved metrics")}</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-sm text-ink-muted">
               {t("Assign, edit, or delete any metric.")}</p>
             <ul className="mt-2 space-y-2">
               {definitions.map((k) => {
@@ -304,7 +304,7 @@ export function KpiTemplateDialog({
                     <div className="flex items-start justify-between gap-2">
                       <span>
                         {k.name}
-                        <span className="block text-[11px] text-muted-foreground">
+                        <span className="block text-[11px] text-ink-muted">
                           {t("target")}{k.targetValue ?? "-"} · {k.reviewPeriod}
                           {assigned ? t(" · assigned to this person") : ""}
                         </span>
@@ -353,7 +353,7 @@ export function KpiTemplateDialog({
                 );
               })}
               {definitions.length === 0 ? (
-                <li className="text-sm text-muted-foreground">{t("None yet.")}</li>
+                <li className="text-sm text-ink-muted">{t("None yet.")}</li>
               ) : null}
             </ul>
           </section>

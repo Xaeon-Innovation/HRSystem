@@ -22,7 +22,7 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">{t("Reviews & actions")}</CardTitle>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-ink-muted">
           {t("Appraisal progress, feedback, and the next action to take")}</p>
       </CardHeader>
       <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -30,7 +30,7 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
           {reviews.managerReview ? (
             <>
               <p className="text-sm font-medium">{reviews.managerReview.reviewer}</p>
-              <p className="text-xs text-muted-foreground">{formatDate(reviews.managerReview.date)}</p>
+              <p className="text-xs text-ink-muted">{formatDate(reviews.managerReview.date)}</p>
               <p className="mt-2 text-sm leading-relaxed">{reviews.managerReview.notes}</p>
             </>
           ) : (
@@ -53,13 +53,13 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
         </Block>
         <Block title={t("Appraisal status")}>
           <p className="text-lg font-semibold">{t(APPRAISAL[reviews.appraisalStatus])}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-ink-muted">
             {t("Next review")}{formatDate(reviews.nextReviewDate)}
           </p>
         </Block>
         <Block title={t("Improvement plan")}>
           <p className="text-lg font-semibold">{t(PIP[reviews.pipStatus])}</p>
-          <p className="mt-2 text-xs text-muted-foreground">
+          <p className="mt-2 text-xs text-ink-muted">
             {t("Suggested when overall score is under 70.")}</p>
         </Block>
         <Block title={t("Training recommendations")} className="md:col-span-2 xl:col-span-3">
@@ -74,7 +74,7 @@ export function KpiReviewsPanel({ reviews }: { reviews: ReviewsModel }) {
           )}
         </Block>
         <Block title={t("Goal completion context")}>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-ink-muted">
             {t("Rating trend is visible in the charts above. Use the KPI table to evidence each score before the next review date.")}</p>
           {reviews.managerReview?.rating != null ? (
             <p className="mt-2 text-sm">
@@ -97,8 +97,8 @@ function Block({
   className?: string;
 }) {
   return (
-    <div className={`rounded-lg border bg-secondary/30 p-3 ${className ?? ""}`}>
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className={`rounded-lg border bg-surface-2/30 p-3 ${className ?? ""}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-muted">
         {title}
       </p>
       <div className="mt-2">{children}</div>
@@ -107,5 +107,5 @@ function Block({
 }
 
 function Empty({ text }: { text: string }) {
-  return <p className="text-sm text-muted-foreground">{text}</p>;
+  return <p className="text-sm text-ink-muted">{text}</p>;
 }

@@ -50,8 +50,8 @@ export function KpiFiltersBar({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-xl">
           <h1 className="text-2xl font-semibold tracking-tight">{t("Performance")}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t("Each metric has a")}<span className="font-medium text-foreground">{t("target")}</span>{t(". A manager enters the")}<span className="font-medium text-foreground">{t("result")}</span>{t(". The score is how close that result is to the target.")}</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            {t("Each metric has a")}<span className="font-medium text-ink">{t("target")}</span>{t(". A manager enters the")}<span className="font-medium text-ink">{t("result")}</span>{t(". The score is how close that result is to the target.")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onExport}>
@@ -65,7 +65,7 @@ export function KpiFiltersBar({
       </div>
       ) : null}
 
-      <div className="flex flex-wrap items-end gap-2 rounded-xl border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-2 rounded-sm border border-line bg-surface p-4">
         <FilterField label={isAdmin ? "Whose performance" : "Viewing"}>
           <select
             className={cn(SELECT_CLASS, "min-w-[180px]")}
@@ -113,7 +113,7 @@ export function KpiFiltersBar({
       </div>
 
       {more ? (
-        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-card p-3 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-surface p-3 md:grid-cols-4">
           <FilterField label={t("Job type")}>
             <select
               className={SELECT_CLASS}
@@ -173,7 +173,7 @@ function FilterField({
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-ink-muted">{label}</Label>
       {children}
     </div>
   );

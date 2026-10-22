@@ -22,37 +22,37 @@ export function CandidateResumePanel({
   return (
     <div className="space-y-4">
       {parsed ? (
-        <div className="rounded-lg border bg-secondary/40 p-3 text-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="rounded-lg border bg-surface-2/40 p-3 text-sm">
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
             {t("Parsed fields (")}{parsed.source})
           </p>
           <p className="mt-2">{parsed.summary}</p>
           <dl className="mt-3 grid grid-cols-2 gap-2">
             <div>
-              <dt className="text-xs text-muted-foreground">{t("Name")}</dt>
+              <dt className="text-xs text-ink-muted">{t("Name")}</dt>
               <dd>{parsed.fullName ?? "-"}</dd>
             </div>
             <div>
-              <dt className="text-xs text-muted-foreground">{t("Years")}</dt>
+              <dt className="text-xs text-ink-muted">{t("Years")}</dt>
               <dd>{parsed.yearsOfExperience ?? "-"}</dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-xs text-muted-foreground">{t("Education")}</dt>
+              <dt className="text-xs text-ink-muted">{t("Education")}</dt>
               <dd>{parsed.education ?? "-"}</dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-xs text-muted-foreground">{t("Skills")}</dt>
+              <dt className="text-xs text-ink-muted">{t("Skills")}</dt>
               <dd>{parsed.skills.join(", ") || "-"}</dd>
             </div>
           </dl>
-          <p className="mt-2 text-[11px] text-muted-foreground">
+          <p className="mt-2 text-[11px] text-ink-muted">
             {parsed.source === "extracted"
               ? t("Extracted in the browser. Confirm these fields on the record before you rely on them.")
               : t("Review or type over these fields on the candidate record.")}
           </p>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-ink-muted">
           {t("No resume parsed yet. Upload a PDF or Word file when you add a candidate, or attach a link below.")}</p>
       )}
 
@@ -61,7 +61,7 @@ export function CandidateResumePanel({
           <li key={a.id} className="flex items-center justify-between rounded-lg border px-3 py-2">
             <span>
               <span className="font-medium">{a.name}</span>
-              <span className="text-xs text-muted-foreground"> · {a.kind.replace("_", " ")}</span>
+              <span className="text-xs text-ink-muted"> · {a.kind.replace("_", " ")}</span>
             </span>
             <a href={a.url} className="text-xs text-primary hover:underline">
               {t("Preview")}</a>

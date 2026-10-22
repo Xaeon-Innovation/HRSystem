@@ -2,10 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Inbox, Receipt } from "lucide-react";
 import { api } from "@/lib/api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { t } from "@/i18n";
+import {
+  EmptyState,
+  ListRow,
+  PageHeader,
+  SegmentBar,
+  StatBlock,
+} from "@/components/elevora";
 
 type Overview = {
   tenantsByStatus: Record<string, number>;
@@ -54,153 +62,219 @@ export function PlatformOverview() {
     currency: data.mrrCurrency || "USD",
   });
 
-  const tiles = [
-    { label: t("MRR (est.)"), value: mrr },
-    {
-      label: t("Active tenants"),
-      value: String(data.tenantsByStatus.active ?? 0),
-    },
-    {
-      label: t("Paid subs"),
-      value: String(data.subscriptionsByStatus.active ?? 0),
-    },
-    { label: t("Open trials"), value: String(data.funnel.openTrials) },
-    { label: t("New leads"), value: String(data.funnel.newLeads) },
-    {
-      label: t("Demos (7d)"),
-      value: String(data.funnel.demosLast7Days),
-    },
-  ];
+  const activeTenants = data.tenantsByStatus.active ?? 0;
+  const trialTenants = data.tenantsByStatus.trialing ?? data.funnel.openTrials;
+  const statusSegs = Object.entries(data.tenantsByStatus).map(
+    ([, n], i) => ({
+      value: n,
+      tone: (["accent", "warn", "yellow", "idle", "soft"] as const)[i % 5],
+    }),
+  );
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {t("Platform overview")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Fleet health, revenue estimate, and inbound pipeline")}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {t("Open a workspace to test all product pages.")}
-        </p>
-      </div>
+      <PageHeader
+        title={t("Platform overview")}
+        subtitle={t(
+          "Fleet health, revenue estimate, and inbound pipeline.",
+        )}
+        actions={
+          <>
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href="/app/tenants">{t("Tenants")}</Link>
+            </Button>
+            <Button asChild className="w-full sm:w-auto">
+              <Link href="/app/features">{t("Enter lab")}</Link>
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-        {tiles.map((tile) => (
-          <Card key={tile.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {tile.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-semibold tabular-nums sm:text-3xl">
-                {tile.value}
+      <div className="grid gap-3.5 xl:grid-cols-[minmax(0,1fr)_300px]">
+        <div className="min-w-0 space-y-3.5">
+          <section className="rounded-lg border border-line bg-surface p-5">
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_210px]">
+              <div>
+                <div className="text-stat-lg font-semibold tabular tracking-tight text-ink">
+                  {mrr}
+                </div>
+                <p className="mt-1 text-xs text-ink-muted">
+                  {t("MRR (est.)")} · {t("paid subscriptions")}
+                </p>
+                <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <StatBlock
+                    label={t("Active tenants")}
+                    value={activeTenants}
+                    size="sm"
+                  />
+                  <StatBlock
+                    label={t("Open trials")}
+                    value={data.funnel.openTrials}
+                    size="sm"
+                  />
+                  <StatBlock
+                    label={t("Paid subs")}
+                    value={data.subscriptionsByStatus.active ?? 0}
+                    size="sm"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-row gap-4 overflow-x-auto border-t border-line pt-4 lg:flex-col lg:gap-0 lg:border-s lg:border-t-0 lg:ps-5 lg:pt-0">
+                <div className="min-w-[100px] shrink-0 py-2 lg:border-b lg:border-line lg:py-4">
+                  <div className="text-2xs text-ink-muted">{t("New leads")}</div>
+                  <div className="mt-1 text-stat font-semibold tabular text-ink">
+                    {data.funnel.newLeads}
+                  </div>
+                </div>
+                <div className="min-w-[100px] shrink-0 py-2 lg:border-b lg:border-line lg:py-4">
+                  <div className="text-2xs text-ink-muted">{t("Demos (7d)")}</div>
+                  <div className="mt-1 text-stat font-semibold tabular text-ink">
+                    {data.funnel.demosLast7Days}
+                  </div>
+                </div>
+                <div className="min-w-[100px] shrink-0 py-2 lg:py-4">
+                  <div className="text-2xs text-ink-muted">{t("Demos (30d)")}</div>
+                  <div className="mt-1 text-stat font-semibold tabular text-ink">
+                    {data.funnel.demosLast30Days}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div className="grid gap-3.5 sm:grid-cols-2">
+            <section className="rounded-lg border border-line bg-surface p-5">
+              <h3 className="text-sm font-semibold text-ink">
+                {t("Tenant status")}
+              </h3>
+              <p className="mt-0.5 text-2xs text-ink-muted">
+                {activeTenants} {t("active")} · {trialTenants} {t("trial")}
               </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              {statusSegs.length > 0 ? (
+                <SegmentBar className="mt-4" segments={statusSegs} />
+              ) : (
+                <EmptyState className="py-6" title={t("No tenants yet")} />
+              )}
+              <ul className="mt-3 space-y-1.5 text-xs">
+                {Object.entries(data.tenantsByStatus).map(([status, n]) => (
+                  <li
+                    key={status}
+                    className="flex justify-between gap-2 text-ink-2"
+                  >
+                    <span className="capitalize">{status}</span>
+                    <b className="tabular text-ink">{n}</b>
+                  </li>
+                ))}
+              </ul>
+            </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">{t("Recent leads")}</CardTitle>
-            <Link
-              href="/app/leads"
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              {t("View all")}
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2">
+            <section className="rounded-lg border border-line bg-surface p-5">
+              <h3 className="text-sm font-semibold text-ink">
+                {t("Lead funnel")}
+              </h3>
+              <p className="mt-0.5 text-2xs text-ink-muted">
+                {t("Inbound → demo → paid")}
+              </p>
+              <SegmentBar
+                className="mt-4"
+                segments={[
+                  { value: Math.max(1, data.funnel.newLeads), tone: "warn" },
+                  {
+                    value: Math.max(1, data.funnel.demosLast30Days),
+                    tone: "yellow",
+                  },
+                  {
+                    value: Math.max(1, data.funnel.activePaidTenants),
+                    tone: "accent",
+                  },
+                ]}
+              />
+              <ul className="mt-3 space-y-1.5 text-xs">
+                <li className="flex justify-between">
+                  <span>{t("New leads")}</span>
+                  <b className="tabular">{data.funnel.newLeads}</b>
+                </li>
+                <li className="flex justify-between">
+                  <span>{t("Demos (30d)")}</span>
+                  <b className="tabular">{data.funnel.demosLast30Days}</b>
+                </li>
+                <li className="flex justify-between">
+                  <span>{t("Paid tenants")}</span>
+                  <b className="tabular">{data.funnel.activePaidTenants}</b>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </div>
+
+        <aside className="min-w-0 space-y-3.5">
+          <section className="overflow-hidden rounded-lg border border-line bg-surface">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {t("Recent leads")}
+              </h3>
+              <Link
+                href="/app/leads"
+                className="text-xs font-medium text-accent-strong hover:underline"
+              >
+                {t("View all")}
+              </Link>
+            </div>
             {data.recentLeads.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t("No leads yet.")}</p>
+              <EmptyState
+                icon={<Inbox className="h-5 w-5" />}
+                title={t("No leads yet.")}
+                className="py-8"
+              />
             ) : (
-              data.recentLeads.map((lead) => (
-                <div
-                  key={lead.id}
-                  className="flex flex-col gap-0.5 border-b border-border/60 py-2 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {lead.company}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {lead.name} · {lead.source}
-                    </p>
-                  </div>
-                  <span className="text-xs uppercase text-muted-foreground">
-                    {lead.status}
-                  </span>
-                </div>
-              ))
+              <div>
+                {data.recentLeads.slice(0, 6).map((lead) => (
+                  <ListRow
+                    key={lead.id}
+                    className="px-5"
+                    title={lead.name}
+                    subtitle={`${lead.company} · ${lead.source}`}
+                    value={new Date(lead.createdAt).toLocaleDateString()}
+                    status={lead.status}
+                  />
+                ))}
+              </div>
             )}
-          </CardContent>
-        </Card>
+          </section>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">{t("Recent payments")}</CardTitle>
-            <Link
-              href="/app/payments"
-              className="text-sm text-muted-foreground hover:underline"
-            >
-              {t("View all")}
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2">
+          <section className="overflow-hidden rounded-lg border border-line bg-surface">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <h3 className="text-sm font-semibold text-ink">
+                {t("Recent payments")}
+              </h3>
+              <Link
+                href="/app/payments"
+                className="text-xs font-medium text-accent-strong hover:underline"
+              >
+                {t("View all")}
+              </Link>
+            </div>
             {data.recentPaymentEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t("No payment events yet.")}
-              </p>
+              <EmptyState
+                icon={<Receipt className="h-5 w-5" />}
+                title={t("No payment events yet.")}
+                className="py-8"
+              />
             ) : (
-              data.recentPaymentEvents.map((ev) => (
-                <div
-                  key={ev.id}
-                  className="flex flex-col gap-0.5 border-b border-border/60 py-2 last:border-0 sm:flex-row sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
-                      {ev.triggerType}
-                    </p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {ev.tenant?.name ?? t("Unlinked")} · {ev.provider}
-                    </p>
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {new Date(ev.processedAt).toLocaleDateString()}
-                  </span>
-                </div>
-              ))
+              <div>
+                {data.recentPaymentEvents.slice(0, 6).map((ev) => (
+                  <ListRow
+                    key={ev.id}
+                    className="px-5"
+                    title={ev.tenant?.name ?? t("Unknown tenant")}
+                    subtitle={`${ev.provider} · ${ev.triggerType}`}
+                    value={new Date(ev.processedAt).toLocaleDateString()}
+                  />
+                ))}
+              </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Link
-          href="/app/tenants"
-          className="text-sm text-primary hover:underline"
-        >
-          {t("Manage tenants")}
-        </Link>
-        <Link
-          href="/app/subscriptions"
-          className="text-sm text-primary hover:underline"
-        >
-          {t("Manage subscriptions")}
-        </Link>
-        <Link href="/app/plans" className="text-sm text-primary hover:underline">
-          {t("Edit plans")}
-        </Link>
-        <Link
-          href="/app/features"
-          className="text-sm text-primary hover:underline"
-        >
-          {t("Features")}
-        </Link>
+          </section>
+        </aside>
       </div>
     </div>
   );

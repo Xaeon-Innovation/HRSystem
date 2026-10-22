@@ -7,13 +7,17 @@ import {
   updateSessionUser,
   type AuthUser,
 } from "@/lib/api";
-import { prepareAvatarDataUrl } from "@/lib/avatar-image";
+import { AvatarCropDialog } from "@/components/avatar-crop-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { UserAvatar } from "@/components/user-avatar";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import { LanguageToggle } from "@/components/language-toggle";
-import { Camera } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Notice, PageHeader } from "@/components/elevora";
+import { Crop } from "lucide-react";
 import { t } from "@/i18n";
 
 const MAX_BYTES = 12 * 1024 * 1024;
@@ -32,6 +36,7 @@ export default function ProfilePage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function applyUser(next: AuthUser) {
@@ -39,7 +44,7 @@ export default function ProfilePage() {
     setUser(next);
   }
 
-  async function onFile(e: ChangeEvent<HTMLInputElement>) {
+  function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -48,19 +53,26 @@ export default function ProfilePage() {
       setMessage(null);
       return;
     }
+    setError(null);
+    setMessage(null);
+    setCropFile(file);
+  }
+
+  async function onCropConfirm(imageBase64: string) {
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      const imageBase64 = await prepareAvatarDataUrl(file);
       const res = await api<{ user: AuthUser }>("/v1/auth/me/avatar", {
         method: "POST",
         body: JSON.stringify({ imageBase64 }),
       });
       applyUser(res.user);
+      setCropFile(null);
       setMessage(t("Profile photo updated."));
     } catch (err) {
       setError(err instanceof Error ? err.message : t("Could not upload photo"));
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -88,91 +100,117 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto max-w-xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t("Profile")}</h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Add a photo so teammates can recognize you on the roster and map.")}</p>
-      </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("Your photo")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-            <button
-              type="button"
-              className="group relative rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => inputRef.current?.click()}
-              disabled={busy}
-              aria-label={t("Change profile photo")}
-            >
+    <div className="space-y-6">
+      <PageHeader
+        title={t("Profile")}
+        subtitle={t("Your account and language.")}
+      />
+
+      {message ? <Notice tone="accent">{t(message)}</Notice> : null}
+      {error ? <Notice tone="warn">{t(error)}</Notice> : null}
+
+      <div className="grid gap-3.5 lg:grid-cols-12">
+        <Card className="min-w-0 lg:col-span-7">
+          <CardContent className="space-y-5 pt-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <UserAvatar
                 name={user.name}
                 avatarUrl={user.avatarUrl}
                 size="xl"
               />
-              <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-                <Camera className="h-6 w-6" />
-              </span>
-            </button>
-            <div className="min-w-0 space-y-1">
-              <p className="truncate font-medium">{user.name}</p>
-              <p className="truncate text-sm text-muted-foreground">
-                {user.email}
-              </p>
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                {t(ROLE_LABEL[user.role])}
-              </p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-lg font-semibold text-ink">
+                  {user.name}
+                </p>
+                <p className="truncate text-sm text-ink-muted">
+                  {t(ROLE_LABEL[user.role])} · {user.email}
+                </p>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="w-full sm:w-auto"
+                    disabled={busy}
+                    onClick={() => inputRef.current?.click()}
+                  >
+                    <Crop className="h-3.5 w-3.5" aria-hidden />
+                    {busy
+                      ? t("Saving…")
+                      : t("Upload and crop")}
+                  </Button>
+                  {user.avatarUrl ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="w-full sm:w-auto"
+                      disabled={busy}
+                      onClick={() => void removePhoto()}
+                    >
+                      {t("Remove")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
             </div>
-          </div>
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPT}
-            className="hidden"
-            onChange={(e) => void onFile(e)}
-          />
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={() => inputRef.current?.click()}
-            >
-              {busy ? t("Saving…") : user.avatarUrl ? t("Change photo") : t("Upload photo")}
-            </Button>
-            {user.avatarUrl ? (
-              <Button
-                type="button"
-                variant="outline"
-                disabled={busy}
-                onClick={() => void removePhoto()}
-              >
-                {t("Remove")}</Button>
-            ) : null}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            {t("JPEG, PNG, WebP, or GIF, photos are resized automatically")}</p>
-          {message ? (
-            <p className="text-sm text-teal-800">{t(message)}</p>
-          ) : null}
-          {error ? <p className="text-sm text-destructive">{t(error)}</p> : null}
-        </CardContent>
-      </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t("Language")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Arabic uses the same layout as English, only the words change.",
-            )}
-          </p>
-          <LanguageToggle className="w-full sm:w-auto" />
-        </CardContent>
-      </Card>
+            <input
+              ref={inputRef}
+              type="file"
+              accept={ACCEPT}
+              className="hidden"
+              onChange={onFile}
+            />
+
+            <div className="border-t border-line" />
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>{t("Name")}</Label>
+                <Input value={user.name} disabled readOnly />
+              </div>
+              <div className="space-y-1">
+                <Label>{t("Email")}</Label>
+                <Input
+                  value={user.email}
+                  disabled
+                  readOnly
+                  className="opacity-60"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-ink-muted">
+              {t("JPEG, PNG, WebP, or GIF. Crop after you pick a photo.")}
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="min-w-0 lg:col-span-5">
+          <CardHeader>
+            <CardTitle>{t("Preferences")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t("Language")}</Label>
+              <LanguageToggle className="w-full" />
+            </div>
+            <div className="space-y-2">
+              <Label>{t("Theme")}</Label>
+              <ThemeToggle className="w-full" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <AvatarCropDialog
+        open={Boolean(cropFile)}
+        file={cropFile}
+        busy={busy}
+        onOpenChange={(open) => {
+          if (!open && !busy) setCropFile(null);
+        }}
+        onConfirm={onCropConfirm}
+      />
     </div>
   );
 }
