@@ -1,4 +1,4 @@
-# Elevora Field (`@hr/mobile`)
+# Polara Field (`@hr/mobile`)
 
 Expo (dev client) app. Specs: [`docs/mobile/`](../../docs/mobile/). Prototype: [`design/elevora-mobile-prototype/`](../../design/elevora-mobile-prototype/).
 

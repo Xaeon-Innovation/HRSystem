@@ -134,30 +134,30 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
     if (startTrial) {
       void sendEmail({
         to: admin.email,
-        subject: "Welcome to Elevora, your trial is ready",
+        subject: "Welcome to Polara, your trial is ready",
         text: [
           `Hi ${admin.name},`,
           "",
-          `Your Elevora workspace “${tenant.name}” is ready.`,
+          `Your Polara workspace “${tenant.name}” is ready.`,
           `Organization slug: ${tenant.slug}`,
           `Sign in: ${loginUrl}`,
           "",
           "You are on a 14-day free trial. Upgrade anytime from Billing.",
           "",
-          "Elevora (a Xaeon product)",
+          "Polara (a Xaeon product)",
           SUPPORT_EMAIL,
         ].join("\n"),
         html: `<p>Hi ${admin.name},</p>
-<p>Your Elevora workspace <strong>${tenant.name}</strong> is ready.</p>
+<p>Your Polara workspace <strong>${tenant.name}</strong> is ready.</p>
 <p>Organization slug: <code>${tenant.slug}</code><br/>
-<a href="${loginUrl}">Sign in to Elevora</a></p>
+<a href="${loginUrl}">Sign in to Polara</a></p>
 <p>You are on a 14-day free trial. Upgrade anytime from Billing.</p>
-<p>- Elevora (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
+<p>- Polara (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
       });
 
       void sendEmail({
         to: SUPPORT_EMAIL,
-        subject: `[Elevora] New trial signup: ${tenant.name}`,
+        subject: `[Polara] New trial signup: ${tenant.name}`,
         text: [
           `New self-serve trial`,
           `Org: ${tenant.name}`,
@@ -177,30 +177,30 @@ export const publicRoutes: FastifyPluginAsync = async (app) => {
       const planLabel = planCode ?? "plan";
       void sendEmail({
         to: admin.email,
-        subject: "Welcome to Elevora — complete checkout to activate",
+        subject: "Welcome to Polara — complete checkout to activate",
         text: [
           `Hi ${admin.name},`,
           "",
-          `Your Elevora workspace “${tenant.name}” is ready.`,
+          `Your Polara workspace “${tenant.name}” is ready.`,
           `Organization slug: ${tenant.slug}`,
           `Sign in: ${loginUrl}`,
           "",
           `Complete checkout to activate the ${planLabel} plan. Features unlock after payment confirms.`,
           "",
-          "Elevora (a Xaeon product)",
+          "Polara (a Xaeon product)",
           SUPPORT_EMAIL,
         ].join("\n"),
         html: `<p>Hi ${admin.name},</p>
-<p>Your Elevora workspace <strong>${tenant.name}</strong> is ready.</p>
+<p>Your Polara workspace <strong>${tenant.name}</strong> is ready.</p>
 <p>Organization slug: <code>${tenant.slug}</code><br/>
-<a href="${loginUrl}">Sign in to Elevora</a></p>
+<a href="${loginUrl}">Sign in to Polara</a></p>
 <p>Complete checkout to activate the <strong>${planLabel}</strong> plan. Features unlock after payment confirms.</p>
-<p>- Elevora (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
+<p>- Polara (a Xaeon product)<br/><a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a></p>`,
       });
 
       void sendEmail({
         to: SUPPORT_EMAIL,
-        subject: `[Elevora] New paid signup: ${tenant.name} (${planLabel})`,
+        subject: `[Polara] New paid signup: ${tenant.name} (${planLabel})`,
         text: [
           `New self-serve paid signup`,
           `Org: ${tenant.name}`,
@@ -263,7 +263,7 @@ ${seats != null ? `<li>Seats: ${seats}</li>` : ""}
 
     const sent = await sendEmail({
       to: SUPPORT_EMAIL,
-      subject: `[Elevora] Demo request: ${data.company}`,
+      subject: `[Polara] Demo request: ${data.company}`,
       text: [
         `Demo request`,
         `Name: ${data.name}`,

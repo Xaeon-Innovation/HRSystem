@@ -1,6 +1,6 @@
 # HubSpot CRM connector
 
-No-code pack: **HubSpot CRM** (`hubspot_crm`). Tenants sign in with HubSpot OAuth; Elevora refreshes tokens and maps deals into `canonical_sales_event`.
+No-code pack: **HubSpot CRM** (`hubspot_crm`). Tenants sign in with HubSpot OAuth; Polara refreshes tokens and maps deals into `canonical_sales_event`.
 
 ## Server setup
 

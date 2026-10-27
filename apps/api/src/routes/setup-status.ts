@@ -156,7 +156,7 @@ export const setupStatusRoutes: FastifyPluginAsync = async (app) => {
         (name.length > 0 &&
           name !== tenantName &&
           name !== "HR Track" &&
-          name !== "Elevora");
+          name !== "Polara");
 
       const leaveDone = Boolean(checklist.leaveReviewedAt);
       const alertsDone =

@@ -18,7 +18,7 @@ export function ElevoraMap({
     >
       <Text className="text-[14px] font-semibold text-text">Map preview</Text>
       <Text className="mt-1 text-[12px] text-muted">
-        MapLibre native module ships in the Elevora Field dev build. Center{" "}
+        MapLibre native module ships in the Polara Field dev build. Center{" "}
         {center.lat.toFixed(4)}, {center.lng.toFixed(4)}.
       </Text>
       {zone ? (

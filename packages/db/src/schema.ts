@@ -2591,7 +2591,7 @@ export const leftZoneIncidents = pgTable(
 
 export const mobilePlatformEnum = pgEnum("mobile_platform", ["ios", "android"]);
 
-/** Registered Elevora Field devices (opaque refresh sessions). */
+/** Registered Polara Field devices (opaque refresh sessions). */
 export const mobileDevices = pgTable(
   "mobile_devices",
   {

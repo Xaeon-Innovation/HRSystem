@@ -29,8 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
   setRuntimeLocale(locale);
   return {
     title: {
-      default: "Elevora",
-      template: "%s · Elevora",
+      default: "Polara",
+      template: "%s · Polara",
     },
     description: t(
       "Mobile-first HR, workforce clock-in, KPIs, and live field tracking, a Xaeon product.",
@@ -39,7 +39,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       statusBarStyle: "default",
-      title: "Elevora",
+      title: "Polara",
     },
   };
 }

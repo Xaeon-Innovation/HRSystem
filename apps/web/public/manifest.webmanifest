@@ -1,6 +1,6 @@
 {
-  "name": "Elevora",
-  "short_name": "Elevora",
+  "name": "Polara",
+  "short_name": "Polara",
   "description": "HR, workforce clock-in, and live field tracking, a Xaeon product",
   "start_url": "/app/clock",
   "display": "standalone",

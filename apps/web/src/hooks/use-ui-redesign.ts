@@ -2,7 +2,7 @@
  * Redesign is the only UI. These hooks remain as no-ops for any leftover imports.
  */
 
-/** Always true — Elevora redesign is the only shell. */
+/** Always true — Polara redesign is the only shell. */
 export function useUiRedesign() {
   return true;
 }

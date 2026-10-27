@@ -246,7 +246,7 @@ export default function ProfileScreen() {
         onPress={() => void onSignOut()}
       />
       <Text className="mt-3 text-center text-[11px] text-muted">
-        Elevora · {me?.tenant.name ?? "—"}
+        Polara · {me?.tenant.name ?? "—"}
       </Text>
     </Screen>
   );

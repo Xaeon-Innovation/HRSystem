@@ -16,7 +16,7 @@ const SECTIONS = [
   {
     id: "use",
     title: "Acceptable use",
-    body: "Do not use Elevora to track people outside working hours or without notice.",
+    body: "Do not use Polara to track people outside working hours or without notice.",
   },
   {
     id: "liability",

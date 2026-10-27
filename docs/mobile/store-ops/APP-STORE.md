@@ -4,8 +4,8 @@
 
 | Field | Value |
 | --- | --- |
-| Name | Elevora Field |
-| Subtitle | Field clock-in for Elevora |
+| Name | Polara Field |
+| Subtitle | Field clock-in for Polara |
 | Category | Business |
 | Privacy Policy URL | `https://elevora.xaeons.com/privacy` |
 | Support URL | `https://elevora.xaeons.com` |
@@ -15,11 +15,11 @@
 ## Description (paste)
 
 ```
-Elevora Field is the mobile app for employees on Elevora. Your employer invites you; there is no public self-signup.
+Polara Field is the mobile app for employees on Polara. Your employer invites you; there is no public self-signup.
 
 Clock in and out, manage breaks, see today’s shift, request leave, complete tasks, and keep working offline — events sync when you are back online.
 
-Location is used to confirm you are in your work zone at clock-in and, for mobile field roles, to record your route while you are on shift. Location is not collected when you are clocked out. If you allow Always location, Elevora may update your position while the app is in the background during an active shift only.
+Location is used to confirm you are in your work zone at clock-in and, for mobile field roles, to record your route while you are on shift. Location is not collected when you are clocked out. If you allow Always location, Polara may update your position while the app is in the background during an active shift only.
 
 Continued use of GPS running in the background can dramatically decrease battery life.
 
@@ -35,7 +35,7 @@ hr,attendance,clock,field,workforce,shift,leave,tasks,gps,offline
 ## What’s New (1.0.0)
 
 ```
-First public release of Elevora Field: clock-in, on-shift location for field staff, shifts, leave, tasks, and offline sync.
+First public release of Polara Field: clock-in, on-shift location for field staff, shifts, leave, tasks, and offline sync.
 ```
 
 ---
@@ -96,11 +96,11 @@ Yes.
 ### Notes (paste entire block)
 
 ```
-Elevora Field is a workforce app for employees invited by their employer.
+Polara Field is a workforce app for employees invited by their employer.
 
 ACCOUNT CREATION / DELETION
 • The app does not support self-service account creation.
-• Employers create accounts in the Elevora web admin.
+• Employers create accounts in the Polara web admin.
 • Account or personal-data deletion is requested via the employer’s HR/admin (see Profile → Location & privacy, and https://elevora.xaeons.com/privacy).
 
 DEMO LOGIN

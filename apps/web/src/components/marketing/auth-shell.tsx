@@ -31,16 +31,16 @@ export function MarketingAuthShell({
           <span className="grid h-7 w-7 place-items-center rounded-[8px] bg-ink text-primary-foreground">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
-                d="M5 19V5h12M5 12h9M5 19h14"
+                d="M12 2.5 13.9 10.1 21.5 12 13.9 13.9 12 21.5 10.1 13.9 2.5 12 10.1 10.1Z"
+                fill="currentColor"
                 stroke="currentColor"
-                strokeWidth="2.6"
-                strokeLinecap="round"
+                strokeWidth="1.2"
                 strokeLinejoin="round"
               />
             </svg>
           </span>
           <span className="text-[15px] font-bold tracking-[0.04em] text-ink">
-            ELEVORA
+            POLARA
           </span>
         </Link>
 

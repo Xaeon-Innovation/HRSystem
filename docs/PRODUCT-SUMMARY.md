@@ -1,6 +1,6 @@
-# Elevora product summary
+# Polara product summary
 
-Elevora is a multi-tenant HR and field workforce platform (a Xaeon product). Each **tenant** has its own roster, settings, and subscription. People on that roster are **employees**. Admins can grant an employee a **system module role** (`kpis`, `leaves`, `hiring`, `compensation`, `tasks`) so they can run that module without becoming a full tenant admin.
+Polara is a multi-tenant HR and field workforce platform (a Xaeon product). Each **tenant** has its own roster, settings, and subscription. People on that roster are **employees**. Admins can grant an employee a **system module role** (`kpis`, `leaves`, `hiring`, `compensation`, `tasks`) so they can run that module without becoming a full tenant admin.
 
 Modules are gated by the tenant plan, with optional platform overrides. Marketing **packs** group those modules:
 

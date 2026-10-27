@@ -1,4 +1,4 @@
-# Elevora Field — QA matrix (M10)
+# Polara Field — QA matrix (M10)
 
 Derived from the mobile release plan. Owner: Field mobile. Date: 2026-10-16.
 
@@ -24,7 +24,7 @@ Store review: seed sets that employee to `presenceMode=mobile` + today’s shift
 | Clock | Clock-check geofence | Pass | Outside screen blocks fixed-zone |
 | Clock | Tracking chip on shift | Pass | Stops on clock-out / sign-out |
 | Locations | Batch flush | Pass | API `POST /locations/batch` |
-| Maps | Me map + zoom | Partial | MapLibre web; Elevora styles fall back to demotiles |
+| Maps | Me map + zoom | Partial | MapLibre web; Polara styles fall back to demotiles |
 | Maps | Offline pack download UX | Pass | Metadata store; native OfflineManager deferred |
 | Team | Presence poll fallback | Pass | WS when `/ws` reachable |
 | Shifts | List + detail | Pass | From sync upserts |
@@ -47,7 +47,7 @@ Store review: seed sets that employee to `presenceMode=mobile` + today’s shift
 
 1. **Native MapLibre OfflineManager** — requires `@maplibre/maplibre-react-native` in a custom dev client.
 2. **Sentry DSN** — add when ops provides project keys; do not ship empty SDK.
-3. **Elevora hosted map styles** (`tiles.elevora.app`) — app probes and falls back to MapLibre demotiles.
+3. **Polara hosted map styles** (`tiles.elevora.app`) — app probes and falls back to MapLibre demotiles.
 4. **`mobileAppEnabled` + web download links** — product toggle on tenant admin; not blocking field app use.
 
 ## Regression commands

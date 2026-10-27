@@ -217,7 +217,7 @@ export default function TodayScreen() {
             Enable on-shift location
           </Text>
           <Text className="mt-1 text-[12px] leading-snug text-muted">
-            Allow location all the time so Elevora can track your route while
+            Allow location all the time so Polara can track your route while
             you work. Tap to review and continue.
           </Text>
         </Pressable>

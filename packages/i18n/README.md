@@ -1,6 +1,6 @@
 # `@hr/i18n`
 
-Shared Elevora locale dictionaries.
+Shared Polara locale dictionaries.
 
 | Export | Purpose |
 |---|---|

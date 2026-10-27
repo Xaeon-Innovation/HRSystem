@@ -4,7 +4,7 @@ Prototype screens: `map`, `map-team`, `offline-maps`, `map-select`.
 
 ## MapView
 
-MapLibre with Elevora light/dark style JSON (token colors). Layers:
+MapLibre with Polara light/dark style JSON (token colors). Layers:
 
 - Work zone circle (GeoJSON from employee geofence center + radius); accent fill ~13%, dashed accent-strong stroke.
 - Today’s route from local `location_points`.

@@ -7,7 +7,7 @@ elevora/
   apps/
     api/                 # Fastify — system of record (/v1 + /v1/mobile + /ws)
     web/                 # Next.js PWA (unchanged except additive badges)
-    mobile/              # Expo (dev client) — Elevora Field
+    mobile/              # Expo (dev client) — Polara Field
   packages/
     db/                  # @hr/db — Drizzle/Postgres (existing)
     shared/              # @hr/shared — domain Zod + mobile Me/sync/outbox schemas

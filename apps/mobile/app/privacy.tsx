@@ -20,15 +20,15 @@ const SECTIONS = [
   },
   {
     title: "Background tracking",
-    body: "If you allow background location, Elevora may update your position while the app is not open during an active shift. Android shows a persistent “On shift · tracking location” notification. Background GPS can use more battery.",
+    body: "If you allow background location, Polara may update your position while the app is not open during an active shift. Android shows a persistent “On shift · tracking location” notification. Background GPS can use more battery.",
   },
   {
     title: "Who can see your data",
-    body: "Your employer’s admins and the roles they grant in Elevora. Xaeon accesses tenant data only for support with permission.",
+    body: "Your employer’s admins and the roles they grant in Polara. Xaeon accesses tenant data only for support with permission.",
   },
   {
     title: "Accounts & deletion",
-    body: "Elevora Field does not let you create an account. Your employer invites you. To delete your account or personal data, contact your HR / admin; they can remove you from the workspace. Privacy questions: privacy@xaeons.com.",
+    body: "Polara Field does not let you create an account. Your employer invites you. To delete your account or personal data, contact your HR / admin; they can remove you from the workspace. Privacy questions: privacy@xaeons.com.",
   },
 ] as const;
 

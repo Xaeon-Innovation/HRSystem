@@ -1,4 +1,4 @@
-# Elevora Field — store compliance checklist
+# Polara Field — store compliance checklist
 
 Pre-submit gate for App Store and Google Play. Close every **Blocker** before a public listing. Internal / TestFlight / Play internal testing may proceed with Blockers tracked.
 

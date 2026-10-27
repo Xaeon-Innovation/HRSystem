@@ -1,6 +1,6 @@
 # Data retention & privacy
 
-## Public policy & Elevora Field
+## Public policy & Polara Field
 
 - Customer-facing policy: web `/privacy` (store listing URL, default `https://elevora.app/privacy`).
 - Field app shows an in-app prominent disclosure before Always / “Allow all the time” location, and a Location & privacy screen under Profile. See [`docs/mobile/STORE-COMPLIANCE.md`](./mobile/STORE-COMPLIANCE.md).

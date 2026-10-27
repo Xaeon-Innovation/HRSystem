@@ -367,7 +367,7 @@ async function main() {
   );
   const lab = await ensureTenant(
     "elevora-lab",
-    "Elevora Lab",
+    "Polara Lab",
     "admin@elevora-lab.local",
     "Admin123!",
     { platformLab: true, planCode: "enterprise" },

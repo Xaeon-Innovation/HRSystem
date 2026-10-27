@@ -14,7 +14,7 @@ const profile =
   (process.env.APP_ENV as keyof typeof API_URLS | undefined) ?? "development";
 
 const config: ExpoConfig = {
-  name: "Elevora Field",
+  name: "Polara Field",
   slug: "elevora-field",
   scheme: "elevora",
   version: "1.0.0",
@@ -33,9 +33,9 @@ const config: ExpoConfig = {
     supportsTablet: false,
     infoPlist: {
       NSLocationWhenInUseUsageDescription:
-        "Elevora uses your location to verify clock-in inside your work zone.",
+        "Polara uses your location to verify clock-in inside your work zone.",
       NSLocationAlwaysAndWhenInUseUsageDescription:
-        "Elevora tracks your location only while you are on shift for field operations. Continued use of GPS running in the background can dramatically decrease battery life.",
+        "Polara tracks your location only while you are on shift for field operations. Continued use of GPS running in the background can dramatically decrease battery life.",
       UIBackgroundModes: ["location", "remote-notification"],
       ITSAppUsesNonExemptEncryption: false,
     },

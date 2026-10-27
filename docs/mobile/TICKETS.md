@@ -1,4 +1,4 @@
-# Elevora Field — local ticket board
+# Polara Field — local ticket board
 
 Local-only tracker (no GitHub issues required). Claim by editing **Status** and **Owner** on a ticket. Prefer one ticket per agent session.
 
@@ -42,7 +42,7 @@ Local-only tracker (no GitHub issues required). Claim by editing **Status** and 
 
 ### Prompt
 
-> Read the Elevora monorepo (Fastify `apps/api`, `@hr/db`, `@hr/shared`, web client). Write `/design/MOBILE-AUDIT.md` covering auth, clock/geofence, shifts, leave, tasks, notifications, live map REST+WS, entitlements, schema, file storage, WS auth, and proposed `apps/api/src/services/*` extractions. Do not change code. End with prioritized extractions and a reuse-vs-add gap list for `/v1/mobile`. Follow the adapter note in `/design/ELEVORA-MOBILE-APP-PLAN.md`.
+> Read the Polara monorepo (Fastify `apps/api`, `@hr/db`, `@hr/shared`, web client). Write `/design/MOBILE-AUDIT.md` covering auth, clock/geofence, shifts, leave, tasks, notifications, live map REST+WS, entitlements, schema, file storage, WS auth, and proposed `apps/api/src/services/*` extractions. Do not change code. End with prioritized extractions and a reuse-vs-add gap list for `/v1/mobile`. Follow the adapter note in `/design/ELEVORA-MOBILE-APP-PLAN.md`.
 
 ### Acceptance
 
@@ -287,7 +287,7 @@ Local-only tracker (no GitHub issues required). Claim by editing **Status** and 
 
 ### Prompt
 
-> MapLibre wrapper with Elevora styles and zone/route/you/team layers; Map tab Me/My team; Offline maps list + area picker; auto-download shift zones; live team map WS + poll fallback.
+> MapLibre wrapper with Polara styles and zone/route/you/team layers; Map tab Me/My team; Offline maps list + area picker; auto-download shift zones; live team map WS + poll fallback.
 
 ### Acceptance
 

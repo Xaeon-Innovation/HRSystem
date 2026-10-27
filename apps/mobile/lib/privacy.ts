@@ -21,8 +21,8 @@ export async function clearBgLocationDisclosure(): Promise<void> {
 
 /** Copy used on the prominent disclosure screen (must stay accurate for stores). */
 export const BG_LOCATION_DISCLOSURE = {
-  title: "Allow Elevora to use your location all the time?",
-  lead: "Elevora Field collects location data to verify you are on shift and to support field operations for your employer.",
+  title: "Allow Polara to use your location all the time?",
+  lead: "Polara Field collects location data to verify you are on shift and to support field operations for your employer.",
   bullets: [
     "Location is used only while you are clocked in (on shift).",
     "On Android, a persistent notification (“On shift · tracking location”) stays visible while tracking runs.",

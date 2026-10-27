@@ -1,6 +1,6 @@
-# Elevora Field — mobile agent docs
+# Polara Field — mobile agent docs
 
-Durable specs and a local ticket board for the Elevora Field native app. Prefer these over re-reading the full plan.
+Durable specs and a local ticket board for the Polara Field native app. Prefer these over re-reading the full plan.
 
 ## Start here
 

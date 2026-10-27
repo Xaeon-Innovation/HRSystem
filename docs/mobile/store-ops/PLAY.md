@@ -6,7 +6,7 @@ Use with a production/internal AAB from EAS `production`.
 
 | Field | Value |
 | --- | --- |
-| App name | Elevora Field |
+| App name | Polara Field |
 | Short description | Clock in, stay on zone, and track field shifts for your team. |
 | Full description | See **Full description** below |
 | Privacy policy | `https://elevora.xaeons.com/privacy` |
@@ -17,11 +17,11 @@ Use with a production/internal AAB from EAS `production`.
 ### Full description
 
 ```
-Elevora Field is the mobile companion for Elevora workforce management. Employees invited by their employer can clock in and out, take breaks, view shifts, request leave, complete tasks, and work offline with later sync.
+Polara Field is the mobile companion for Polara workforce management. Employees invited by their employer can clock in and out, take breaks, view shifts, request leave, complete tasks, and work offline with later sync.
 
 Location is used to verify clock-in against a work zone and — for mobile field staff — to record the on-shift route for operations. Location is collected only while you are clocked in. When you allow location all the time, updates may continue while the app is in the background during an active shift; a persistent notification (“On shift · tracking location”) remains visible on Android. Continued use of GPS in the background can dramatically decrease battery life.
 
-Accounts are created by your employer’s admin. Elevora Field does not offer public self-signup.
+Accounts are created by your employer’s admin. Polara Field does not offer public self-signup.
 ```
 
 ---
@@ -86,7 +86,7 @@ https://elevora.xaeons.com/privacy
 | --- | --- |
 | Does the app access location in the background? | **Yes** |
 | Is background location essential to the core purpose? | **Yes** — on-shift field tracking for mobile-presence employees |
-| Core feature description | Elevora Field verifies attendance and records the employee’s route **only while clocked in** for employer field operations. Background location powers continuous updates when the app is not foregrounded during an active shift. Tracking stops on clock-out or sign-out. |
+| Core feature description | Polara Field verifies attendance and records the employee’s route **only while clocked in** for employer field operations. Background location powers continuous updates when the app is not foregrounded during an active shift. Tracking stops on clock-out or sign-out. |
 | Prominent disclosure | In-app screen before the system “Allow all the time” prompt (`/location-disclosure`). Copy states collection while on shift, FGS notification, battery impact, and Continue / Not now. |
 | Video | Upload per [VIDEO-SCRIPT.md](./VIDEO-SCRIPT.md) |
 
@@ -96,7 +96,7 @@ https://elevora.xaeons.com/privacy
 
 ## Content rating (IARC questionnaire)
 
-Elevora Field is a B2B workforce tool. Typical answers:
+Polara Field is a B2B workforce tool. Typical answers:
 
 | Topic | Answer |
 | --- | --- |

@@ -1,4 +1,4 @@
-# Elevora Field — Phase 0 mobile audit
+# Polara Field — Phase 0 mobile audit
 
 Read-only audit of the live monorepo for building `/v1/mobile/*` and `apps/mobile`.  
 Master plan adapter: [`ELEVORA-MOBILE-APP-PLAN.md`](./ELEVORA-MOBILE-APP-PLAN.md).  

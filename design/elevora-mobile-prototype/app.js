@@ -1,4 +1,4 @@
-/* Elevora Field — mobile prototype (vanilla JS) */
+/* Polara Field — mobile prototype (vanilla JS) */
 const S = { theme: 'light', dir: 'ltr', accent: 'lime', role: 'employee', online: true, clock: 'off', view: 'board', screen: 'today', leaveLen: 0, taskSeg: 0, mapMode: 0 };
 
 const I = (n, c = '') => `<i data-lucide="${n}" class="${c}"></i>`;
@@ -65,7 +65,7 @@ const def = (id, group, title, note, fn, opts = {}) => SC[id] = { id, group, tit
 
 /* Onboarding */
 def('splash', 'Sign in', 'Splash', 'Cold start. Restores the session from secure storage, then goes to quick unlock or sign in.', () => `
-  <div class="splash"><div class="logo"><i></i></div><div style="font-size:24px;font-weight:600;letter-spacing:-.02em">Elevora</div><div class="muted" style="font-size:13px">Field workforce, in your pocket</div>
+  <div class="splash"><div class="logo"><i></i></div><div style="font-size:24px;font-weight:600;letter-spacing:-.02em">Polara</div><div class="muted" style="font-size:13px">Field workforce, in your pocket</div>
   <div style="position:absolute;bottom:60px;display:flex;gap:6px;align-items:center;font-size:12px" class="muted">${I('shield-check')} Secured by Xaeon</div></div>`, { noTab: true });
 
 def('workspace', 'Sign in', 'Find your workspace', 'Step 1. The tenant slug resolves the API region, branding (logo and color preset) and which sign-in methods exist.', () => `
@@ -96,7 +96,7 @@ def('unlock', 'Sign in', 'Quick unlock', 'Step 3. Face ID / fingerprint or a 4-d
   <div class="body no-tab center">
     <div class="bio">${I('scan-face')}</div>
     <h1 style="font-size:24px;font-weight:600;letter-spacing:-.02em">Turn on Face ID</h1>
-    <p class="muted mt8" style="font-size:13.5px;line-height:1.5;padding:0 12px">Open Elevora in one glance, even with no signal. Or set a PIN instead.</p>
+    <p class="muted mt8" style="font-size:13.5px;line-height:1.5;padding:0 12px">Open Polara in one glance, even with no signal. Or set a PIN instead.</p>
     <div class="pin">${[1, 1, 0, 0].map(f => `<i class="${f ? 'f' : ''}"></i>`).join('')}</div>
     <div class="keys">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button>${n}</button>`).join('')}<button class="nb">${I('scan-face')}</button><button>0</button><button class="nb">${I('delete', 'flip')}</button></div>
     <button class="btn ink mt16" ${go('perms')}>Use Face ID</button>
@@ -170,7 +170,7 @@ def('verify', 'Today & clock', 'Clock-in check', 'Runs locally first so it works
       <div class="li"><div class="tile sm tint">${I('check')}</div><div class="meta"><b>Location found</b><span>GPS ±8 m · 25.0782, 55.1403</span></div></div>
       <div class="li"><div class="tile sm tint">${I('check')}</div><div class="meta"><b>Inside Marina Hub</b><span>42 m from center · radius 150 m</span></div></div>
       <div class="li"><div class="tile sm tint">${I('check')}</div><div class="meta"><b>Real location</b><span>No mock location detected</span></div></div>
-      <div class="li"><div class="tile sm">${I('loader')}</div><div class="meta"><b>${S.online ? 'Sending to Elevora…' : 'Saved on this phone'}</b><span>${S.online ? 'Server records the official time' : 'Will sync when you are back online'}</span></div></div>
+      <div class="li"><div class="tile sm">${I('loader')}</div><div class="meta"><b>${S.online ? 'Sending to Polara…' : 'Saved on this phone'}</b><span>${S.online ? 'Server records the official time' : 'Will sync when you are back online'}</span></div></div>
     </div>
     <button class="btn ink mt12" data-act="confirmin">Done</button>
   </div>`, { noTab: true });
@@ -314,7 +314,7 @@ def('leave-detail', 'Leave', 'Request detail', 'Read-only timeline. Employee can
       <div class="hr"></div>
       <div class="grid3 center tab"><div><div class="muted" style="font-size:11px">Reserved</div><b>5</b></div><div><div class="muted" style="font-size:11px">Left after</div><b>9.5</b></div><div><div class="muted" style="font-size:11px">Approver</div><b>Ahmed S.</b></div></div></div>
     <div class="card mt12"><div class="card-h"><h3>Timeline</h3></div><div class="tl">
-      <div class="ti"><b>Submitted · Today 09:14</b><span>From Elevora mobile</span></div>
+      <div class="ti"><b>Submitted · Today 09:14</b><span>From Polara mobile</span></div>
       <div class="ti"><b>5 days reserved from balance</b><span>Pending reserve</span></div>
       <div class="ti idle"><b>Waiting for Ahmed Saleh</b><span>Usually replies within a day</span></div></div></div>
     <div class="card mt12"><div class="card-h"><h3>Note</h3></div><p style="font-size:13px;color:var(--text-2);line-height:1.5">Family trip, handover to Sara for JLT deliveries.</p></div>
@@ -411,7 +411,7 @@ def('more', 'Account & sync', 'Profile & more', 'Opened from the avatar. Holds s
       <div class="mi">${I('shield')}<span>Location & privacy</span>${I('chevron-right', 'flip chev')}</div>
     </div>
     <button class="btn soft mt12" style="color:var(--danger)">${I('log-out', 'flip')}Sign out</button>
-    <p class="muted center mt12" style="font-size:11px">Elevora 1.0.0 (42) · Nile Logistics</p>
+    <p class="muted center mt12" style="font-size:11px">Polara 1.0.0 (42) · Nile Logistics</p>
   </div>`, { noTab: true });
 def('team', 'Account & sync', 'Team today (manager)', 'Team today for managers: same data as the web page, filtered to direct reports.', () => `
   <div class="body">${back(t('Team today'), 'more')}
@@ -437,7 +437,7 @@ function phoneHTML(id) {
 
 function renderBoard() {
   const sc = 0.62, W = 390 * sc, H = 844 * sc;
-  return `<div class="page"><div class="page-head"><div><div class="brand"><div class="logo"><i></i></div>Elevora Field · mobile app</div><h1>Every screen, from sign in to the day's work</h1><p>${Object.keys(SC).length} screens for iOS and Android. Built on the web redesign tokens. Click any phone to open it in the interactive view.</p></div><div class="legend-pills">${GROUPS.map(g => `<a href="#g-${g.replace(/\W+/g, '')}">${g}</a>`).join('')}</div></div>
+  return `<div class="page"><div class="page-head"><div><div class="brand"><div class="logo"><i></i></div>Polara Field · mobile app</div><h1>Every screen, from sign in to the day's work</h1><p>${Object.keys(SC).length} screens for iOS and Android. Built on the web redesign tokens. Click any phone to open it in the interactive view.</p></div><div class="legend-pills">${GROUPS.map(g => `<a href="#g-${g.replace(/\W+/g, '')}">${g}</a>`).join('')}</div></div>
   ${GROUPS.map(g => `<section class="flow" id="g-${g.replace(/\W+/g, '')}"><h2>${g}<span>${Object.values(SC).filter(s => s.group === g).length}</span></h2><p>${GDESC[g]}</p><div class="flow-row">${Object.values(SC).filter(s => s.group === g).map(s => `<div class="board-item" data-open="${s.id}"><div style="width:${W}px;height:${H}px"><div class="scaled" style="transform:scale(${sc});width:390px;height:844px">${phoneHTML(s.id)}</div></div><div class="cap">${s.title}<small>${s.note}</small></div></div>`).join('')}</div></section>`).join('')}</div>`;
 }
 

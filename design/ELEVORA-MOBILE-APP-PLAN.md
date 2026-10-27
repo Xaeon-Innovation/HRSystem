@@ -1,6 +1,6 @@
-# Elevora Field mobile app: plan for Cursor
+# Polara Field mobile app: plan for Cursor
 
-Build a native iOS and Android app for Elevora employees and their managers. It covers clock in and out with geofencing, background tracking during shifts, offline maps, shifts, leave and tasks. It stays in sync with the existing Elevora web app (Next.js) and uses the same tenants, users, permissions, plans and data.
+Build a native iOS and Android app for Polara employees and their managers. It covers clock in and out with geofencing, background tracking during shifts, offline maps, shifts, leave and tasks. It stays in sync with the existing Polara web app (Next.js) and uses the same tenants, users, permissions, plans and data.
 
 The visual source of truth is the screen prototype in `/design/elevora-mobile-prototype/` (open `index.html`, then use "All screens" or "Interactive"). It uses the same tokens as the web redesign.
 
@@ -10,7 +10,7 @@ The visual source of truth is the screen prototype in `/design/elevora-mobile-pr
 
 ## Adapter note (this monorepo)
 
-This plan was written against a Next.js-centric layout. **Elevora’s real repo differs — follow this adapter, not the outdated paths below.**
+This plan was written against a Next.js-centric layout. **Polara’s real repo differs — follow this adapter, not the outdated paths below.**
 
 | Plan said | Use instead |
 |---|---|
@@ -27,7 +27,7 @@ Ground rule 2 becomes: **reuse Fastify services**; extract from route handlers i
 
 ## 0. Ground rules (paste at the top of every Cursor session)
 
-> You are building the Elevora Field mobile app and the mobile API it needs. Follow /design/ELEVORA-MOBILE-APP-PLAN.md, the adapter note at the top, and match /design/elevora-mobile-prototype. Prefer docs/mobile/TICKETS.md for the current ticket.
+> You are building the Polara Field mobile app and the mobile API it needs. Follow /design/ELEVORA-MOBILE-APP-PLAN.md, the adapter note at the top, and match /design/elevora-mobile-prototype. Prefer docs/mobile/TICKETS.md for the current ticket.
 > 1. The API (`apps/api`) is the system of record. Never duplicate business rules in the mobile app if the server can decide them. The mobile app may pre-check (geofence, balance) for UX, but the server re-validates everything.
 > 2. Reuse existing Fastify services and data-access functions for `/v1/mobile/*`. Do not fork logic. If logic lives inside a route handler, extract it into `apps/api/src/services/*` first with no behavior change, and have both the existing `/v1` route and the mobile endpoint call it.
 > 3. Every write from the phone is an event with a client-generated UUID, so retries are safe (idempotent).
@@ -139,7 +139,7 @@ The style must use the token colors: land `#F1F0EC` / dark `#141618`, blocks `#E
 
 Cursor prompt, phase 0:
 
-> Read the Elevora web app repo and write `/design/MOBILE-AUDIT.md`. Cover these points:
+> Read the Polara web app repo and write `/design/MOBILE-AUDIT.md`. Cover these points:
 > 1. The auth/session mechanism (library, session storage, how tenant and role are resolved per request).
 > 2. Where business logic lives for: clock events (in/out/break/overtime), geofence checks, shift instances and patterns, break policy, left-zone incidents, leave requests/decisions/balances/ledger, tasks (status, deliverables, activity, batches), notifications, live map locations (REST and WebSocket), presence mode, work zones, map appearance, entitlements (plan modules, overrides, system module roles).
 > 3. The ORM and schema for each of those entities, including timestamps and any version/updatedAt columns.
@@ -312,7 +312,7 @@ Build these to match the prototype exactly (sizes are in `styles.css` of the pro
 - `Button` (ink, accent, line, soft, danger-soft; 50px and 38px sizes), `Segmented`, `Switch`, `TextField` (52px), `TextArea`, `DateRangeCalendar`, `DayStrip`.
 - `Hatch` (SVG pattern), `ProgressTrack` (xs/sm/lg), `SegmentBar`, `ClockRing` (236px, 10px stroke, animated), `ClockButton` (172px circle; in = hatched accent, out = ink, break = hatched warn), `SessionBar`, `Timeline`.
 - `Sheet` (34px radius, scrim, grab handle; use `@gorhom/bottom-sheet`), `Notice` (tones), `OfflineBanner`, `SyncPill`.
-- `MapView` wrapper (MapLibre + Elevora style + zone layer + trail layer + team markers + you marker), `MiniMap` (static, non-interactive).
+- `MapView` wrapper (MapLibre + Polara style + zone layer + trail layer + team markers + you marker), `MiniMap` (static, non-interactive).
 - `EmptyState`, `Skeleton`.
 
 Cursor prompt, phase 3:
@@ -399,7 +399,7 @@ Cursor prompt, phase 6:
 
 ## 10. Phase 7: Maps and offline packs
 
-- `MapView` uses the Elevora style URL (light or dark by theme) and adds these layers:
+- `MapView` uses the Polara style URL (light or dark by theme) and adds these layers:
   - The work zone circle, drawn as a GeoJSON polygon from center + radius.
   - Today's route from local `location_points`.
   - A "you" marker (info blue with a halo).
@@ -414,7 +414,7 @@ Cursor prompt, phase 6:
 
 Cursor prompt, phase 7:
 
-> Implement Phase 7 (section 10): the MapLibre wrapper with Elevora light/dark styles and the zone/route/you/team layers, the Map tab (Me and My team), Offline maps list and area picker using OfflineManager, auto-download for shift zones, and the live team map with WebSocket + polling fallback. Match the prototype screens map, map-team, offline-maps and map-select.
+> Implement Phase 7 (section 10): the MapLibre wrapper with Polara light/dark styles and the zone/route/you/team layers, the Map tab (Me and My team), Offline maps list and area picker using OfflineManager, auto-download for shift zones, and the live team map with WebSocket + polling fallback. Match the prototype screens map, map-team, offline-maps and map-select.
 
 ---
 

@@ -1,4 +1,4 @@
-# Elevora, HR & Field Workforce Platform (a Xaeon product)
+# Polara, HR & Field Workforce Platform (a Xaeon product)
 
 Multi-tenant HR platform: employee management, digital clock in/out, realtime GPS live map, KPIs, notifications, custom system integrations, and workforce analytics.
 

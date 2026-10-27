@@ -36,7 +36,7 @@ export const BRAND_PRESETS: Record<
 
 export const DEFAULT_BRAND: TenantBrand = {
   preset: "neutral",
-  brandingName: "Elevora",
+  brandingName: "Polara",
   logoUrl: null,
 };
 

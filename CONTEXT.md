@@ -1,13 +1,13 @@
-# Elevora
+# Polara
 
 Multi-tenant HR and field workforce platform: clock/GPS presence, performance (KPIs and CMS goals), leave, and tenant administration.
 
-Elevora is a Xaeon product. Support: info@xaeons.com.
+Polara is a Xaeon product. Support: info@xaeons.com.
 
 ## Language
 
 **Tenant**:
-An organization that uses Elevora under its own roster, settings, and subscription.
+An organization that uses Polara under its own roster, settings, and subscription.
 _Avoid_: Company, account, client (when meaning the org)
 
 **Employee**:
@@ -64,7 +64,7 @@ _Avoid_: Time-off ticket, PTO case
 
 **Task**:
 Work assigned by an admin to one or more employees, with optional deliverables, due date, and review.
-_Avoid_: To-do, ticket (when meaning Elevora HR tasks); canonical task event (integration analytics)
+_Avoid_: To-do, ticket (when meaning Polara HR tasks); canonical task event (integration analytics)
 
 **Shared task assignment**:
 One task row with multiple assignees who collaborate and see each other's activity.

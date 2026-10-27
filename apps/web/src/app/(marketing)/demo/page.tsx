@@ -71,7 +71,7 @@ export default function DemoPage() {
             {t("Book a demo")}
           </p>
           <h1 className="mt-2.5 text-[clamp(32px,4vw,40px)] font-semibold leading-[1.05] tracking-[-0.035em] text-ink">
-            {t("See Elevora with your own team in mind.")}
+            {t("See Polara with your own team in mind.")}
           </h1>
           <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-ink-2">
             {t(

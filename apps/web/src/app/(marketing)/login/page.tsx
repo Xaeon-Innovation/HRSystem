@@ -114,7 +114,7 @@ function LoginForm() {
       </form>
 
       <p className="mt-5 text-sm text-ink-muted">
-        {t("New to Elevora?")}{" "}
+        {t("New to Polara?")}{" "}
         <Link href="/signup" className="font-semibold text-ink">
           {t("Start a free trial")}
         </Link>

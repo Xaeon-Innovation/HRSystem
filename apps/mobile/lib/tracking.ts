@@ -141,7 +141,7 @@ async function startNativeContinuous(): Promise<void> {
       pausesUpdatesAutomatically: true,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: "Elevora Field",
+        notificationTitle: "Polara Field",
         notificationBody: "On shift · tracking location",
         notificationColor: "#C8F000",
       },
@@ -347,7 +347,7 @@ export async function upgradeBackgroundTrackingIfPossible(): Promise<void> {
       pausesUpdatesAutomatically: true,
       showsBackgroundLocationIndicator: true,
       foregroundService: {
-        notificationTitle: "Elevora Field",
+        notificationTitle: "Polara Field",
         notificationBody: "On shift · tracking location",
         notificationColor: "#C8F000",
       },

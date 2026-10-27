@@ -6,17 +6,17 @@ const SECTIONS = [
   {
     id: "collect",
     title: "What we collect",
-    body: "Account details, roster data your organization adds, clock events, task and leave attachments, device identifiers for signed-in sessions, and location points while an employee is on shift in Elevora Field.",
+    body: "Account details, roster data your organization adds, clock events, task and leave attachments, device identifiers for signed-in sessions, and location points while an employee is on shift in Polara Field.",
   },
   {
     id: "location",
     title: "How location works",
-    body: "When In Use: Elevora checks GPS at clock-in against the employee’s work zone. Always / all-the-time (Elevora Field): for mobile-presence field staff only, location may update while the app is in the background during an active shift. Tracking stops on clock-out or sign-out. Fixed-zone employees are checked against their geofence at clock-in.",
+    body: "When In Use: Polara checks GPS at clock-in against the employee’s work zone. Always / all-the-time (Polara Field): for mobile-presence field staff only, location may update while the app is in the background during an active shift. Tracking stops on clock-out or sign-out. Fixed-zone employees are checked against their geofence at clock-in.",
   },
   {
     id: "background",
-    title: "Background location (Elevora Field)",
-    body: "If the employee grants background location, Elevora Field may collect precise location even when the app is not open — only while clocked in. Android shows a persistent notification (“On shift · tracking location”). Continued use of GPS in the background can dramatically decrease battery life. Employees see an in-app disclosure before the system permission prompt.",
+    title: "Background location (Polara Field)",
+    body: "If the employee grants background location, Polara Field may collect precise location even when the app is not open — only while clocked in. Android shows a persistent notification (“On shift · tracking location”). Continued use of GPS in the background can dramatically decrease battery life. Employees see an in-app disclosure before the system permission prompt.",
   },
   {
     id: "access",
@@ -26,7 +26,7 @@ const SECTIONS = [
   {
     id: "accounts",
     title: "Accounts and deletion",
-    body: "Elevora Field does not offer self-service account creation; employers invite employees. To delete an account or personal data, contact your organization’s HR or admin, or email privacy@xaeons.com. Tenant deletion follows the retention process below.",
+    body: "Polara Field does not offer self-service account creation; employers invite employees. To delete an account or personal data, contact your organization’s HR or admin, or email privacy@xaeons.com. Tenant deletion follows the retention process below.",
   },
   {
     id: "retention",

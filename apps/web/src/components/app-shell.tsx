@@ -683,7 +683,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  const productName = brand.brandingName || "Elevora";
+  const productName = brand.brandingName || "Polara";
   const showUpsell = hasLockedModule(user);
 
   const brandHeader = (

@@ -121,7 +121,7 @@ Revisit P1 choice (Salesforce vs Zoho) based on current pipeline / ICP before bu
 **What:** Either:
 
 - Documented **inbound webhook** + field mapping template for Zapier, and/or  
-- Official Zapier app: triggers/actions that write into Elevora webhooks.
+- Official Zapier app: triggers/actions that write into Polara webhooks.
 
 **Marketing line:** “Native connectors for CMS Goals and HubSpot, plus thousands of apps via Zapier.”
 

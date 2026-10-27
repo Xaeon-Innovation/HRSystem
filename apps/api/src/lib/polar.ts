@@ -212,7 +212,7 @@ export async function createPolarCustomerPortalSession(
   });
 }
 
-/** Map Polar subscription status → Elevora subscription_status. */
+/** Map Polar subscription status → Polara subscription_status. */
 export function mapPolarStatus(
   status: string,
 ): "trialing" | "active" | "past_due" | "canceled" | "expired" {

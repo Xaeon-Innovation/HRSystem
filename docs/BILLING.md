@@ -1,8 +1,8 @@
 # Billing (Polar)
 
-Elevora sells multi-tenant subscriptions via **[Polar](https://polar.sh)** (Checkout Sessions + seat-based products). Paymob columns remain in the database for legacy rows but are **not** used on the live checkout path.
+Polara sells multi-tenant subscriptions via **[Polar](https://polar.sh)** (Checkout Sessions + seat-based products). Paymob columns remain in the database for legacy rows but are **not** used on the live checkout path.
 
-Polar’s native “seats” are Polar team members who claim benefits. Elevora seats are **active employees**. We use Polar only as the **billed quantity** (`subscription.seats` → `purchased_seats` → employee cap). We do **not** assign employees as Polar members or grant Polar benefits.
+Polar’s native “seats” are Polar team members who claim benefits. Polara seats are **active employees**. We use Polar only as the **billed quantity** (`subscription.seats` → `purchased_seats` → employee cap). We do **not** assign employees as Polar members or grant Polar benefits.
 
 ## Prerequisites (Polar dashboard)
 
@@ -38,7 +38,7 @@ Without `POLAR_ACCESS_TOKEN`, the plan catalog and trials still work; checkout r
 
 Created via **Sync all to Polar** (`POST /v1/plans/sync-polar`) or per-plan `syncPolar: true`:
 
-- **Field / People:** fixed monthly price only. Elevora `seat_limit` stays 25.
+- **Field / People:** fixed monthly price only. Polara `seat_limit` stays 25.
 - **Ops / Scale:** fixed floor **plus** graduated seat-based price:
   - Ops: seats 25–50 @ $0, 51–100 @ $6
   - Scale: seats 100–150 @ $0, 151–250 @ $4.50
@@ -73,7 +73,7 @@ Numeric limits: `pingIntervalSec`, `locationRetentionDays`, `trialDays`.
 Each module has `draft` | `lab` | `ga` in `platform_modules` (edit under `/app/features`):
 
 - `draft` — hidden from tenants
-- `lab` — only Elevora Lab tenant (and Unlock-all workspace)
+- `lab` — only Polara Lab tenant (and Unlock-all workspace)
 - `ga` — normal plan/override resolution
 
 ### Effective features (plan + tenant overrides + launch)
@@ -123,7 +123,7 @@ Platform admin first opens `/app/plans` → **Sync all to Polar** (stores `polar
 4. `POST /v1/billing/checkout` creates a Polar session only — it does **not** change `planId` before payment.
 5. Polar webhooks (`subscription.active` / updates) write `planId`, `purchased_seats`, and status. That is the only path that unlocks paid packs.
 6. Seat changes: `POST /v1/billing/seats` → Polar `subscriptions.update` with proration; cannot go below active employee count.
-7. Cancel at period end via Elevora or Polar Customer Portal (`POST /v1/billing/portal`).
+7. Cancel at period end via Polara or Polar Customer Portal (`POST /v1/billing/portal`).
 8. `subscription.revoked` suspends the tenant.
 
 Platform admin can still provision tenants with a trial via `POST /v1/tenants`.
@@ -142,7 +142,7 @@ Super admins can cancel or force-activate subscriptions under `/app/subscription
 
 ## Catalog price changes
 
-Edit amounts under `/app/plans` (or `PATCH /v1/plans/:id`). With `syncPolar: true` (or **Sync all (update prices)**), Elevora creates missing Polar products or calls Polar `products.update` so **new** checkouts see the new price. Existing Polar subscribers stay on grandfathered prices unless migrated in Polar.
+Edit amounts under `/app/plans` (or `PATCH /v1/plans/:id`). With `syncPolar: true` (or **Sync all (update prices)**), Polara creates missing Polar products or calls Polar `products.update` so **new** checkouts see the new price. Existing Polar subscribers stay on grandfathered prices unless migrated in Polar.
 
 ## Smoke checklist
 

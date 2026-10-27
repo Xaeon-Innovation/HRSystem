@@ -160,7 +160,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (superOnly && resolved.role !== "super_admin") {
       return reply.code(403).send({
         error:
-          "Access is limited to platform administrators while Elevora is in test mode",
+          "Access is limited to platform administrators while Polara is in test mode",
       });
     }
 

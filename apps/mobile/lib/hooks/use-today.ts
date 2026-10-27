@@ -47,6 +47,10 @@ async function maybeScheduleOvertimeFromShifts(): Promise<void> {
   }
 }
 
+const REFRESH_COOLDOWN_MS = 5_000;
+let refreshInFlight: Promise<void> | null = null;
+let lastRefreshAt = 0;
+
 export function useToday() {
   const setMe = useSession((s) => s.setMe);
   const sessionMe = useSession((s) => s.me);
@@ -60,8 +64,11 @@ export function useToday() {
   const zoneStatus = useTodayStore((s) => s.zoneStatus);
   const needsBgDisclosure = useTodayStore((s) => s.needsBgDisclosure);
 
+  // Reads the session from the store rather than closing over `sessionMe`:
+  // refresh() calls setMe(), and a dependency on sessionMe would recreate
+  // refresh and re-run the mount effect in an endless fetch loop.
   const syncTracking = useCallback(
-    async (state: ClockState, me = sessionMe) => {
+    async (state: ClockState, me = useSession.getState().me) => {
       if (!me) return;
       if (state === "off") {
         await stopTracking();
@@ -75,10 +82,22 @@ export function useToday() {
       });
       await maybeScheduleOvertimeFromShifts();
     },
-    [sessionMe],
+    [],
   );
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (opts?: { force?: boolean }) => {
+    // Screens kept alive by the router re-run their mount effects when shown
+    // again, so automatic refreshes share one request and back off briefly.
+    if (refreshInFlight) return refreshInFlight;
+    if (!opts?.force && Date.now() - lastRefreshAt < REFRESH_COOLDOWN_MS) return;
+    refreshInFlight = runRefresh().finally(() => {
+      lastRefreshAt = Date.now();
+      refreshInFlight = null;
+    });
+    return refreshInFlight;
+  }, [setMe, syncTracking]);
+
+  const runRefresh = async () => {
     useTodayStore.getState().setLoading(true);
     useTodayStore.getState().setError(null);
     try {
@@ -124,7 +143,7 @@ export function useToday() {
     } finally {
       useTodayStore.getState().setLoading(false);
     }
-  }, [setMe, syncTracking]);
+  };
 
   useEffect(() => {
     void refresh();
@@ -150,7 +169,7 @@ export function useToday() {
         if (cycle.error) throw new Error(cycle.error);
         // Bust web pull cache so the new attendance row is visible immediately.
         await pullSync({ force: true });
-        await refresh();
+        await refresh({ force: true });
         return true;
       } catch (e) {
         useTodayStore
@@ -175,7 +194,7 @@ export function useToday() {
     trackingActive,
     zoneStatus,
     needsBgDisclosure,
-    refresh,
+    refresh: () => refresh({ force: true }),
     queueClockIn: () => pushClockEvent("clock.in"),
     queueClockOut: () => pushClockEvent("clock.out"),
     queueBreakStart: () => pushClockEvent("break.start"),

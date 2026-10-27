@@ -1,5 +1,5 @@
 /**
- * Shared Elevora i18n dictionaries.
+ * Shared Polara i18n dictionaries.
  *
  * Web today uses English source strings as keys (`t("Clock in")`) with an
  * Arabic lookup table. Mobile adds a structured `app.*` namespace below.

@@ -59,6 +59,10 @@ export function MarketingHero() {
           </span>
         </h1>
 
+        <p className="mx-auto mt-4 max-w-[30rem] text-[15px] font-medium leading-snug text-ink-2 sm:text-[17px]">
+          {t("The guiding star for your people: direction, alignment, and growth.")}
+        </p>
+
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
           {REPLACED.map((label) => (
             <span
@@ -72,7 +76,7 @@ export function MarketingHero() {
 
         <p className="mx-auto mt-4 max-w-[34rem] text-[15px] leading-relaxed text-ink-2 sm:text-base">
           {t(
-            "Still juggling spreadsheets, WhatsApp groups and paper timesheets? Elevora replaces all of them: clock-in, live maps, shifts, tasks, leave, KPIs, hiring and payroll.",
+            "Still juggling spreadsheets, WhatsApp groups and paper timesheets? Polara replaces all of them: clock-in, live maps, shifts, tasks, leave, KPIs, hiring and payroll.",
           )}
         </p>
 

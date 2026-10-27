@@ -9,14 +9,14 @@
 
 1. Fresh install or clear app data so onboarding / disclosure appears.
 2. API reachable (staging or production). Seeded `acme` employee with `presenceMode = mobile` (see [REVIEWER-DEMO.md](./REVIEWER-DEMO.md)).
-3. Location permission reset: Settings → Apps → Elevora Field → Permissions → Location → Don’t allow (so prompts appear on camera).
+3. Location permission reset: Settings → Apps → Polara Field → Permissions → Location → Don’t allow (so prompts appear on camera).
 4. Enable “Show taps” in Developer options (optional, helps reviewers).
 
 ## Shot list (record continuously)
 
 | Time | Action | Must be visible |
 | ---: | --- | --- |
-| 0:00 | Launch Elevora Field | App icon / splash |
+| 0:00 | Launch Polara Field | App icon / splash |
 | 0:05 | Workspace `acme` → Continue | Slug field |
 | 0:10 | Sign in `employee@acme.local` / `Employee123!` | Sign-in screen |
 | 0:18 | Permissions → **Continue** | Onboarding permissions |

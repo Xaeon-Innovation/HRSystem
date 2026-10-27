@@ -1,4 +1,4 @@
-# Elevora Field — simulator testing (M6)
+# Polara Field — simulator testing (M6)
 
 ## Prerequisites
 
@@ -51,7 +51,7 @@ For a quick outside test, set Custom Location ~200 m beyond `zones[0].radiusMete
 
 ## Maps (M7)
 
-1. Open the **Map** tab — Me shows work zone + you marker (web uses MapLibre; demotiles fallback if Elevora styles are unreachable)
+1. Open the **Map** tab — Me shows work zone + you marker (web uses MapLibre; demotiles fallback if Polara styles are unreachable)
 2. **My team** polls `/v1/mobile/team/presence` every 30s (WebSocket preferred when `/ws` is reachable)
 3. **Offline maps** → Download work zone or pick a custom area; packs persist in SecureStore metadata (native OfflineManager when linked)
 

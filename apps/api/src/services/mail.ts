@@ -20,7 +20,7 @@ export async function sendEmail(
     const resendKey = process.env.RESEND_API_KEY?.trim();
     if (resendKey) {
       const from =
-        process.env.EMAIL_FROM?.trim() || "Elevora <onboarding@resend.dev>";
+        process.env.EMAIL_FROM?.trim() || "Polara <onboarding@resend.dev>";
       const res = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {

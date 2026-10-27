@@ -180,7 +180,7 @@ describe("public plans / signup / demo", () => {
         name: "Demo Person",
         company: "Demo Co",
         email: "demo@example.com",
-        message: "Interested in Elevora",
+        message: "Interested in Polara",
       },
     });
     expect(res.statusCode).toBe(200);
